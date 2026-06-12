@@ -23,6 +23,7 @@ public final class Config {
     public static final ModConfigSpec.IntValue CAPTURE_TIME_SECONDS;
     public static final ModConfigSpec.BooleanValue CAPTURE_ENABLED;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> TEAMS;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> TEAM_JOIN_COMMANDS;
     public static final ModConfigSpec.BooleanValue FRONTLINE_ENABLED;
     public static final ModConfigSpec.BooleanValue FRONTLINE_HUD_ENABLED;
     public static final ModConfigSpec.BooleanValue FRONTLINE_MANUAL_ACTIVE;
@@ -89,6 +90,15 @@ public final class Config {
                 "team1",
                 "team2"
         ), o -> o instanceof String s && !s.isBlank());
+
+        TEAM_JOIN_COMMANDS = b.comment(
+                "Команды, выполняемые при выборе игроком этой фракции (например телепорт на базу).",
+                "Формат записи: \"<teamId> <команда>\". Первый токен — id команды, остальное — сама команда.",
+                "Можно несколько записей на одну команду — выполнятся по порядку.",
+                "Выполняются от лица игрока с правами оператора: @s и ~ ~ ~ указывают на игрока.",
+                "Кросс-дим телепорт: \"team1 /execute in pjmbasemod:base run tp @s 0 80 0\".",
+                "Слэш в начале не обязателен. Пример: \"team1 /tp @s 100 64 200\"."
+        ).defineListAllowEmpty("joinCommands", List.of(), o -> o instanceof String s && !s.isBlank());
         b.pop();
 
         b.push("region");
@@ -243,6 +253,35 @@ public final class Config {
             teams.add(new ConfiguredTeam("team2"));
         }
         return List.copyOf(teams);
+    }
+
+    /**
+     * Команды, выполняемые при выборе указанной фракции, в порядке объявления в конфиге.
+     * teamId сравнивается без учёта регистра. Возвращает пустой список, если ничего не настроено.
+     */
+    public static List<String> getTeamJoinCommands(String teamId) {
+        if (teamId == null || teamId.isBlank()) return List.of();
+        String target = teamId.trim().toLowerCase(Locale.ROOT);
+        List<String> commands = new ArrayList<>();
+        for (String raw : TEAM_JOIN_COMMANDS.get()) {
+            if (raw == null) continue;
+            String line = raw.trim();
+            if (line.isBlank()) continue;
+            int split = indexOfWhitespace(line);
+            if (split <= 0) continue;
+            String id = line.substring(0, split).trim().toLowerCase(Locale.ROOT);
+            String command = line.substring(split + 1).trim();
+            if (command.isBlank() || !id.equals(target)) continue;
+            commands.add(command);
+        }
+        return List.copyOf(commands);
+    }
+
+    private static int indexOfWhitespace(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            if (Character.isWhitespace(value.charAt(i))) return i;
+        }
+        return -1;
     }
 
     public static String getTeam1Name() { return getFrontlineTeams().getFirst().id(); }

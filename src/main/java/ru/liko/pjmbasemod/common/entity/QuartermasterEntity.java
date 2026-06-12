@@ -11,6 +11,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -23,9 +25,12 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * NPC-кладовщик. Гуманоид без ИИ, рендерится ванильной player-моделью со скином из
+ * NPC-кладовщик. Гуманоид, рендерится ванильной player-моделью со скином из
  * {@code textures/skins/}. Хранит привязку к именованному складу и настройки доступа/выдачи.
  * ПКМ ящиком — сдача поставки, ПКМ без ящика — открытие GUI склада.
+ *
+ * <p>ИИ ограничен «живым» idle на месте: смотрит на ближайших игроков и оглядывается.
+ * Скорость передвижения 0 и отсутствие целей на ходьбу гарантируют, что NPC не сходит с поста.
  */
 public class QuartermasterEntity extends Mob {
 
@@ -47,9 +52,15 @@ public class QuartermasterEntity extends Mob {
     public QuartermasterEntity(EntityType<? extends Mob> type, Level level) {
         super(type, level);
         this.setPersistenceRequired();
-        this.setNoAi(true);
         this.setInvulnerable(true);
         this.setSilent(true);
+    }
+
+    @Override
+    protected void registerGoals() {
+        // Только «живой» idle на месте: целей на ходьбу нет, NPC не сходит с поста.
+        this.goalSelector.addGoal(1, new LookAtPlayerGoal(this, Player.class, 8.0F));
+        this.goalSelector.addGoal(2, new RandomLookAroundGoal(this));
     }
 
     public static AttributeSupplier.Builder createAttributes() {

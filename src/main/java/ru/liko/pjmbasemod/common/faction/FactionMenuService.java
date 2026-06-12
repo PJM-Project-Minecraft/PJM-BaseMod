@@ -94,6 +94,7 @@ public final class FactionMenuService {
         player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.selection.complete",
                 FrontlineTeams.displayName(server, team), Component.translatable(role.translationKey())), true);
         LobbyService.returnToOverworld(player);
+        FactionJoinActions.run(player, team);
     }
 
     public static boolean openManagement(ServerPlayer actor) {
