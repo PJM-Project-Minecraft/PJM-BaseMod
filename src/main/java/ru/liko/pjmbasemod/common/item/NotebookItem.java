@@ -9,15 +9,20 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import ru.liko.pjmbasemod.common.entity.NotebookEntity;
+import ru.liko.pjmbasemod.common.garage.GarageType;
 import ru.liko.pjmbasemod.common.init.PjmEntities;
 
 /**
  * Предмет, размещающий терминал-«ноутбук» ({@link NotebookEntity}) на блоке.
+ * Тип ({@link GarageType}) определяет, какой гараж открывает терминал (наземка/авиация).
  */
 public class NotebookItem extends Item {
 
-    public NotebookItem(Properties properties) {
+    private final GarageType garageType;
+
+    public NotebookItem(Properties properties, GarageType garageType) {
         super(properties);
+        this.garageType = garageType == null ? GarageType.GROUND : garageType;
     }
 
     @Override
@@ -51,6 +56,7 @@ public class NotebookItem extends Item {
         if (player != null) {
             entity.setOwner(player.getUUID());
         }
+        entity.setGarageType(garageType);
         level.addFreshEntity(entity);
 
         ItemStack stack = context.getItemInHand();

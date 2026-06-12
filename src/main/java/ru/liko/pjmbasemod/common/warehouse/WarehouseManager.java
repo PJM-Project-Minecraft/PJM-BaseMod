@@ -14,6 +14,7 @@ import ru.liko.pjmbasemod.common.item.SupplyCrateItem;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.OpenWarehousePacket;
 import ru.liko.pjmbasemod.common.network.packet.WarehouseSyncPacket;
+import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.role.RoleService;
 
 import java.util.ArrayList;
@@ -79,6 +80,10 @@ public final class WarehouseManager {
         }
         if (!RoleService.hasAllowedRole(player, def.allowedRoles())) {
             player.displayClientMessage(RoleService.requiredRoleMessage(def.allowedRoles()), true);
+            return;
+        }
+        if (!RankService.meetsMinRank(player, def.minRank())) {
+            player.displayClientMessage(RankService.requiredRankMessage(def.minRank()), true);
             return;
         }
 
@@ -292,10 +297,12 @@ public final class WarehouseManager {
             boolean affordable = available >= def.pointCost();
             int inInventory = countInInventory(player, def);
             boolean roleAllowed = RoleService.hasAllowedRole(player, def.allowedRoles());
+            boolean rankAllowed = RankService.meetsMinRank(player, def.minRank());
+            String requiredRankName = RankService.rankDisplayName(def.minRank());
             items.add(new WarehouseSnapshot.ItemEntry(def.id(), def.displayName(), def.itemIdString(),
                     def.displayCategory(), def.pool(), def.pointCost(), def.maxPerWithdraw(),
                     def.refundValue(), inInventory, available, affordable,
-                    roleAllowed, def.allowedRoles()));
+                    roleAllowed, def.allowedRoles(), rankAllowed, requiredRankName));
         }
 
         boolean canWithdraw = WarehousePermissions.can(player, WarehousePermissions.WITHDRAW);

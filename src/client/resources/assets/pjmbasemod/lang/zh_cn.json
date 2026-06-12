@@ -150,6 +150,8 @@
   "gui.pjmbasemod.rank.locked_short": "军衔",
   "gui.pjmbasemod.garage.type.ground": "地面载具",
   "gui.pjmbasemod.garage.type.aviation": "航空",
+  "gui.pjmbasemod.garage.wrong_garage_type": "该载具属于其他车库：%s",
+  "gui.pjmbasemod.garage.store_select_title": "选择要入库的载具",
   "gui.pjmbasemod.role.target_missing": "未找到角色目标",
   "gui.pjmbasemod.role.target_too_far": "玩家距离太远，无法分配角色",
   "gui.pjmbasemod.role.target_no_team": "玩家不在已配置阵营中",

@@ -150,6 +150,8 @@
   "gui.pjmbasemod.rank.locked_short": "Ранг",
   "gui.pjmbasemod.garage.type.ground": "Наземная техника",
   "gui.pjmbasemod.garage.type.aviation": "Авиация",
+  "gui.pjmbasemod.garage.wrong_garage_type": "Эта техника относится к другому гаражу: %s",
+  "gui.pjmbasemod.garage.store_select_title": "Выберите технику для возврата",
   "gui.pjmbasemod.role.target_missing": "Игрок для назначения роли не найден",
   "gui.pjmbasemod.role.target_too_far": "Игрок слишком далеко для назначения роли",
   "gui.pjmbasemod.role.target_no_team": "Игрок не состоит в настроенной фракции",

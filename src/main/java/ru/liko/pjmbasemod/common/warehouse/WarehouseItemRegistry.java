@@ -181,11 +181,14 @@ public final class WarehouseItemRegistry {
     public boolean isEmpty() { return definitions.isEmpty(); }
 
     private List<WarehouseItemDefinition> exampleDefinitions() {
+        // Пример ограничения по рангу: СВД доступна только начиная с ранга «сержант» и выше.
+        WarehouseItemDefinition svdm = new WarehouseItemDefinition("svdm", "СВДМ", "superbwarfare:svd",
+                WarehousePoolCategory.WEAPON, "weapon", 3, 4, List.of("sniper", "marksman"));
+        svdm.setMinRank("sergeant");
         return List.of(
                 new WarehouseItemDefinition("ak74m", "АК-74М", "superbwarfare:ak_47",
                         WarehousePoolCategory.WEAPON, "weapon", 1, 8, List.of("assault", "sso")),
-                new WarehouseItemDefinition("svdm", "СВДМ", "superbwarfare:svd",
-                        WarehousePoolCategory.WEAPON, "weapon", 3, 4, List.of("sniper", "marksman")),
+                svdm,
                 new WarehouseItemDefinition("pistol", "Пистолет", "superbwarfare:glock_17",
                         WarehousePoolCategory.WEAPON, "weapon", 1, 8),
                 new WarehouseItemDefinition("ammo_545", "Патроны 5.45", "superbwarfare:rifle_ammo",

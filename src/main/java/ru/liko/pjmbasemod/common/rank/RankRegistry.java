@@ -62,6 +62,17 @@ public final class RankRegistry {
         }
     }
 
+    /** Находит ранг по его id (без учёта регистра); {@code null}, если такого ранга нет. */
+    @Nullable
+    public RankDefinition byId(String id) {
+        if (id == null || id.isBlank()) return null;
+        String needle = id.trim().toLowerCase(java.util.Locale.ROOT);
+        for (RankDefinition rank : config().ranks()) {
+            if (rank.id().equals(needle)) return rank;
+        }
+        return null;
+    }
+
     public RankDefinition rankForXp(int xp) {
         List<RankDefinition> ranks = config().ranks();
         RankDefinition current = ranks.getFirst();

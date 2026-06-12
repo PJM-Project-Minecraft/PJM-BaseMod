@@ -10,6 +10,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
+import ru.liko.pjmbasemod.common.garage.GarageType;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animation.AnimatableManager;
@@ -33,6 +34,9 @@ public class NotebookEntity extends Entity implements GeoEntity {
     @Nullable
     private UUID ownerId;
 
+    /** Тип гаража, который открывает этот терминал (наземка/авиация). */
+    private GarageType garageType = GarageType.GROUND;
+
     public NotebookEntity(EntityType<?> type, Level level) {
         super(type, level);
         this.noPhysics = false;
@@ -46,6 +50,14 @@ public class NotebookEntity extends Entity implements GeoEntity {
     @Nullable
     public UUID getOwnerId() {
         return ownerId;
+    }
+
+    public void setGarageType(GarageType garageType) {
+        this.garageType = garageType == null ? GarageType.GROUND : garageType;
+    }
+
+    public GarageType getGarageType() {
+        return garageType == null ? GarageType.GROUND : garageType;
     }
 
     @Override
@@ -70,12 +82,14 @@ public class NotebookEntity extends Entity implements GeoEntity {
             this.setYRot(yaw);
             this.yRotO = yaw;
         }
+        this.garageType = GarageType.fromString(tag.getString("GarageType"));
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         if (ownerId != null) tag.putUUID("Owner", ownerId);
         tag.putFloat("FacingYaw", this.getYRot());
+        tag.putString("GarageType", getGarageType().id());
     }
 
     @Override

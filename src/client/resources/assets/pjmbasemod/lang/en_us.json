@@ -150,6 +150,8 @@
   "gui.pjmbasemod.rank.locked_short": "Rank",
   "gui.pjmbasemod.garage.type.ground": "Ground Vehicles",
   "gui.pjmbasemod.garage.type.aviation": "Aviation",
+  "gui.pjmbasemod.garage.wrong_garage_type": "This vehicle belongs to a different garage: %s",
+  "gui.pjmbasemod.garage.store_select_title": "Select a vehicle to store",
   "gui.pjmbasemod.role.target_missing": "Role target not found",
   "gui.pjmbasemod.role.target_too_far": "Player is too far away to assign a role",
   "gui.pjmbasemod.role.target_no_team": "Player is not in a configured faction",

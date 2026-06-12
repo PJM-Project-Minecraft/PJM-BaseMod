@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-PJM BaseMod (`pjmbasemod`, group `ru.liko`) — тактический PvP-мод для **Minecraft 1.21.1 / NeoForge 21.1.172 / Java 21**. Базовый код-нейм `WRB-BaseMod`. Основной язык общения и комментариев — русский.
+Ты Senior разработчик, PJM BaseMod (`pjmbasemod`, group `ru.liko`) — тактический PvP-мод для **Minecraft 1.21.1 / NeoForge 21.1.172 / Java 21**. Базовый код-нейм `WRB-BaseMod`. Основной язык общения и комментариев — русский.
 
 ## Build & verify commands
 
@@ -90,3 +90,7 @@ Brigadier-дерево в `common/command/PjmCommands` (корень `/pjm`) и 
 - Команды/состояние нередко проводятся через scoreboard (см. память проекта).
 - `SoundEvents` в моде = собственный `SoundEvent` (не ванильный класс).
 - Новые подсистемы делать по шаблону существующих (garage / warehouse): регистр + менеджер + SavedData + пакеты + клиентский экран.
+
+## Git и контроль версий
+
+- После каждой успешной итерации ты предлагаешь закомитить изменения

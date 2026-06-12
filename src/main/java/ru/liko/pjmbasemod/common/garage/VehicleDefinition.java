@@ -35,6 +35,10 @@ public final class VehicleDefinition {
     /** Список ролей, которым доступна техника; пусто или null — доступно всем. */
     private List<String> allowedRoles;
     private transient boolean invalidAllowedRoles;
+    /** Минимальный ранг (id), начиная с которого техника доступна; пусто/null — без ограничения по рангу. */
+    private String minRank;
+    /** Тип гаража: "ground" (наземка) или "aviation" (авиация). Пусто/неизвестно — наземка. */
+    private String garageType;
 
     public VehicleDefinition() {
         // для Gson
@@ -87,6 +91,31 @@ public final class VehicleDefinition {
         return invalidAllowedRoles;
     }
 
+    /** Минимальный требуемый ранг (id) или "" если ограничения нет. */
+    public String minRank() {
+        return minRank == null ? "" : minRank;
+    }
+
+    public boolean rankRestricted() {
+        return minRank != null && !minRank.isBlank();
+    }
+
+    /**
+     * Тип гаража, к которому относится техника.
+     * Если поле {@code garageType} не задано в конфиге — определяется автоматически по типу сущности
+     * (авиация SuperbWarfare → {@link GarageType#AVIATION}, иначе наземка).
+     */
+    public GarageType garageType() {
+        if (garageType != null && !garageType.isBlank()) {
+            return GarageType.fromString(garageType);
+        }
+        return ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.classify(entityTypeId());
+    }
+
+    public void setMinRank(String minRank) { this.minRank = minRank; }
+
+    public void setGarageType(String garageType) { this.garageType = garageType; }
+
     @Nullable
     public ResourceLocation entityTypeId() {
         return ResourceLocation.tryParse(entityTypeString());
@@ -114,6 +143,25 @@ public final class VehicleDefinition {
         } else {
             allowedRoles = List.of();
             invalidAllowedRoles = false;
+        }
+        if (minRank != null && !minRank.isBlank()) {
+            String rankId = minRank.trim().toLowerCase(java.util.Locale.ROOT);
+            if (ru.liko.pjmbasemod.common.rank.RankRegistry.get().byId(rankId) == null) {
+                ru.liko.pjmbasemod.Pjmbasemod.LOGGER.warn(
+                        "Garage: техника '{}' ссылается на неизвестный minRank '{}', ограничение по рангу снято.",
+                        id(), minRank);
+                minRank = null;
+            } else {
+                minRank = rankId;
+            }
+        } else {
+            minRank = null;
+        }
+        // Канонизируем тип гаража только если он задан явно; пустой — оставляем для авто-классификации.
+        if (garageType != null && !garageType.isBlank()) {
+            garageType = GarageType.fromString(garageType).id();
+        } else {
+            garageType = null;
         }
     }
 }

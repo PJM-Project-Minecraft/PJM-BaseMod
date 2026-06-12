@@ -56,7 +56,31 @@ public class GarageScreen extends Screen {
     @Nullable
     private Entity cachedPreviewEntity;
 
+    // Меню выбора техники для возврата в гараж (оверлей поверх экрана).
+    @Nullable
+    private java.util.List<ru.liko.pjmbasemod.common.network.packet.StoreOptionsPacket.Option> storeOptions;
+    private int storeScroll;
+    private static final int STORE_MENU_WIDTH = 240;
+    private static final int STORE_ROW_HEIGHT = 22;
+    private static final int STORE_MENU_HEADER = 24;
+    private static final int STORE_MENU_VISIBLE_ROWS = 8;
+
     private record PreviewTarget(String key, String displayName, String entityType, CompoundTag entityNbt) {}
+
+    /** Открывает оверлей-меню выбора техники для возврата в гараж. */
+    public void showStoreOptions(java.util.List<ru.liko.pjmbasemod.common.network.packet.StoreOptionsPacket.Option> options) {
+        this.storeOptions = options;
+        this.storeScroll = 0;
+    }
+
+    private boolean storeMenuOpen() {
+        return storeOptions != null && !storeOptions.isEmpty();
+    }
+
+    private void closeStoreMenu() {
+        storeOptions = null;
+        storeScroll = 0;
+    }
 
     public GarageScreen(GarageSnapshot snapshot) {
         super(Component.translatable("gui.pjmbasemod.garage.title"));
@@ -111,6 +135,13 @@ public class GarageScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (storeMenuOpen()) {
+            if (scrollY != 0) {
+                int max = Math.max(0, storeOptions.size() - storeMenuRows());
+                storeScroll = Math.max(0, Math.min(max, storeScroll - (int) Math.signum(scrollY)));
+            }
+            return true;
+        }
         if (scrollY != 0) {
             scroll -= (int) Math.signum(scrollY);
             clampScroll();
@@ -120,8 +151,23 @@ public class GarageScreen extends Screen {
     }
 
     @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // Esc при открытом меню выбора — закрывает только меню, не весь экран.
+        if (storeMenuOpen() && keyCode == 256) {
+            PjmUiSounds.playClick();
+            closeStoreMenu();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+
+        if (storeMenuOpen()) {
+            return handleStoreMenuClick(mouseX, mouseY);
+        }
 
         int left = guiLeft();
         int top = guiTop();
@@ -182,7 +228,8 @@ public class GarageScreen extends Screen {
                         boolean buttonHovered = mouseX >= buttonX && mouseX <= buttonX + buttonWidth
                                 && mouseY >= buttonY && mouseY <= buttonY + ROW_ACTION_HEIGHT;
 
-                        if (snapshot.canCraft() && def.affordable() && def.roleAllowed() && buttonHovered) {
+                        if (snapshot.canCraft() && def.affordable() && def.roleAllowed()
+                                && def.rankAllowed() && buttonHovered) {
                             PjmUiSounds.playClick();
                             PjmNetworking.sendToServer(new CraftVehiclePacket(def.id()));
                         }
@@ -202,10 +249,10 @@ public class GarageScreen extends Screen {
                                 && mouseY >= buttonY && mouseY <= buttonY + ROW_ACTION_HEIGHT;
                         boolean recycleHovered = mouseX >= recycleX && mouseX <= recycleX + ROW_RECYCLE_WIDTH
                                 && mouseY >= buttonY && mouseY <= buttonY + ROW_ACTION_HEIGHT;
-                        if (snapshot.canSpawn() && inst.roleAllowed() && spawnHovered) {
+                        if (snapshot.canSpawn() && inst.roleAllowed() && inst.rankAllowed() && spawnHovered) {
                             PjmUiSounds.playClick();
                             PjmNetworking.sendToServer(new SpawnVehiclePacket(inst.instanceId()));
-                        } else if (snapshot.canStore() && inst.roleAllowed() && recycleHovered) {
+                        } else if (snapshot.canStore() && inst.roleAllowed() && inst.rankAllowed() && recycleHovered) {
                             PjmUiSounds.playClick();
                             PjmNetworking.sendToServer(new RecycleVehiclePacket(inst.instanceId()));
                         }
@@ -292,7 +339,8 @@ public class GarageScreen extends Screen {
             } else {
                 for (int i = scroll; i < defs.size() && i < scroll + rows; i++) {
                     GarageSnapshot.DefEntry def = defs.get(i);
-                    boolean canCraft = snapshot.canCraft() && def.affordable() && def.roleAllowed();
+                    boolean canCraft = snapshot.canCraft() && def.affordable()
+                            && def.roleAllowed() && def.rankAllowed();
                     drawRowCraft(graphics, def, canCraft, contentLeft, y, contentWidth, mouseX, mouseY);
                     y += ROW_HEIGHT;
                 }
@@ -304,8 +352,9 @@ public class GarageScreen extends Screen {
             } else {
                 for (int i = scroll; i < instances.size() && i < scroll + rows; i++) {
                     GarageSnapshot.InstanceEntry inst = instances.get(i);
-                    drawRowGarage(graphics, inst, snapshot.canSpawn() && inst.roleAllowed(),
-                            snapshot.canStore() && inst.roleAllowed(), contentLeft, y, contentWidth, mouseX, mouseY);
+                    boolean usable = inst.roleAllowed() && inst.rankAllowed();
+                    drawRowGarage(graphics, inst, snapshot.canSpawn() && usable,
+                            snapshot.canStore() && usable, contentLeft, y, contentWidth, mouseX, mouseY);
                     y += ROW_HEIGHT;
                 }
             }
@@ -324,6 +373,98 @@ public class GarageScreen extends Screen {
             int thumbY = scrollYStart + (scrollHeight - thumbHeight) * scroll / maxScroll;
             graphics.fill(scrollX, thumbY, scrollX + 3, thumbY + thumbHeight, 0xFF35506E);
         }
+
+        if (storeMenuOpen()) {
+            renderStoreMenu(graphics, mouseX, mouseY);
+        }
+    }
+
+    private int storeMenuRows() {
+        return storeOptions == null ? 0 : Math.min(STORE_MENU_VISIBLE_ROWS, storeOptions.size());
+    }
+
+    private int storeMenuLeft() { return (width - STORE_MENU_WIDTH) / 2; }
+
+    private int storeMenuHeight() {
+        return STORE_MENU_HEADER + storeMenuRows() * STORE_ROW_HEIGHT + 6;
+    }
+
+    private int storeMenuTop() { return (height - storeMenuHeight()) / 2; }
+
+    private void renderStoreMenu(GuiGraphics graphics, int mouseX, int mouseY) {
+        // Затемняем фон под меню
+        graphics.fill(0, 0, width, height, 0xB0000000);
+
+        int left = storeMenuLeft();
+        int top = storeMenuTop();
+        int w = STORE_MENU_WIDTH;
+        int h = storeMenuHeight();
+
+        graphics.fill(left, top, left + w, top + h, 0xF21B1B22);
+        graphics.fill(left - 1, top - 1, left + w + 1, top, 0xFF353540);
+        graphics.fill(left - 1, top + h, left + w + 1, top + h + 1, 0xFF353540);
+        graphics.fill(left - 1, top, left, top + h, 0xFF353540);
+        graphics.fill(left + w, top, left + w + 1, top + h, 0xFF353540);
+
+        // Заголовок
+        graphics.fill(left, top, left + w, top + STORE_MENU_HEADER, 0xFF1F1F26);
+        graphics.drawString(font, Component.translatable("gui.pjmbasemod.garage.store_select_title"),
+                left + 8, top + 8, 0xFFE8E8E8, false);
+        boolean hoverClose = mouseX >= left + w - 22 && mouseX <= left + w && mouseY >= top && mouseY <= top + STORE_MENU_HEADER;
+        graphics.drawString(font, "✕", left + w - 16, top + 8, hoverClose ? 0xFFD06060 : 0xFFB05050, false);
+
+        int rows = storeMenuRows();
+        int y = top + STORE_MENU_HEADER + 3;
+        for (int i = storeScroll; i < storeOptions.size() && i < storeScroll + rows; i++) {
+            var option = storeOptions.get(i);
+            boolean hovered = mouseX >= left + 4 && mouseX <= left + w - 4
+                    && mouseY >= y && mouseY <= y + STORE_ROW_HEIGHT - 2;
+            graphics.fill(left + 4, y, left + w - 4, y + STORE_ROW_HEIGHT - 2, hovered ? 0xFF35506E : 0xFF26262E);
+            String name = ellipsize(option.displayName(), w - 16);
+            graphics.drawString(font, name, left + 10, y + 6, 0xFFFFFFFF, false);
+            y += STORE_ROW_HEIGHT;
+        }
+
+        // Индикатор прокрутки
+        if (storeOptions.size() > rows) {
+            String more = "▾ " + storeOptions.size();
+            graphics.drawString(font, more, left + w - 4 - font.width(more), top + h - 10, 0xFF8890A0, false);
+        }
+    }
+
+    private boolean handleStoreMenuClick(double mouseX, double mouseY) {
+        int left = storeMenuLeft();
+        int top = storeMenuTop();
+        int w = STORE_MENU_WIDTH;
+        int h = storeMenuHeight();
+
+        // Кнопка закрытия
+        if (mouseX >= left + w - 22 && mouseX <= left + w && mouseY >= top && mouseY <= top + STORE_MENU_HEADER) {
+            PjmUiSounds.playClick();
+            closeStoreMenu();
+            return true;
+        }
+
+        int rows = storeMenuRows();
+        int y = top + STORE_MENU_HEADER + 3;
+        for (int i = storeScroll; i < storeOptions.size() && i < storeScroll + rows; i++) {
+            if (mouseX >= left + 4 && mouseX <= left + w - 4 && mouseY >= y && mouseY <= y + STORE_ROW_HEIGHT - 2) {
+                var option = storeOptions.get(i);
+                PjmUiSounds.playClick();
+                PjmNetworking.sendToServer(
+                        new ru.liko.pjmbasemod.common.network.packet.StoreSelectedPacket(option.entityId()));
+                closeStoreMenu();
+                return true;
+            }
+            y += STORE_ROW_HEIGHT;
+        }
+
+        // Клик вне меню — закрыть
+        if (mouseX < left || mouseX > left + w || mouseY < top || mouseY > top + h) {
+            PjmUiSounds.playClick();
+            closeStoreMenu();
+        }
+        return true;
     }
 
     private void drawTab(GuiGraphics graphics, int tabIndex, String text, int x, int y, int mouseX, int mouseY) {
@@ -341,13 +482,15 @@ public class GarageScreen extends Screen {
         boolean isHovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + ROW_HEIGHT - 4;
 
         boolean roleLocked = !def.roleAllowed();
-        int bgColor = roleLocked ? 0xFF1D1D22 : (isHovered ? 0xFF2A2A33 : 0xFF222229);
+        boolean rankLocked = def.roleAllowed() && !def.rankAllowed();
+        boolean locked = roleLocked || rankLocked;
+        int bgColor = locked ? 0xFF1D1D22 : (isHovered ? 0xFF2A2A33 : 0xFF222229);
         graphics.fill(x, y, x + width, y + ROW_HEIGHT - 4, bgColor);
 
         int buttonWidth = 110;
         int nameWidth = Math.max(20, width - buttonWidth - 80); // leave some space for time
         String name = ellipsize(def.displayName(), nameWidth);
-        graphics.drawString(font, name, x + 12, y + 6, roleLocked ? 0xFF9A9A9A : 0xFFFFFFFF, true);
+        graphics.drawString(font, name, x + 12, y + 6, locked ? 0xFF9A9A9A : 0xFFFFFFFF, true);
         
         if (def.assemblyTime() > 0) {
             int t = def.assemblyTime();
@@ -359,10 +502,11 @@ public class GarageScreen extends Screen {
         
         int costX = x + 12;
         int costY = y + 20;
-        if (roleLocked) {
+        if (locked) {
             graphics.blit(LOCK_TEXTURE, costX, costY - 1, 0, 0, 10, 10, 16, 16);
-            String required = Component.translatable("gui.pjmbasemod.role.required",
-                    roleNames(def.allowedRoles())).getString();
+            String required = roleLocked
+                    ? Component.translatable("gui.pjmbasemod.role.required", roleNames(def.allowedRoles())).getString()
+                    : Component.translatable("gui.pjmbasemod.rank.required", def.requiredRankName()).getString();
             graphics.drawString(font, ellipsize(required, Math.max(20, width - buttonWidth - 42)),
                     costX + 14, costY, 0xFFD8B15F, false);
         } else {
@@ -384,6 +528,8 @@ public class GarageScreen extends Screen {
         
         String status = roleLocked
                 ? Component.translatable("gui.pjmbasemod.role.locked_short").getString().trim()
+                : rankLocked
+                ? Component.translatable("gui.pjmbasemod.rank.locked_short").getString().trim()
                 : canCraft ? Component.translatable("gui.pjmbasemod.garage.craft_action").getString().trim() : Component.translatable("gui.pjmbasemod.garage.craft_disabled").getString().trim();
         if (status.equals("gui.pjmbasemod.garage.craft_action")) {
             status = "Собрать";
@@ -404,7 +550,9 @@ public class GarageScreen extends Screen {
         boolean isHovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + ROW_HEIGHT - 4;
 
         boolean roleLocked = !inst.roleAllowed();
-        int bgColor = roleLocked ? 0xFF1D1D22 : (isHovered ? 0xFF2A2A33 : 0xFF222229);
+        boolean rankLocked = inst.roleAllowed() && !inst.rankAllowed();
+        boolean locked = roleLocked || rankLocked;
+        int bgColor = locked ? 0xFF1D1D22 : (isHovered ? 0xFF2A2A33 : 0xFF222229);
         graphics.fill(x, y, x + width, y + ROW_HEIGHT - 4, bgColor);
 
         int recycleX = x + width - ROW_RECYCLE_WIDTH - 8;
@@ -412,11 +560,12 @@ public class GarageScreen extends Screen {
         int buttonY = y + (ROW_HEIGHT - 4 - ROW_ACTION_HEIGHT) / 2;
         int nameWidth = Math.max(20, spawnX - x - 20);
         graphics.drawString(font, ellipsize(inst.displayName(), nameWidth), x + 12, y + 8,
-                roleLocked ? 0xFF9A9A9A : 0xFFFFFFFF, true);
-        if (roleLocked) {
+                locked ? 0xFF9A9A9A : 0xFFFFFFFF, true);
+        if (locked) {
             graphics.blit(LOCK_TEXTURE, x + 12, y + 24, 0, 0, 10, 10, 16, 16);
-            String required = Component.translatable("gui.pjmbasemod.role.required",
-                    roleNames(inst.allowedRoles())).getString();
+            String required = roleLocked
+                    ? Component.translatable("gui.pjmbasemod.role.required", roleNames(inst.allowedRoles())).getString()
+                    : Component.translatable("gui.pjmbasemod.rank.required", inst.requiredRankName()).getString();
             graphics.drawString(font, ellipsize(required, Math.max(20, spawnX - x - 34)),
                     x + 26, y + 25, 0xFFD8B15F, false);
         }
@@ -425,6 +574,8 @@ public class GarageScreen extends Screen {
                 && mouseY >= buttonY && mouseY <= buttonY + ROW_ACTION_HEIGHT;
         String spawnStatus = roleLocked
                 ? Component.translatable("gui.pjmbasemod.role.locked_short").getString()
+                : rankLocked
+                ? Component.translatable("gui.pjmbasemod.rank.locked_short").getString()
                 : canSpawn
                 ? Component.translatable("gui.pjmbasemod.garage.spawn_action").getString()
                 : Component.translatable("gui.pjmbasemod.garage.spawn_disabled").getString();
@@ -435,6 +586,8 @@ public class GarageScreen extends Screen {
                 && mouseY >= buttonY && mouseY <= buttonY + ROW_ACTION_HEIGHT;
         String recycleStatus = roleLocked
                 ? Component.translatable("gui.pjmbasemod.role.locked_short").getString()
+                : rankLocked
+                ? Component.translatable("gui.pjmbasemod.rank.locked_short").getString()
                 : canRecycle
                 ? Component.translatable("gui.pjmbasemod.garage.recycle_action").getString()
                 : Component.translatable("gui.pjmbasemod.garage.recycle_disabled").getString();

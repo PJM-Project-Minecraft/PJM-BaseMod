@@ -8,6 +8,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.garage.GarageType;
 import ru.liko.pjmbasemod.common.item.NotebookItem;
 import ru.liko.pjmbasemod.common.item.SupplyCrateItem;
 
@@ -18,8 +19,12 @@ public final class PjmItems {
     private static final DeferredRegister<CreativeModeTab> TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Pjmbasemod.MODID);
 
+    // Ноутбук-терминал наземного гаража.
     public static final DeferredHolder<Item, Item> NOTEBOOK =
-            ITEMS.register("notebook", () -> new NotebookItem(new Item.Properties().stacksTo(16)));
+            ITEMS.register("notebook", () -> new NotebookItem(new Item.Properties().stacksTo(16), GarageType.GROUND));
+    // Ноутбук-терминал авиационного гаража.
+    public static final DeferredHolder<Item, Item> NOTEBOOK_AIR =
+            ITEMS.register("notebook_air", () -> new NotebookItem(new Item.Properties().stacksTo(16), GarageType.AVIATION));
 
     // Ящики поставок склада. id предмета = crateId в CrateRegistry.
     public static final DeferredHolder<Item, Item> WEAPON_CRATE = registerCrate("weapon_crate");
@@ -32,7 +37,10 @@ public final class PjmItems {
             TABS.register("main", () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.pjmbasemod"))
                     .icon(() -> NOTEBOOK.get().getDefaultInstance())
-                    .displayItems((params, output) -> output.accept(NOTEBOOK.get()))
+                    .displayItems((params, output) -> {
+                        output.accept(NOTEBOOK.get());
+                        output.accept(NOTEBOOK_AIR.get());
+                    })
                     .build());
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> WAREHOUSE_TAB =

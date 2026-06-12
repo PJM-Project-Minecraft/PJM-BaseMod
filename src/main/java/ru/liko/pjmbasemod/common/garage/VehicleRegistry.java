@@ -194,11 +194,16 @@ public final class VehicleRegistry {
                 "minecraft:iron_block", "tank", 0,
                 List.of(new CostEntry("minecraft:iron_block", 16), new CostEntry("minecraft:redstone_block", 8)),
                 List.of("crew"));
+        // garageType не задан: техника SuperbWarfare классифицируется автоматически (m1a2 → наземка).
+        // При необходимости можно переопределить вручную: tank.setGarageType("ground").
         VehicleDefinition heli = new VehicleDefinition(
                 "mi28", "Mi-28", "superbwarfare:mi_28",
                 "minecraft:iron_block", "heli", 0,
                 List.of(new CostEntry("minecraft:iron_block", 24), new CostEntry("minecraft:gold_block", 4)),
                 List.of("crew"));
+        // mi_28 авто-определяется как авиация (открывается ноутбуком авиагаража).
+        // minRank ограничивает выдачу рангом «сержант» и выше.
+        heli.setMinRank("sergeant");
         for (VehicleDefinition def : List.of(tank, heli)) {
             try (Writer writer = Files.newBufferedWriter(dir.resolve(def.id() + ".json"), StandardCharsets.UTF_8)) {
                 GSON.toJson(def, writer);

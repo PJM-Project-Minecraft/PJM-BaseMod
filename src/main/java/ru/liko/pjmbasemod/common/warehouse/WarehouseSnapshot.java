@@ -19,7 +19,8 @@ public record WarehouseSnapshot(String warehouseId, Map<WarehousePoolCategory, I
                             WarehousePoolCategory pool, int pointCost, int maxPerWithdraw,
                             int refundValue, int inventoryCount,
                             int availablePoints, boolean affordable,
-                            boolean roleAllowed, List<String> allowedRoles) {
+                            boolean roleAllowed, List<String> allowedRoles,
+                            boolean rankAllowed, String requiredRankName) {
 
         /** Принимается ли предмет складом в обмен на очки. */
         public boolean depositable() { return refundValue > 0; }
@@ -51,6 +52,8 @@ public record WarehouseSnapshot(String warehouseId, Map<WarehousePoolCategory, I
             for (String role : item.allowedRoles()) {
                 buf.writeUtf(role);
             }
+            buf.writeBoolean(item.rankAllowed());
+            buf.writeUtf(item.requiredRankName());
         }
     }
 
@@ -83,9 +86,11 @@ public record WarehouseSnapshot(String warehouseId, Map<WarehousePoolCategory, I
             for (int j = 0; j < roleCount; j++) {
                 allowedRoles.add(buf.readUtf());
             }
+            boolean rankAllowed = buf.readBoolean();
+            String requiredRankName = buf.readUtf();
             items.add(new ItemEntry(defId, displayName, itemId, displayCategory, pool,
                     pointCost, maxPerWithdraw, refundValue, inventoryCount, availablePoints, affordable,
-                    roleAllowed, List.copyOf(allowedRoles)));
+                    roleAllowed, List.copyOf(allowedRoles), rankAllowed, requiredRankName));
         }
 
         return new WarehouseSnapshot(warehouseId, points, List.copyOf(items), canWithdraw);

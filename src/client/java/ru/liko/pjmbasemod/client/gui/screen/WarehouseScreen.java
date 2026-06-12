@@ -190,7 +190,8 @@ public class WarehouseScreen extends Screen {
 
             boolean withdrawHovered = mouseX >= withdrawX && mouseX <= withdrawX + BUTTON_WIDTH
                     && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
-            if (withdrawHovered && snapshot.canWithdraw() && item.affordable() && item.roleAllowed()) {
+            if (withdrawHovered && snapshot.canWithdraw() && item.affordable()
+                    && item.roleAllowed() && item.rankAllowed()) {
                 int amount = hasShiftDown() ? item.maxPerWithdraw() : 1;
                 PjmUiSounds.playClick();
                 PjmNetworking.sendToServer(new WithdrawItemPacket(item.defId(), amount));
@@ -283,13 +284,15 @@ public class WarehouseScreen extends Screen {
         for (int i = scroll; i < items.size() && i < scroll + rows; i++) {
             WarehouseSnapshot.ItemEntry item = items.get(i);
             boolean roleLocked = !item.roleAllowed();
+            boolean rankLocked = item.roleAllowed() && !item.rankAllowed();
+            boolean locked = roleLocked || rankLocked;
             graphics.fill(contentLeft, y, contentLeft + contentWidth, y + ROW_HEIGHT - 3,
-                    roleLocked ? 0xFF1D1D22 : 0xFF222229);
+                    locked ? 0xFF1D1D22 : 0xFF222229);
 
             int itemY = y + (ROW_HEIGHT - 3 - 16) / 2;
             ItemStack icon = GuiItemIcons.stackFor(item.itemId());
             graphics.renderItem(icon, contentLeft + 4, itemY);
-            if (roleLocked) {
+            if (locked) {
                 graphics.pose().pushPose();
                 graphics.pose().translate(0, 0, 200.0F);
                 graphics.fill(contentLeft + 4, itemY, contentLeft + 20, itemY + 16, 0xAA000000);
@@ -300,7 +303,7 @@ public class WarehouseScreen extends Screen {
             }
 
             graphics.drawString(this.font, item.displayName(), contentLeft + 26, y + 4,
-                    roleLocked ? 0xFF9A9A9A : 0xFFE8E8E8, false);
+                    locked ? 0xFF9A9A9A : 0xFFE8E8E8, false);
             String cost = Component.translatable("gui.pjmbasemod.warehouse.cost", item.pointCost()).getString();
             if (item.depositable()) {
                 cost += "  " + Component.translatable("gui.pjmbasemod.warehouse.refund", item.refundValue()).getString();
@@ -312,18 +315,24 @@ public class WarehouseScreen extends Screen {
             if (roleLocked) {
                 cost = Component.translatable("gui.pjmbasemod.role.required",
                         roleNames(item.allowedRoles())).getString();
+            } else if (rankLocked) {
+                cost = Component.translatable("gui.pjmbasemod.rank.required",
+                        item.requiredRankName()).getString();
             }
             graphics.drawString(this.font, ellipsize(cost, Math.max(20, depositX - contentLeft - 32)),
-                    contentLeft + 26, y + 15, roleLocked ? 0xFFD8B15F : 0xFF9AA0A6, false);
+                    contentLeft + 26, y + 15, locked ? 0xFFD8B15F : 0xFF9AA0A6, false);
 
             // Кнопка «Получить»
-            boolean withdrawEnabled = snapshot.canWithdraw() && item.affordable() && item.roleAllowed();
+            boolean withdrawEnabled = snapshot.canWithdraw() && item.affordable()
+                    && item.roleAllowed() && item.rankAllowed();
             boolean withdrawHovered = mouseX >= withdrawX && mouseX <= withdrawX + BUTTON_WIDTH
                     && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
             int withdrawColor = !withdrawEnabled ? 0xFF33333A : withdrawHovered ? 0xFF3E7A46 : 0xFF2E5A34;
             graphics.fill(withdrawX, buttonY, withdrawX + BUTTON_WIDTH, buttonY + BUTTON_HEIGHT, withdrawColor);
             Component withdrawText = !item.roleAllowed()
                     ? Component.translatable("gui.pjmbasemod.role.locked_short")
+                    : !item.rankAllowed()
+                    ? Component.translatable("gui.pjmbasemod.rank.locked_short")
                     : item.affordable()
                     ? Component.translatable("gui.pjmbasemod.warehouse.withdraw")
                     : Component.translatable("gui.pjmbasemod.warehouse.no_points_short");

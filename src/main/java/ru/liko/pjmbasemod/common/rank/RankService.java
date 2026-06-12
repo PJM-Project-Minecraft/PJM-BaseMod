@@ -13,6 +13,8 @@ import ru.liko.pjmbasemod.common.network.packet.RankSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankXpPacket;
 import ru.liko.pjmbasemod.common.region.Region;
 
+import javax.annotation.Nullable;
+
 public final class RankService {
 
     private RankService() {
@@ -40,6 +42,32 @@ public final class RankService {
     public static int xp(ServerPlayer player) {
         if (player == null || player.getServer() == null) return 0;
         return RankSavedData.get(player.getServer()).xp(player.getUUID());
+    }
+
+    /**
+     * Удовлетворяет ли игрок требованию минимального ранга {@code minRankId} (этот ранг и выше по XP).
+     * Пустой/неизвестный id — ограничения нет (доступно всем).
+     */
+    public static boolean meetsMinRank(ServerPlayer player, @Nullable String minRankId) {
+        if (minRankId == null || minRankId.isBlank()) return true;
+        RankDefinition required = RankRegistry.get().byId(minRankId);
+        if (required == null) return true;
+        RankDefinition playerRank = RankRegistry.get().rankForXp(xp(player));
+        return playerRank.minXp() >= required.minXp();
+    }
+
+    /** Сообщение «требуется ранг X» для GUI/чата. Для неизвестного id показывает сам id. */
+    public static Component requiredRankMessage(@Nullable String minRankId) {
+        RankDefinition required = minRankId == null ? null : RankRegistry.get().byId(minRankId);
+        String name = required != null ? required.displayName() : (minRankId == null ? "" : minRankId);
+        return Component.translatable("gui.pjmbasemod.rank.required", name);
+    }
+
+    /** Отображаемое имя ранга по id (или сам id, если ранг неизвестен; пусто — пустая строка). */
+    public static String rankDisplayName(@Nullable String minRankId) {
+        if (minRankId == null || minRankId.isBlank()) return "";
+        RankDefinition required = RankRegistry.get().byId(minRankId);
+        return required != null ? required.displayName() : minRankId;
     }
 
     public static RankSnapshot snapshot(ServerPlayer player) {

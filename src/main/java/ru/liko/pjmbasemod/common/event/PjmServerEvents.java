@@ -122,9 +122,17 @@ public final class PjmServerEvents {
         if (event.getLevel().isClientSide()) return;
         if (event.getHand() != InteractionHand.MAIN_HAND) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
-        if (!player.getMainHandItem().is(PjmItems.NOTEBOOK.get())) return;
 
-        if (GarageManager.storeVehicle(player, event.getTarget())) {
+        ru.liko.pjmbasemod.common.garage.GarageType garageType;
+        if (player.getMainHandItem().is(PjmItems.NOTEBOOK.get())) {
+            garageType = ru.liko.pjmbasemod.common.garage.GarageType.GROUND;
+        } else if (player.getMainHandItem().is(PjmItems.NOTEBOOK_AIR.get())) {
+            garageType = ru.liko.pjmbasemod.common.garage.GarageType.AVIATION;
+        } else {
+            return;
+        }
+
+        if (GarageManager.storeVehicle(player, event.getTarget(), garageType)) {
             event.setCanceled(true);
             event.setCancellationResult(InteractionResult.SUCCESS);
         }

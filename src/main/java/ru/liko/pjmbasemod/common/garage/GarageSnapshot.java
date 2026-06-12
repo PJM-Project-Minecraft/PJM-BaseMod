@@ -17,13 +17,15 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
     /** Определение каталога + рассчитанная для игрока доступность по ресурсам. */
     public record DefEntry(String id, String displayName, String entityType, String iconItem, String category,
                            int assemblyTime, List<CostView> cost, boolean affordable,
-                           boolean roleAllowed, List<String> allowedRoles) {}
+                           boolean roleAllowed, List<String> allowedRoles,
+                           boolean rankAllowed, String requiredRankName) {}
 
     public record CostView(String item, int count, boolean enough) {}
 
     public record InstanceEntry(UUID instanceId, String defId, String displayName,
                                 String entityType, CompoundTag entityNbt,
-                                boolean roleAllowed, List<String> allowedRoles) {}
+                                boolean roleAllowed, List<String> allowedRoles,
+                                boolean rankAllowed, String requiredRankName) {}
 
     public static void write(FriendlyByteBuf buf, GarageSnapshot snapshot) {
         buf.writeBoolean(snapshot.canCraft());
@@ -44,6 +46,8 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
             for (String role : def.allowedRoles()) {
                 buf.writeUtf(role);
             }
+            buf.writeBoolean(def.rankAllowed());
+            buf.writeUtf(def.requiredRankName());
             buf.writeVarInt(def.cost().size());
             for (CostView cost : def.cost()) {
                 buf.writeUtf(cost.item());
@@ -64,6 +68,8 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
             for (String role : inst.allowedRoles()) {
                 buf.writeUtf(role);
             }
+            buf.writeBoolean(inst.rankAllowed());
+            buf.writeUtf(inst.requiredRankName());
         }
     }
 
@@ -88,13 +94,16 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
             for (int j = 0; j < roleCount; j++) {
                 allowedRoles.add(buf.readUtf());
             }
+            boolean rankAllowed = buf.readBoolean();
+            String requiredRankName = buf.readUtf();
             int costCount = buf.readVarInt();
             List<CostView> cost = new ArrayList<>(costCount);
             for (int j = 0; j < costCount; j++) {
                 cost.add(new CostView(buf.readUtf(), buf.readVarInt(), buf.readBoolean()));
             }
             defs.add(new DefEntry(id, displayName, entityType, icon, category, assemblyTime,
-                    List.copyOf(cost), affordable, roleAllowed, List.copyOf(allowedRoles)));
+                    List.copyOf(cost), affordable, roleAllowed, List.copyOf(allowedRoles),
+                    rankAllowed, requiredRankName));
         }
 
         int instCount = buf.readVarInt();
@@ -111,9 +120,11 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
             for (int j = 0; j < roleCount; j++) {
                 allowedRoles.add(buf.readUtf());
             }
+            boolean rankAllowed = buf.readBoolean();
+            String requiredRankName = buf.readUtf();
             instances.add(new InstanceEntry(instanceId, defId, displayName,
                     entityType, entityNbt == null ? new CompoundTag() : entityNbt,
-                    roleAllowed, List.copyOf(allowedRoles)));
+                    roleAllowed, List.copyOf(allowedRoles), rankAllowed, requiredRankName));
         }
 
         return new GarageSnapshot(List.copyOf(defs), List.copyOf(instances), canCraft, canSpawn, canStore);

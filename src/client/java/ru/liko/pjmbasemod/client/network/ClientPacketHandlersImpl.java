@@ -91,6 +91,13 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     }
 
     @Override
+    public void openStoreOptions(ru.liko.pjmbasemod.common.network.packet.StoreOptionsPacket payload) {
+        if (Minecraft.getInstance().screen instanceof GarageScreen screen) {
+            screen.showStoreOptions(payload.options());
+        }
+    }
+
+    @Override
     public void openWarehouse(OpenWarehousePacket payload) {
         WarehouseScreen.open(payload.snapshot());
     }

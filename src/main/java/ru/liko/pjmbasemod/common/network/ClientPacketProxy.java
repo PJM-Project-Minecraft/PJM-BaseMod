@@ -17,6 +17,7 @@ import ru.liko.pjmbasemod.common.network.packet.RegionMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankXpPacket;
 import ru.liko.pjmbasemod.common.network.packet.RoleSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.StoreOptionsPacket;
 import ru.liko.pjmbasemod.common.network.packet.SyncPjmDataPacket;
 
 public interface ClientPacketProxy {
@@ -31,6 +32,7 @@ public interface ClientPacketProxy {
     default void frontlineMapSync(FrontlineMapSyncPacket payload) {}
     default void openGarage(OpenGaragePacket payload) {}
     default void garageSync(GarageSyncPacket payload) {}
+    default void openStoreOptions(StoreOptionsPacket payload) {}
     default void rankSync(RankSyncPacket payload) {}
     default void rankXp(RankXpPacket payload) {}
     default void roleSync(RoleSyncPacket payload) {}

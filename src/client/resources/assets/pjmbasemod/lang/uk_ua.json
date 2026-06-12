@@ -150,6 +150,8 @@
   "gui.pjmbasemod.rank.locked_short": "Звання",
   "gui.pjmbasemod.garage.type.ground": "Наземна техніка",
   "gui.pjmbasemod.garage.type.aviation": "Авіація",
+  "gui.pjmbasemod.garage.wrong_garage_type": "Ця техніка належить до іншого гаража: %s",
+  "gui.pjmbasemod.garage.store_select_title": "Виберіть техніку для повернення",
   "gui.pjmbasemod.role.target_missing": "Гравця для призначення ролі не знайдено",
   "gui.pjmbasemod.role.target_too_far": "Гравець занадто далеко для призначення ролі",
   "gui.pjmbasemod.role.target_no_team": "Гравець не перебуває в налаштованій фракції",

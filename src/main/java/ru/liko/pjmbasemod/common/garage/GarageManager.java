@@ -26,6 +26,8 @@ import ru.liko.pjmbasemod.common.entity.NotebookEntity;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.GarageSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenGaragePacket;
+import ru.liko.pjmbasemod.common.network.packet.StoreOptionsPacket;
+import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.role.RoleService;
 
 import javax.annotation.Nullable;
@@ -55,6 +57,8 @@ public final class GarageManager {
                                 @Nullable Session session) {}
 
     private static final Map<UUID, Session> SESSIONS = new ConcurrentHashMap<>();
+    /** Тип гаража, открытого игроком сейчас (определяет, какую технику показывать в снимке). */
+    private static final Map<UUID, GarageType> OPEN_TYPE = new ConcurrentHashMap<>();
 
     private GarageManager() {}
 
@@ -66,15 +70,21 @@ public final class GarageManager {
             return;
         }
         SESSIONS.put(player.getUUID(), sessionFor(terminal));
+        OPEN_TYPE.put(player.getUUID(), terminal.getGarageType());
         PjmNetworking.sendToPlayer(player, new OpenGaragePacket(buildSnapshot(player)));
     }
 
     public static void openGarageAtPlayer(ServerPlayer player) {
+        openGarageAtPlayer(player, GarageType.GROUND);
+    }
+
+    public static void openGarageAtPlayer(ServerPlayer player, GarageType type) {
         if (!Config.isGarageEnabled()) {
             player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.disabled"));
             return;
         }
         SESSIONS.put(player.getUUID(), fallbackSession(player));
+        OPEN_TYPE.put(player.getUUID(), type == null ? GarageType.GROUND : type);
         PjmNetworking.sendToPlayer(player, new OpenGaragePacket(buildSnapshot(player)));
     }
 
@@ -310,29 +320,98 @@ public final class GarageManager {
         resync(player);
     }
 
+    /** Кнопка «Убрать»: собирает подходящую технику и открывает на клиенте меню выбора. */
     public static void handleStore(ServerPlayer player) {
         if (!GaragePermissions.can(player, GaragePermissions.STORE)) {
             player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.no_permission_store"));
             return;
         }
 
-        Session session = activeStoreSession(player);
-        StoredTarget target = session == null ? null : findNearestStorableVehicle(session);
-        if (target == null) {
-            target = findNearestStorableVehicleNearPlayer(player);
-        }
-        if (target == null) {
+        List<StoredTarget> targets = collectStorableTargets(player);
+        if (targets.isEmpty()) {
             player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.no_vehicle_to_store"));
             return;
         }
-        if (!canUseVehicle(player, target.def())) {
+
+        List<StoreOptionsPacket.Option> options = new ArrayList<>();
+        for (StoredTarget target : targets) {
+            String name = displayNameForEntity(target.entity(), target.def(), target.typeId());
+            String entityType = target.typeId() == null ? "" : target.typeId().toString();
+            options.add(new StoreOptionsPacket.Option(target.entity().getUUID(), name, entityType));
+        }
+        PjmNetworking.sendToPlayer(player, new StoreOptionsPacket(List.copyOf(options)));
+    }
+
+    /** Выбор конкретной техники из меню: убирает именно её в гараж. */
+    public static void handleStoreSelected(ServerPlayer player, UUID entityId) {
+        if (!GaragePermissions.can(player, GaragePermissions.STORE)) {
+            player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.no_permission_store"));
             return;
         }
 
-        if (target.session() != null) {
-            SESSIONS.put(player.getUUID(), target.session());
+        StoredTarget chosen = null;
+        for (StoredTarget target : collectStorableTargets(player)) {
+            if (target.entity().getUUID().equals(entityId)) {
+                chosen = target;
+                break;
+            }
         }
-        storeResolvedVehicle(player, target.entity(), target.def(), target.typeId());
+        if (chosen == null) {
+            // Техника уехала/исчезла, пока было открыто меню.
+            player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.no_vehicle_to_store"));
+            return;
+        }
+        if (!canUseVehicle(player, chosen.def())) {
+            return;
+        }
+        if (chosen.session() != null) {
+            SESSIONS.put(player.getUUID(), chosen.session());
+        }
+        storeResolvedVehicle(player, chosen.entity(), chosen.def(), chosen.typeId());
+    }
+
+    /** Вся техника, доступная для возврата из текущего гаража игрока (отфильтрованная по типу гаража). */
+    private static List<StoredTarget> collectStorableTargets(ServerPlayer player) {
+        GarageType openType = OPEN_TYPE.getOrDefault(player.getUUID(), GarageType.GROUND);
+        java.util.LinkedHashMap<UUID, StoredTarget> byEntity = new java.util.LinkedHashMap<>();
+
+        Session session = activeStoreSession(player);
+        if (session != null) {
+            GarageTerminalSettings settings = session.settings();
+            Vec3 center = Vec3.atCenterOf(settings.resolvedStoragePos());
+            double radius = settings.storageRadius();
+            AABB box = AABB.ofSize(center, radius * 2.0D, radius * 2.0D, radius * 2.0D);
+            for (Entity entity : session.level().getEntities((Entity) null, box, c -> !c.isRemoved())) {
+                ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+                VehicleDefinition def = storableDefinition(typeId);
+                if (!canStoreType(typeId, entity, def)) continue;
+                if (entity.getBoundingBox().distanceToSqr(center) > radius * radius) continue;
+                byEntity.putIfAbsent(entity.getUUID(), new StoredTarget(entity, def, typeId, session));
+            }
+        }
+
+        AABB near = player.getBoundingBox().inflate(PLAYER_STORE_SEARCH_RADIUS);
+        Session playerStorageSession = findStorageSessionAtPlayer(player);
+        for (Entity entity : player.serverLevel().getEntities((Entity) null, near, c -> !c.isRemoved())) {
+            if (byEntity.containsKey(entity.getUUID())) continue;
+            ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+            VehicleDefinition def = storableDefinition(typeId);
+            if (!canStoreType(typeId, entity, def)) continue;
+            Session storageSession = findStorageSession(player, entity);
+            if (storageSession == null && playerStorageSession != null && isSuperbWarfareType(typeId)) {
+                storageSession = playerStorageSession;
+            }
+            if (storageSession == null) continue;
+            byEntity.put(entity.getUUID(), new StoredTarget(entity, def, typeId, storageSession));
+        }
+
+        List<StoredTarget> result = new ArrayList<>();
+        for (StoredTarget target : byEntity.values()) {
+            if (vehicleGarageType(target.def(), target.typeId()) == openType) {
+                result.add(target);
+            }
+        }
+        return result;
     }
 
     public static void handleRecycle(ServerPlayer player, UUID instanceId) {
@@ -369,8 +448,11 @@ public final class GarageManager {
 
     // ---------------------------------------------------------------- возврат в гараж
 
-    /** Обрабатывает попытку возврата техники в гараж. true — взаимодействие с техникой нужно поглотить. */
-    public static boolean storeVehicle(ServerPlayer player, Entity entity) {
+    /**
+     * Обрабатывает попытку возврата техники в гараж. true — взаимодействие с техникой нужно поглотить.
+     * {@code garageType} — тип гаража, из которого выполняется возврат (определяется ноутбуком в руке).
+     */
+    public static boolean storeVehicle(ServerPlayer player, Entity entity, GarageType garageType) {
         if (!GaragePermissions.can(player, GaragePermissions.STORE)) {
             return false;
         }
@@ -382,12 +464,23 @@ public final class GarageManager {
         if (!canUseVehicle(player, def)) {
             return true;
         }
+        if (vehicleGarageType(def, typeId) != garageType) {
+            player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.wrong_garage_type",
+                    Component.translatable(vehicleGarageType(def, typeId).translationKey())));
+            return true;
+        }
         if (!canStoreAtConfiguredPoint(player, entity)) {
             return true;
         }
 
         storeResolvedVehicle(player, entity, def, typeId);
         return true;
+    }
+
+    /** Тип гаража, к которому относится техника: по определению, иначе авто-классификация по entity id. */
+    private static GarageType vehicleGarageType(@Nullable VehicleDefinition def, @Nullable ResourceLocation typeId) {
+        return def != null ? def.garageType()
+                : ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.classify(typeId);
     }
 
     private static void storeResolvedVehicle(ServerPlayer player, Entity entity,
@@ -423,8 +516,10 @@ public final class GarageManager {
     // ---------------------------------------------------------------- снимок для GUI
 
     public static GarageSnapshot buildSnapshot(ServerPlayer player) {
+        GarageType type = OPEN_TYPE.getOrDefault(player.getUUID(), GarageType.GROUND);
         List<GarageSnapshot.DefEntry> defs = new ArrayList<>();
         for (VehicleDefinition def : VehicleRegistry.get().all()) {
+            if (def.garageType() != type) continue;
             List<GarageSnapshot.CostView> costViews = new ArrayList<>();
             boolean affordable = true;
             for (CostEntry cost : def.cost()) {
@@ -436,21 +531,30 @@ public final class GarageManager {
             }
             String iconItem = def.iconStack().getItem().builtInRegistryHolder().key().location().toString();
             boolean roleAllowed = RoleService.hasAllowedRole(player, def.allowedRoles());
+            boolean rankAllowed = RankService.meetsMinRank(player, def.minRank());
+            String requiredRankName = RankService.rankDisplayName(def.minRank());
             defs.add(new GarageSnapshot.DefEntry(def.id(), def.displayName(), def.entityTypeString(), iconItem,
                     def.category(), def.assemblyTime(), List.copyOf(costViews), affordable,
-                    roleAllowed, def.allowedRoles()));
+                    roleAllowed, def.allowedRoles(), rankAllowed, requiredRankName));
         }
 
         List<GarageSnapshot.InstanceEntry> instances = new ArrayList<>();
         for (StoredVehicle stored : GarageSavedData.get(player.server).garageOf(player.getUUID())) {
             VehicleDefinition def = VehicleRegistry.get().get(stored.defId());
             ResourceLocation typeId = def != null ? def.entityTypeId() : ResourceLocation.tryParse(stored.defId());
+            // Тип гаража: по определению, иначе авто-классификация по entity id (авиация SBW → авиагараж).
+            GarageType instType = def != null
+                    ? def.garageType()
+                    : ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.classify(typeId);
+            if (instType != type) continue;
             String entityType = typeId == null ? "" : typeId.toString();
             boolean roleAllowed = def == null || RoleService.hasAllowedRole(player, def.allowedRoles());
             List<String> allowedRoles = def == null ? List.of() : def.allowedRoles();
+            boolean rankAllowed = def == null || RankService.meetsMinRank(player, def.minRank());
+            String requiredRankName = def == null ? "" : RankService.rankDisplayName(def.minRank());
             instances.add(new GarageSnapshot.InstanceEntry(stored.instanceId(), stored.defId(),
                     displayNameForStored(stored, def), entityType, stored.entityNbt().copy(),
-                    roleAllowed, allowedRoles));
+                    roleAllowed, allowedRoles, rankAllowed, requiredRankName));
         }
 
         return new GarageSnapshot(List.copyOf(defs), List.copyOf(instances),
@@ -462,11 +566,18 @@ public final class GarageManager {
     // ---------------------------------------------------------------- утилиты
 
     private static boolean canUseVehicle(ServerPlayer player, @Nullable VehicleDefinition def) {
-        if (def == null || RoleService.hasAllowedRole(player, def.allowedRoles())) {
+        if (def == null) {
             return true;
         }
-        player.sendSystemMessage(RoleService.requiredRoleMessage(def.allowedRoles()));
-        return false;
+        if (!RoleService.hasAllowedRole(player, def.allowedRoles())) {
+            player.sendSystemMessage(RoleService.requiredRoleMessage(def.allowedRoles()));
+            return false;
+        }
+        if (!RankService.meetsMinRank(player, def.minRank())) {
+            player.sendSystemMessage(RankService.requiredRankMessage(def.minRank()));
+            return false;
+        }
+        return true;
     }
 
     @Nullable
@@ -531,58 +642,6 @@ public final class GarageManager {
             return current;
         }
         return editableSession(player);
-    }
-
-    @Nullable
-    private static StoredTarget findNearestStorableVehicle(Session session) {
-        GarageTerminalSettings settings = session.settings();
-        Vec3 center = Vec3.atCenterOf(settings.resolvedStoragePos());
-        double radius = settings.storageRadius();
-        AABB searchBox = AABB.ofSize(center, radius * 2.0D, radius * 2.0D, radius * 2.0D);
-        StoredTarget best = null;
-        double bestDistance = Double.MAX_VALUE;
-
-        for (Entity entity : session.level().getEntities((Entity) null, searchBox, candidate -> !candidate.isRemoved())) {
-            ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
-            VehicleDefinition def = storableDefinition(typeId);
-            if (!canStoreType(typeId, entity, def)) continue;
-            double distance = entity.getBoundingBox().distanceToSqr(center);
-            if (distance > radius * radius) continue;
-            if (distance < bestDistance) {
-                best = new StoredTarget(entity, def, typeId, session);
-                bestDistance = distance;
-            }
-        }
-
-        return best;
-    }
-
-    @Nullable
-    private static StoredTarget findNearestStorableVehicleNearPlayer(ServerPlayer player) {
-        AABB searchBox = player.getBoundingBox().inflate(PLAYER_STORE_SEARCH_RADIUS);
-        Session playerStorageSession = findStorageSessionAtPlayer(player);
-        StoredTarget best = null;
-        double bestDistance = Double.MAX_VALUE;
-
-        for (Entity entity : player.serverLevel().getEntities((Entity) null, searchBox, candidate -> !candidate.isRemoved())) {
-            ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
-            VehicleDefinition def = storableDefinition(typeId);
-            if (!canStoreType(typeId, entity, def)) continue;
-
-            Session storageSession = findStorageSession(player, entity);
-            if (storageSession == null && playerStorageSession != null && isSuperbWarfareType(typeId)) {
-                storageSession = playerStorageSession;
-            }
-            if (storageSession == null) continue;
-
-            double distance = entity.distanceToSqr(player);
-            if (distance < bestDistance) {
-                best = new StoredTarget(entity, def, typeId, storageSession);
-                bestDistance = distance;
-            }
-        }
-
-        return best;
     }
 
     @Nullable

@@ -43,6 +43,8 @@ public final class WarehouseItemDefinition {
     /** Список ролей, которым доступна выдача; пусто или null — доступно всем. */
     private List<String> allowedRoles;
     private transient boolean invalidAllowedRoles;
+    /** Минимальный ранг (id), начиная с которого предмет доступен; пусто/null — без ограничения по рангу. */
+    private String minRank;
 
     public WarehouseItemDefinition() {
         // для Gson
@@ -110,6 +112,17 @@ public final class WarehouseItemDefinition {
         return invalidAllowedRoles;
     }
 
+    /** Минимальный требуемый ранг (id) или "" если ограничения нет. */
+    public String minRank() {
+        return minRank == null ? "" : minRank;
+    }
+
+    public boolean rankRestricted() {
+        return minRank != null && !minRank.isBlank();
+    }
+
+    public void setMinRank(String minRank) { this.minRank = minRank; }
+
     @Nullable
     public ResourceLocation itemLocation() {
         return ResourceLocation.tryParse(itemIdString());
@@ -175,6 +188,19 @@ public final class WarehouseItemDefinition {
         } else {
             allowedRoles = List.of();
             invalidAllowedRoles = false;
+        }
+        if (minRank != null && !minRank.isBlank()) {
+            String id = minRank.trim().toLowerCase(Locale.ROOT);
+            if (ru.liko.pjmbasemod.common.rank.RankRegistry.get().byId(id) == null) {
+                ru.liko.pjmbasemod.Pjmbasemod.LOGGER.warn(
+                        "Warehouse: предмет '{}' ссылается на неизвестный minRank '{}', ограничение по рангу снято.",
+                        id(), minRank);
+                minRank = null;
+            } else {
+                minRank = id;
+            }
+        } else {
+            minRank = null;
         }
     }
 }
