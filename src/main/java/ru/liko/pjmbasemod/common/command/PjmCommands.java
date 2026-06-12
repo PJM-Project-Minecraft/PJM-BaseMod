@@ -76,13 +76,51 @@ public final class PjmCommands {
                 .then(regionCommand())
                 .then(frontlineCommand())
                 .then(garageCommand())
+                .then(inventoryCommand())
                 .then(WarehouseCommands.build()));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> inventoryCommand() {
+        return Commands.literal("inventory")
+                .then(Commands.literal("reload")
+                        .requires(source -> source.hasPermission(2))
+                        .executes(ctx -> reloadInventoryLimit(ctx.getSource())))
+                .then(Commands.literal("info")
+                        .requires(source -> source.hasPermission(2))
+                        .executes(ctx -> inventoryLimitInfo(ctx.getSource())));
+    }
+
+    private static int reloadInventoryLimit(CommandSourceStack source) {
+        boolean ok = ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry.get().reload();
+        ru.liko.pjmbasemod.common.inventory.InventoryLimitService.syncAll(source.getServer());
+        var cfg = ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry.get().config();
+        int count = cfg.lockedSlots().size();
+        if (ok) {
+            source.sendSuccess(() -> Component.translatable("pjmbasemod.command.inventory.reloaded", count), true);
+            return count;
+        }
+        source.sendFailure(Component.translatable("pjmbasemod.command.inventory.reload_failed"));
+        return 0;
+    }
+
+    private static int inventoryLimitInfo(CommandSourceStack source) {
+        var cfg = ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry.get().config();
+        String slots = cfg.lockedSlots().isEmpty()
+                ? "-"
+                : cfg.lockedSlots().stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(", "));
+        source.sendSuccess(() -> Component.translatable("pjmbasemod.command.inventory.info",
+                cfg.enabled() ? "on" : "off", cfg.lockedSlots().size(), slots), false);
+        return cfg.lockedSlots().size();
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> garageCommand() {
         return Commands.literal("garage")
                 .then(Commands.literal("open")
-                        .executes(ctx -> openGarage(ctx.getSource())))
+                        .executes(ctx -> openGarage(ctx.getSource()))
+                        .then(Commands.argument("type", StringArgumentType.word())
+                                .suggests((ctx, builder) -> suggestGarageTypes(builder))
+                                .executes(ctx -> openGarage(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "type")))))
                 .then(Commands.literal("info")
                         .executes(ctx -> garagePointInfo(ctx.getSource())))
                 .then(Commands.literal("set")
@@ -140,6 +178,23 @@ public final class PjmCommands {
         return 1;
     }
 
+    private static int openGarage(CommandSourceStack source, String type) {
+        ServerPlayer player = requirePlayer(source);
+        if (player == null) return 0;
+        GarageManager.openGarageAtPlayer(player,
+                ru.liko.pjmbasemod.common.garage.GarageType.fromString(type));
+        return 1;
+    }
+
+    private static CompletableFuture<Suggestions> suggestGarageTypes(
+            com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+        for (ru.liko.pjmbasemod.common.garage.GarageType type
+                : ru.liko.pjmbasemod.common.garage.GarageType.values()) {
+            builder.suggest(type.id());
+        }
+        return builder.buildFuture();
+    }
+
     private static int setGarageSpawn(CommandSourceStack source) {
         ServerPlayer player = requirePlayer(source);
         return player != null && GarageManager.setSpawnPoint(player) ? 1 : 0;
@@ -189,6 +244,7 @@ public final class PjmCommands {
     }
 
     private static int reloadVehicles(CommandSourceStack source) {
+        ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.reload(source.getServer());
         int count = VehicleRegistry.get().reload();
         source.sendSuccess(() -> Component.literal("Каталог техники перезагружен: " + count + " определений"), true);
         return count;

@@ -28,6 +28,8 @@ import ru.liko.pjmbasemod.common.frontline.FrontlineManager;
 import ru.liko.pjmbasemod.common.frontline.bluemap.FrontlineBlueMapService;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
 import ru.liko.pjmbasemod.common.garage.VehicleRegistry;
+import ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry;
+import ru.liko.pjmbasemod.common.inventory.InventoryLimitService;
 import ru.liko.pjmbasemod.common.init.PjmItems;
 import ru.liko.pjmbasemod.common.warehouse.CrateRegistry;
 import ru.liko.pjmbasemod.common.warehouse.WarehouseItemRegistry;
@@ -59,6 +61,7 @@ public final class PjmServerEvents {
         FactionCommanderService.onPlayerLogin(sp);
         RoleService.onPlayerLogin(sp);
         FactionMenuService.onPlayerLogin(sp);
+        InventoryLimitService.sync(sp);
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -107,6 +110,9 @@ public final class PjmServerEvents {
         RoleService.onPlayerTick(player);
         LobbyService.onPlayerTick(player);
         FactionMenuService.onPlayerTick(player);
+        if (player.tickCount % Math.max(1, InventoryLimitRegistry.get().config().enforceEveryTicks()) == 0) {
+            InventoryLimitService.enforce(player);
+        }
         if (!Config.isDisableHunger()) return;
         disableHunger(player);
     }
@@ -148,10 +154,12 @@ public final class PjmServerEvents {
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
         FrontlineBlueMapService.onServerStarted(event.getServer());
+        ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.reload(event.getServer());
         VehicleRegistry.get().reload();
         WarehouseItemRegistry.get().reload();
         CrateRegistry.get().reload();
         RoleLimitRegistry.get().reload();
+        InventoryLimitRegistry.get().reload();
         RankService.onServerStarted(event.getServer());
 
         List<? extends String> commands = Config.getStartupCommands();

@@ -5,6 +5,7 @@ import ru.liko.pjmbasemod.common.network.packet.FactionManagementSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.FrontlineHudPacket;
 import ru.liko.pjmbasemod.common.network.packet.FrontlineMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.GarageSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.LockedSlotsPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionManagementPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionSelectionPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenGaragePacket;
@@ -39,4 +40,5 @@ public interface ClientPacketProxy {
     default void openFactionSelection(OpenFactionSelectionPacket payload) {}
     default void openFactionManagement(OpenFactionManagementPacket payload) {}
     default void factionManagementSync(FactionManagementSyncPacket payload) {}
+    default void lockedSlots(LockedSlotsPacket payload) {}
 }

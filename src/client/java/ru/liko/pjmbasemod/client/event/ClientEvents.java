@@ -1,7 +1,12 @@
 package ru.liko.pjmbasemod.client.event;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -17,6 +22,7 @@ import ru.liko.pjmbasemod.client.frontline.journeymap.FrontlineJourneyMapBridge;
 import ru.liko.pjmbasemod.client.gui.RadialMenuScreen;
 import ru.liko.pjmbasemod.client.gui.screen.TacticalMainMenuScreen;
 import ru.liko.pjmbasemod.client.input.ModKeyBindings;
+import ru.liko.pjmbasemod.client.inventory.LockedSlotsClientState;
 import ru.liko.pjmbasemod.client.region.ClientRegionState;
 import ru.liko.pjmbasemod.client.radio.RadioManager;
 import ru.liko.pjmbasemod.client.radio.VoiceChatActionBarHud;
@@ -50,6 +56,7 @@ public final class ClientEvents {
         ClientRoleState.reset();
         FrontlineJourneyMapBridge.onLogout();
         RadioManager.get().reset();
+        LockedSlotsClientState.reset();
         firstTitleReplaced = false;
     }
 
@@ -78,5 +85,46 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onKeyInput(InputEvent.Key event) {
         VoiceChatBridge.enforceIfActive();
+    }
+
+    /** Ванильная текстура барьера — маркер заблокированного слота. */
+    private static final ResourceLocation BARRIER_TEXTURE =
+            ResourceLocation.withDefaultNamespace("textures/item/barrier.png");
+
+    @SubscribeEvent
+    public static void onScreenRenderPost(ScreenEvent.Render.Post event) {
+        if (!LockedSlotsClientState.isActive()) return;
+        if (pjm_isCreative()) return;
+        if (!(event.getScreen() instanceof AbstractContainerScreen<?> acs)) return;
+
+        GuiGraphics graphics = event.getGuiGraphics();
+        int left = acs.getGuiLeft();
+        int top = acs.getGuiTop();
+        for (Slot slot : acs.getMenu().slots) {
+            if (!(slot.container instanceof Inventory)) continue;
+            if (!LockedSlotsClientState.isLocked(slot.getContainerSlot())) continue;
+            int x = left + slot.x;
+            int y = top + slot.y;
+            graphics.pose().pushPose();
+            graphics.pose().translate(0, 0, 300.0F);
+            graphics.blit(BARRIER_TEXTURE, x, y, 0, 0, 16, 16, 16, 16);
+            graphics.pose().popPose();
+        }
+    }
+
+    @SubscribeEvent
+    public static void onMouseButtonPressed(ScreenEvent.MouseButtonPressed.Pre event) {
+        if (!LockedSlotsClientState.isActive() || !LockedSlotsClientState.cancelClicks()) return;
+        if (pjm_isCreative()) return;
+        if (!(event.getScreen() instanceof AbstractContainerScreen<?> acs)) return;
+        Slot slot = acs.getSlotUnderMouse();
+        if (slot != null && slot.container instanceof Inventory
+                && LockedSlotsClientState.isLocked(slot.getContainerSlot())) {
+            event.setCanceled(true);
+        }
+    }
+
+    private static boolean pjm_isCreative() {
+        return Minecraft.getInstance().player != null && Minecraft.getInstance().player.isCreative();
     }
 }

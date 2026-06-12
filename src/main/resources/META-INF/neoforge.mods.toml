@@ -11,6 +11,9 @@ displayTest = "IGNORE_SERVER_VERSION"
 authors = "${mod_authors}"
 description = '''${mod_description}'''
 
+[[mixins]]
+config = "pjmbasemod.mixins.json"
+
 [[dependencies.${mod_id}]]
 modId = "neoforge"
 type = "required"

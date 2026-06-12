@@ -43,7 +43,8 @@
   "subtitles.pjmbasemod.ui_press": "UI click",
   "subtitles.pjmbasemod.class_change": "Loadout change",
   "itemGroup.pjmbasemod": "PJM BaseMod",
-  "item.pjmbasemod.notebook": "Garage Terminal",
+  "item.pjmbasemod.notebook": "Ground Garage Terminal",
+  "item.pjmbasemod.notebook_air": "Air Garage Terminal",
   "entity.pjmbasemod.notebook": "Garage Terminal",
   "itemGroup.pjmbasemod.warehouse": "Warehouse Supplies",
   "entity.pjmbasemod.quartermaster": "Quartermaster",
@@ -145,6 +146,10 @@
   "gui.pjmbasemod.radial.current_role": "Role: %s",
   "gui.pjmbasemod.role.required": "Required role: %s",
   "gui.pjmbasemod.role.locked_short": "Role",
+  "gui.pjmbasemod.rank.required": "Required rank: %s",
+  "gui.pjmbasemod.rank.locked_short": "Rank",
+  "gui.pjmbasemod.garage.type.ground": "Ground Vehicles",
+  "gui.pjmbasemod.garage.type.aviation": "Aviation",
   "gui.pjmbasemod.role.target_missing": "Role target not found",
   "gui.pjmbasemod.role.target_too_far": "Player is too far away to assign a role",
   "gui.pjmbasemod.role.target_no_team": "Player is not in a configured faction",
@@ -165,5 +170,8 @@
   "role.pjmbasemod.sso": "SSO",
   "role.pjmbasemod.marksman": "Marksman",
   "role.pjmbasemod.ew_specialist": "EW Specialist",
-  "role.pjmbasemod.crew": "Crew"
+  "role.pjmbasemod.crew": "Crew",
+  "pjmbasemod.command.inventory.reloaded": "Inventory limit reloaded: locked slots — %s",
+  "pjmbasemod.command.inventory.reload_failed": "Failed to load inventory limit config",
+  "pjmbasemod.command.inventory.info": "Inventory limit: %s, locked slots: %s [%s]"
 }

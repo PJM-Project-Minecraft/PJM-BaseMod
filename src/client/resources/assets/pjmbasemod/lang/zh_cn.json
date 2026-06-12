@@ -43,7 +43,8 @@
   "subtitles.pjmbasemod.ui_press": "界面点击",
   "subtitles.pjmbasemod.class_change": "装备变更",
   "itemGroup.pjmbasemod": "PJM BaseMod",
-  "item.pjmbasemod.notebook": "车库终端",
+  "item.pjmbasemod.notebook": "地面车库终端",
+  "item.pjmbasemod.notebook_air": "航空车库终端",
   "entity.pjmbasemod.notebook": "车库终端",
   "itemGroup.pjmbasemod.warehouse": "仓库补给",
   "entity.pjmbasemod.quartermaster": "军需官",
@@ -145,6 +146,10 @@
   "gui.pjmbasemod.radial.current_role": "角色：%s",
   "gui.pjmbasemod.role.required": "需要角色：%s",
   "gui.pjmbasemod.role.locked_short": "角色",
+  "gui.pjmbasemod.rank.required": "需要军衔：%s",
+  "gui.pjmbasemod.rank.locked_short": "军衔",
+  "gui.pjmbasemod.garage.type.ground": "地面载具",
+  "gui.pjmbasemod.garage.type.aviation": "航空",
   "gui.pjmbasemod.role.target_missing": "未找到角色目标",
   "gui.pjmbasemod.role.target_too_far": "玩家距离太远，无法分配角色",
   "gui.pjmbasemod.role.target_no_team": "玩家不在已配置阵营中",
@@ -165,5 +170,8 @@
   "role.pjmbasemod.sso": "特种作战",
   "role.pjmbasemod.marksman": "精确射手",
   "role.pjmbasemod.ew_specialist": "电子战专家",
-  "role.pjmbasemod.crew": "载具乘员"
+  "role.pjmbasemod.crew": "载具乘员",
+  "pjmbasemod.command.inventory.reloaded": "已重新加载背包限制：锁定槽位 — %s",
+  "pjmbasemod.command.inventory.reload_failed": "加载背包限制配置失败",
+  "pjmbasemod.command.inventory.info": "背包限制：%s，锁定槽位：%s [%s]"
 }

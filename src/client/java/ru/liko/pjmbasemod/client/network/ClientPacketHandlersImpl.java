@@ -10,7 +10,9 @@ import ru.liko.pjmbasemod.client.gui.screen.FactionManagementScreen;
 import ru.liko.pjmbasemod.client.gui.screen.FactionSelectionScreen;
 import ru.liko.pjmbasemod.client.gui.screen.GarageScreen;
 import ru.liko.pjmbasemod.client.gui.screen.WarehouseScreen;
+import ru.liko.pjmbasemod.client.inventory.LockedSlotsClientState;
 import ru.liko.pjmbasemod.common.network.packet.FactionManagementSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.LockedSlotsPacket;
 import ru.liko.pjmbasemod.common.network.packet.GarageSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionManagementPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionSelectionPacket;
@@ -158,5 +160,10 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
         } else {
             FactionManagementScreen.open(payload.snapshot());
         }
+    }
+
+    @Override
+    public void lockedSlots(LockedSlotsPacket payload) {
+        LockedSlotsClientState.apply(payload);
     }
 }

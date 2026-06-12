@@ -43,7 +43,8 @@
   "subtitles.pjmbasemod.ui_press": "Натискання в меню",
   "subtitles.pjmbasemod.class_change": "Зміна спорядження",
   "itemGroup.pjmbasemod": "PJM BaseMod",
-  "item.pjmbasemod.notebook": "Термінал гаража",
+  "item.pjmbasemod.notebook": "Термінал наземного гаража",
+  "item.pjmbasemod.notebook_air": "Термінал авіагаража",
   "entity.pjmbasemod.notebook": "Термінал гаража",
   "itemGroup.pjmbasemod.warehouse": "Постачання складу",
   "entity.pjmbasemod.quartermaster": "Комірник",
@@ -145,6 +146,10 @@
   "gui.pjmbasemod.radial.current_role": "Роль: %s",
   "gui.pjmbasemod.role.required": "Потрібна роль: %s",
   "gui.pjmbasemod.role.locked_short": "Роль",
+  "gui.pjmbasemod.rank.required": "Потрібне звання: %s",
+  "gui.pjmbasemod.rank.locked_short": "Звання",
+  "gui.pjmbasemod.garage.type.ground": "Наземна техніка",
+  "gui.pjmbasemod.garage.type.aviation": "Авіація",
   "gui.pjmbasemod.role.target_missing": "Гравця для призначення ролі не знайдено",
   "gui.pjmbasemod.role.target_too_far": "Гравець занадто далеко для призначення ролі",
   "gui.pjmbasemod.role.target_no_team": "Гравець не перебуває в налаштованій фракції",
@@ -165,5 +170,8 @@
   "role.pjmbasemod.sso": "ССО",
   "role.pjmbasemod.marksman": "Марксман",
   "role.pjmbasemod.ew_specialist": "Спеціаліст РЕБ",
-  "role.pjmbasemod.crew": "Екіпаж"
+  "role.pjmbasemod.crew": "Екіпаж",
+  "pjmbasemod.command.inventory.reloaded": "Ліміт інвентарю перезавантажено: заблоковано слотів — %s",
+  "pjmbasemod.command.inventory.reload_failed": "Помилка завантаження конфігу ліміту інвентарю",
+  "pjmbasemod.command.inventory.info": "Ліміт інвентарю: %s, заблоковано слотів: %s [%s]"
 }

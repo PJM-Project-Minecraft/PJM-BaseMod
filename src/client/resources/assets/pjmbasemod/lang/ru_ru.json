@@ -43,7 +43,8 @@
   "subtitles.pjmbasemod.ui_press": "Нажатие в меню",
   "subtitles.pjmbasemod.class_change": "Смена снаряжения",
   "itemGroup.pjmbasemod": "PJM BaseMod",
-  "item.pjmbasemod.notebook": "Терминал гаража",
+  "item.pjmbasemod.notebook": "Терминал наземного гаража",
+  "item.pjmbasemod.notebook_air": "Терминал авиагаража",
   "entity.pjmbasemod.notebook": "Терминал гаража",
   "itemGroup.pjmbasemod.warehouse": "Поставки склада",
   "entity.pjmbasemod.quartermaster": "Кладовщик",
@@ -145,6 +146,10 @@
   "gui.pjmbasemod.radial.current_role": "Роль: %s",
   "gui.pjmbasemod.role.required": "Требуется роль: %s",
   "gui.pjmbasemod.role.locked_short": "Роль",
+  "gui.pjmbasemod.rank.required": "Требуется ранг: %s",
+  "gui.pjmbasemod.rank.locked_short": "Ранг",
+  "gui.pjmbasemod.garage.type.ground": "Наземная техника",
+  "gui.pjmbasemod.garage.type.aviation": "Авиация",
   "gui.pjmbasemod.role.target_missing": "Игрок для назначения роли не найден",
   "gui.pjmbasemod.role.target_too_far": "Игрок слишком далеко для назначения роли",
   "gui.pjmbasemod.role.target_no_team": "Игрок не состоит в настроенной фракции",
@@ -165,5 +170,8 @@
   "role.pjmbasemod.sso": "ССО",
   "role.pjmbasemod.marksman": "Марксман",
   "role.pjmbasemod.ew_specialist": "Специалист РЭБ",
-  "role.pjmbasemod.crew": "Экипаж"
+  "role.pjmbasemod.crew": "Экипаж",
+  "pjmbasemod.command.inventory.reloaded": "Лимит инвентаря перезагружен: заблокировано слотов — %s",
+  "pjmbasemod.command.inventory.reload_failed": "Ошибка загрузки конфига лимита инвентаря",
+  "pjmbasemod.command.inventory.info": "Лимит инвентаря: %s, заблокировано слотов: %s [%s]"
 }

@@ -43,7 +43,8 @@
   "subtitles.pjmbasemod.ui_press": "Menüklick",
   "subtitles.pjmbasemod.class_change": "Ausrüstung gewechselt",
   "itemGroup.pjmbasemod": "PJM BaseMod",
-  "item.pjmbasemod.notebook": "Garagenterminal",
+  "item.pjmbasemod.notebook": "Boden-Garagenterminal",
+  "item.pjmbasemod.notebook_air": "Luft-Garagenterminal",
   "entity.pjmbasemod.notebook": "Garagenterminal",
   "itemGroup.pjmbasemod.warehouse": "Lager-Nachschub",
   "entity.pjmbasemod.quartermaster": "Quartiermeister",
@@ -145,6 +146,10 @@
   "gui.pjmbasemod.radial.current_role": "Rolle: %s",
   "gui.pjmbasemod.role.required": "Benötigte Rolle: %s",
   "gui.pjmbasemod.role.locked_short": "Rolle",
+  "gui.pjmbasemod.rank.required": "Benötigter Rang: %s",
+  "gui.pjmbasemod.rank.locked_short": "Rang",
+  "gui.pjmbasemod.garage.type.ground": "Bodenfahrzeuge",
+  "gui.pjmbasemod.garage.type.aviation": "Luftfahrt",
   "gui.pjmbasemod.role.target_missing": "Zielspieler nicht gefunden",
   "gui.pjmbasemod.role.target_too_far": "Spieler ist zu weit entfernt",
   "gui.pjmbasemod.role.target_no_team": "Spieler ist in keiner konfigurierten Fraktion",
@@ -165,5 +170,8 @@
   "role.pjmbasemod.sso": "SSO",
   "role.pjmbasemod.marksman": "Marksman",
   "role.pjmbasemod.ew_specialist": "EW-Spezialist",
-  "role.pjmbasemod.crew": "Besatzung"
+  "role.pjmbasemod.crew": "Besatzung",
+  "pjmbasemod.command.inventory.reloaded": "Inventarlimit neu geladen: gesperrte Slots — %s",
+  "pjmbasemod.command.inventory.reload_failed": "Inventarlimit-Konfiguration konnte nicht geladen werden",
+  "pjmbasemod.command.inventory.info": "Inventarlimit: %s, gesperrte Slots: %s [%s]"
 }
