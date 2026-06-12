@@ -1,0 +1,186 @@
+{
+  "menu.join": {
+    "category": "master",
+    "sounds": [
+      {
+        "name": "pjmbasemod:menu/join"
+      }
+    ],
+    "subtitle": "subtitles.pjmbasemod.menu_join"
+  },
+  "menu.promoted": {
+    "category": "master",
+    "sounds": [
+      {
+        "name": "pjmbasemod:menu/promoted"
+      }
+    ],
+    "subtitle": "subtitles.pjmbasemod.map_promoted"
+  },
+  "ui.menu.shared": {
+    "category": "master",
+    "sounds": [
+      {
+        "name": "pjmbasemod:menu/shared0"
+      },
+      {
+        "name": "pjmbasemod:menu/shared1"
+      },
+      {
+        "name": "pjmbasemod:menu/shared2"
+      }
+    ],
+    "subtitle": "subtitles.pjmbasemod.ui_shared"
+  },
+  "ui.menu.press": {
+    "category": "master",
+    "sounds": [
+      {
+        "name": "pjmbasemod:menu/press0"
+      },
+      {
+        "name": "pjmbasemod:menu/press1"
+      },
+      {
+        "name": "pjmbasemod:menu/press2"
+      },
+      {
+        "name": "pjmbasemod:menu/press3"
+      },
+      {
+        "name": "pjmbasemod:menu/press4"
+      }
+    ],
+    "subtitle": "subtitles.pjmbasemod.ui_press"
+  },
+  "ui.mouse.click": {
+    "category": "master",
+    "sounds": [
+      {
+        "name": "pjmbasemod:menu/click_mouse"
+      }
+    ],
+    "subtitle": "subtitles.pjmbasemod.ui_press"
+  },
+  "ui.class.change": {
+    "category": "master",
+    "sounds": [
+      {
+        "name": "pjmbasemod:classes/change0"
+      },
+      {
+        "name": "pjmbasemod:classes/change1"
+      },
+      {
+        "name": "pjmbasemod:classes/change2"
+      },
+      {
+        "name": "pjmbasemod:classes/change3"
+      },
+      {
+        "name": "pjmbasemod:classes/change4"
+      },
+      {
+        "name": "pjmbasemod:classes/change5"
+      }
+    ],
+    "subtitle": "subtitles.pjmbasemod.class_change"
+  },
+  "radio.start": {
+    "category": "players",
+    "sounds": [
+      {
+        "name": "pjmbasemod:radio/start/squad_radio_start_01"
+      },
+      {
+        "name": "pjmbasemod:radio/start/squad_radio_start_02"
+      },
+      {
+        "name": "pjmbasemod:radio/start/squad_radio_start_03"
+      },
+      {
+        "name": "pjmbasemod:radio/start/squad_radio_start_04"
+      },
+      {
+        "name": "pjmbasemod:radio/start/squad_radio_start_05"
+      },
+      {
+        "name": "pjmbasemod:radio/start/squad_radio_start_06"
+      },
+      {
+        "name": "pjmbasemod:radio/start/squad_radio_start_07"
+      }
+    ]
+  },
+  "radio.end": {
+    "category": "players",
+    "sounds": [
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_01"
+      },
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_02"
+      },
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_03"
+      },
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_04"
+      },
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_05"
+      },
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_06"
+      },
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_07"
+      },
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_08"
+      },
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_09"
+      },
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_10"
+      },
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_11"
+      },
+      {
+        "name": "pjmbasemod:radio/end/squad_radio_end_12"
+      }
+    ]
+  },
+  "radio.background": {
+    "category": "players",
+    "sounds": [
+      {
+        "name": "pjmbasemod:radio/radio_static_background_01",
+        "stream": true
+      },
+      {
+        "name": "pjmbasemod:radio/radio_static_background_02",
+        "stream": true
+      }
+    ]
+  },
+  "rally.place": {
+    "category": "blocks",
+    "sounds": [
+      { "name": "pjmbasemod:deployables/placement_01" },
+      { "name": "pjmbasemod:deployables/placement_02" },
+      { "name": "pjmbasemod:deployables/placement_03" }
+    ]
+  },
+  "deploy.radio_static_loop": {
+    "category": "blocks",
+    "sounds": [
+      {
+        "name": "pjmbasemod:deployables/radio_static_noise_loop",
+        "stream": true
+      }
+    ]
+  }
+}

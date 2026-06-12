@@ -1,0 +1,30 @@
+# Gradle
+.gradle/
+build/
+out/
+bin/
+src/generated/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.eclipse/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local
+run/
+runs/
+*.log
+
+# Локальное состояние инструментов (BM25-индекс, stream store) — не контент мода
+/data/
+
+# Локальные настройки Claude Code
+.claude/settings.local.json

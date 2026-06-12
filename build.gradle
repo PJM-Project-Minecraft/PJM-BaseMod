@@ -1,0 +1,213 @@
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.neoforged.moddev' version '2.0.42-beta'
+}
+
+group = mod_group_id
+version = mod_version
+
+base {
+    archivesName = mod_id
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+// ==================== Source sets: main (common) + client + server ====================
+sourceSets {
+    client {
+        java.srcDir 'src/client/java'
+        resources.srcDir 'src/client/resources'
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+    server {
+        java.srcDir 'src/server/java'
+        resources.srcDir 'src/server/resources'
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+
+neoForge {
+    version = neoforge_version
+
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+            sourceSet sourceSets.server
+        }
+    }
+
+    runs {
+        client {
+            client()
+            sourceSet = sourceSets.client
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        }
+        server {
+            server()
+            sourceSet = sourceSets.server
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        }
+        gameTestServer {
+            type = 'gameTestServer'
+            sourceSet = sourceSets.server
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        }
+        data {
+            data()
+            programArguments.addAll '--mod', mod_id,
+                                     '--all',
+                                     '--output', file('src/generated/resources/').getAbsolutePath(),
+                                     '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+    }
+}
+
+// Generated datagen resources flow back into main
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'BlueMap'
+        url = 'https://repo.bluecolored.de/releases'
+    }
+    maven {
+        name = 'JourneyMap'
+        url = 'https://maven.blamejared.com'
+        content { includeGroup 'info.journeymap' }
+    }
+    maven {
+        name = 'GeckoLib'
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content {
+            includeGroupByRegex("software\\.bernie.*")
+            includeGroup("com.eliotlash.mclib")
+        }
+    }
+    maven {
+        name = 'ModMaven'
+        url = 'https://modmaven.dev'
+        content {
+            includeGroup("software.bernie.geckolib")
+        }
+    }
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup 'maven.modrinth' }
+    }
+}
+
+def taczReferenceJar = file('/home/liko/Разработка/NeoForge/!libs and references/TACZ-1.21.1/build/libs/tacz-neoforge-1.21.1-1.1.7-hotfix-r1.jar')
+
+dependencies {
+    // GeckoLib (required) — common+client side
+    implementation "com.eliotlash.mclib:mclib:20"
+    implementation "software.bernie.geckolib:geckolib-neoforge-1.21.1:${geckolib_version}"
+
+    // Simple Voice Chat (optional) — compile-only API
+    compileOnly "maven.modrinth:simple-voice-chat:${voicechat_version}"
+    'clientCompileOnly' "maven.modrinth:simple-voice-chat:${voicechat_version}"
+
+    // BlueMap (optional, server-side integration)
+    compileOnly "de.bluecolored:bluemap-api:2.7.7"
+
+    // JourneyMap API (optional, client-side integration)
+    compileOnly(group: 'info.journeymap', name: 'journeymap-api-neoforge', version: project.journeymap_api_version, changing: true)
+    clientCompileOnly(group: 'info.journeymap', name: 'journeymap-api-neoforge', version: project.journeymap_api_version, changing: true)
+
+    // TACZ (optional warehouse item integration) — local reference/dev runtime jar, not bundled
+    compileOnly files(taczReferenceJar)
+    clientCompileOnly files(taczReferenceJar)
+    runtimeOnly files(taczReferenceJar)
+}
+
+// ==================== Resource processing with variable expansion ====================
+def expandedProperties = [
+    minecraft_version      : minecraft_version,
+    minecraft_version_range: minecraft_version_range,
+    neoforge_version       : neoforge_version,
+    neoforge_version_range : neoforge_version_range,
+    loader_version_range   : loader_version_range,
+    mod_id                 : mod_id,
+    mod_name               : mod_name,
+    mod_license            : mod_license,
+    mod_version            : mod_version,
+    mod_authors            : mod_authors,
+    mod_description        : mod_description,
+]
+
+tasks.named('processResources', ProcessResources).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    inputs.properties expandedProperties
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
+        expand expandedProperties + [project: project]
+    }
+}
+
+tasks.named('processClientResources', ProcessResources).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named('processServerResources', ProcessResources).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// ==================== Shared manifest attributes ====================
+def sharedManifestAttrs = [
+    'Specification-Title'     : mod_id,
+    'Specification-Vendor'    : mod_authors,
+    'Specification-Version'   : '1',
+    'Implementation-Title'    : project.name,
+    'Implementation-Version'  : mod_version,
+    'Implementation-Vendor'   : mod_authors,
+    'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+]
+
+// ==================== JARS ====================
+// Default `jar` task → используем как клиентский (main + client)
+tasks.named('jar', Jar).configure {
+    archiveClassifier = 'client'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from sourceSets.main.output
+    from sourceSets.client.output
+    manifest { attributes(sharedManifestAttrs + ['Side': 'CLIENT']) }
+}
+
+// Server-only jar (main + server)
+tasks.register('serverJar', Jar) {
+    group = 'build'
+    description = 'Builds the dedicated-server JAR (main + server source sets, no client code/assets).'
+    archiveClassifier = 'server'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from sourceSets.main.output
+    from sourceSets.server.output
+    manifest { attributes(sharedManifestAttrs + ['Side': 'SERVER']) }
+}
+
+// Local testing jar (main + client + server)
+tasks.register('localJar', Jar) {
+    group = 'build'
+    description = 'Builds the local testing JAR with both client and server source sets.'
+    archiveClassifier = 'local'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from sourceSets.main.output
+    from sourceSets.client.output
+    from sourceSets.server.output
+    manifest { attributes(sharedManifestAttrs + ['Side': 'BOTH']) }
+}
+
+tasks.named('build').configure {
+    dependsOn 'serverJar', 'localJar'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
