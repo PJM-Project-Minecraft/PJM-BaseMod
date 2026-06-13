@@ -13,7 +13,6 @@ import net.minecraft.server.level.ServerPlayer;
 import ru.liko.pjmbasemod.common.entity.QuartermasterEntity;
 import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.init.PjmEntities;
-import ru.liko.pjmbasemod.common.warehouse.CrateRegistry;
 import ru.liko.pjmbasemod.common.warehouse.WarehouseItemRegistry;
 import ru.liko.pjmbasemod.common.warehouse.WarehousePoolCategory;
 import ru.liko.pjmbasemod.common.warehouse.WarehouseSavedData;
@@ -50,8 +49,6 @@ public final class WarehouseCommands {
                                 .executes(ctx -> delete(ctx.getSource(), StringArgumentType.getString(ctx, "id")))))
                 .then(Commands.literal("list")
                         .executes(ctx -> list(ctx.getSource())))
-                .then(Commands.literal("reload")
-                        .executes(ctx -> reload(ctx.getSource())))
                 .then(Commands.literal("reception")
                         .then(Commands.literal("set")
                                 .then(Commands.argument("id", StringArgumentType.word())
@@ -139,13 +136,6 @@ public final class WarehouseCommands {
             return 1;
         }
         source.sendSuccess(() -> Component.literal("Склады: " + String.join(", ", ids)), false);
-        return 1;
-    }
-
-    private static int reload(CommandSourceStack source) {
-        int items = WarehouseItemRegistry.get().reload();
-        int crates = CrateRegistry.get().reload();
-        source.sendSuccess(() -> Component.literal("Перезагружено: предметов " + items + ", ящиков " + crates + "."), true);
         return 1;
     }
 

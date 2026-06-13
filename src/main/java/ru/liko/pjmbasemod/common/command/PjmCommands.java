@@ -69,38 +69,102 @@ public final class PjmCommands {
 
     private static void register(CommandDispatcher<CommandSourceStack> d) {
         d.register(Commands.literal("pjm")
+                // --- игроковые подсистемы ---
                 .then(chatCommand())
                 .then(factionCommand())
                 .then(roleCommand())
                 .then(rankCommand())
+                .then(garageCommand())
+                .then(WarehouseCommands.build())
+                // --- админ / управление миром ---
                 .then(regionCommand())
                 .then(frontlineCommand())
-                .then(garageCommand())
                 .then(inventoryCommand())
-                .then(WarehouseCommands.build()));
+                .then(configCommand()));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> inventoryCommand() {
         return Commands.literal("inventory")
-                .then(Commands.literal("reload")
-                        .requires(source -> source.hasPermission(2))
-                        .executes(ctx -> reloadInventoryLimit(ctx.getSource())))
                 .then(Commands.literal("info")
                         .requires(source -> source.hasPermission(2))
                         .executes(ctx -> inventoryLimitInfo(ctx.getSource())));
     }
 
-    private static int reloadInventoryLimit(CommandSourceStack source) {
-        boolean ok = ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry.get().reload();
-        ru.liko.pjmbasemod.common.inventory.InventoryLimitService.syncAll(source.getServer());
-        var cfg = ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry.get().config();
-        int count = cfg.lockedSlots().size();
-        if (ok) {
-            source.sendSuccess(() -> Component.translatable("pjmbasemod.command.inventory.reloaded", count), true);
-            return count;
+    // ---------------------------------------------------------------- config (централизованная перезагрузка)
+
+    /** Секции, которые умеет перезагружать {@code /pjm config reload <section>}. */
+    private static final String[] CONFIG_SECTIONS = {"all", "vehicles", "warehouse", "ranks", "roles", "inventory"};
+
+    private static LiteralArgumentBuilder<CommandSourceStack> configCommand() {
+        return Commands.literal("config")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("reload")
+                        .executes(ctx -> reloadConfig(ctx.getSource(), "all"))
+                        .then(Commands.argument("section", StringArgumentType.word())
+                                .suggests((ctx, builder) -> suggestConfigSections(builder))
+                                .executes(ctx -> reloadConfig(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "section")))));
+    }
+
+    /**
+     * Централизованная перезагрузка JSON-реестров мода. {@code section} = all или конкретная
+     * подсистема (vehicles/warehouse/ranks/roles/inventory). Зеркалит логику {@code onServerStarted}.
+     */
+    private static int reloadConfig(CommandSourceStack source, String section) {
+        boolean all = section.equalsIgnoreCase("all");
+        var server = source.getServer();
+        StringBuilder report = new StringBuilder();
+        int sections = 0;
+
+        if (all || section.equalsIgnoreCase("vehicles")) {
+            ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.reload(server);
+            int count = VehicleRegistry.get().reload();
+            report.append("техника ").append(count).append("; ");
+            sections++;
         }
-        source.sendFailure(Component.translatable("pjmbasemod.command.inventory.reload_failed"));
-        return 0;
+        if (all || section.equalsIgnoreCase("warehouse")) {
+            int items = ru.liko.pjmbasemod.common.warehouse.WarehouseItemRegistry.get().reload();
+            int crates = ru.liko.pjmbasemod.common.warehouse.CrateRegistry.get().reload();
+            report.append("склад: предметы ").append(items).append(", ящики ").append(crates).append("; ");
+            sections++;
+        }
+        if (all || section.equalsIgnoreCase("ranks")) {
+            RankRegistry.get().reload();
+            RankService.syncAll(server);
+            report.append("ранги ").append(RankRegistry.get().config().ranks().size()).append("; ");
+            sections++;
+        }
+        if (all || section.equalsIgnoreCase("roles")) {
+            int count = ru.liko.pjmbasemod.common.role.RoleLimitRegistry.get().reload();
+            RoleService.syncAll(server);
+            report.append("лимиты ролей ").append(count).append("; ");
+            sections++;
+        }
+        if (all || section.equalsIgnoreCase("inventory")) {
+            ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry.get().reload();
+            ru.liko.pjmbasemod.common.inventory.InventoryLimitService.syncAll(server);
+            int locked = ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry.get().config().lockedSlots().size();
+            report.append("инвентарь: заблок. слотов ").append(locked).append("; ");
+            sections++;
+        }
+
+        if (sections == 0) {
+            source.sendFailure(Component.literal("Неизвестная секция '" + section
+                    + "'. Используй all, vehicles, warehouse, ranks, roles или inventory."));
+            return 0;
+        }
+
+        String summary = report.toString().trim();
+        source.sendSuccess(() -> Component.literal("Конфиги перезагружены [" + section + "]: " + summary), true);
+        return sections;
+    }
+
+    private static CompletableFuture<Suggestions> suggestConfigSections(
+            com.mojang.brigadier.suggestion.SuggestionsBuilder builder) {
+        for (String s : CONFIG_SECTIONS) {
+            builder.suggest(s);
+        }
+        return builder.buildFuture();
     }
 
     private static int inventoryLimitInfo(CommandSourceStack source) {
@@ -145,9 +209,6 @@ public final class PjmCommands {
                                                 IntegerArgumentType.getInteger(ctx, "blocks"))))))
                 .then(Commands.literal("list")
                         .executes(ctx -> listVehicles(ctx.getSource())))
-                .then(Commands.literal("reload")
-                        .requires(source -> source.hasPermission(2))
-                        .executes(ctx -> reloadVehicles(ctx.getSource())))
                 .then(Commands.literal("add")
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("id", StringArgumentType.word())
@@ -241,13 +302,6 @@ public final class PjmCommands {
             source.sendSuccess(() -> Component.literal(" - " + def.id() + " (" + def.displayName() + ") -> " + def.entityTypeString()), false);
         }
         return defs.size();
-    }
-
-    private static int reloadVehicles(CommandSourceStack source) {
-        ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.reload(source.getServer());
-        int count = VehicleRegistry.get().reload();
-        source.sendSuccess(() -> Component.literal("Каталог техники перезагружен: " + count + " определений"), true);
-        return count;
     }
 
     private static int addVehicle(CommandSourceStack source, String id, String entityType, String displayName) {
@@ -563,10 +617,7 @@ public final class PjmCommands {
                 .then(Commands.literal("reset")
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> rankReset(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))
-                .then(Commands.literal("reload")
-                        .requires(source -> source.hasPermission(2))
-                        .executes(ctx -> rankReload(ctx.getSource())));
+                                .executes(ctx -> rankReset(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))));
     }
 
     private static int rankInfo(CommandSourceStack source) {
@@ -609,18 +660,6 @@ public final class PjmCommands {
         RankService.reset(target);
         source.sendSuccess(() -> Component.literal("XP рангов игрока " + target.getName().getString() + " сброшен"), true);
         return 1;
-    }
-
-    private static int rankReload(CommandSourceStack source) {
-        boolean ok = RankRegistry.get().reload();
-        RankService.syncAll(source.getServer());
-        int count = RankRegistry.get().config().ranks().size();
-        if (ok) {
-            source.sendSuccess(() -> Component.literal("Ранги перезагружены: " + count + " определений"), true);
-            return count;
-        }
-        source.sendFailure(Component.literal("Ранги не удалось загрузить, используются дефолты. Подробности в логе."));
-        return 0;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> frontlineCommand() {
