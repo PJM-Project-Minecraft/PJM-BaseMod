@@ -23,4 +23,14 @@ public class QuartermasterRenderer extends MobRenderer<QuartermasterEntity, Play
         return ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID,
                 "textures/skins/" + entity.getSkinId() + ".png");
     }
+
+    /**
+     * Всегда показываем надпись «Кладовщик» над NPC в радиусе 32 блоков,
+     * не дожидаясь наведения курсора. Текст берётся из {@code entity.getDisplayName()} —
+     * это переведённое имя типа сущности ({@code entity.pjmbasemod.quartermaster}).
+     */
+    @Override
+    protected boolean shouldShowName(QuartermasterEntity entity) {
+        return this.entityRenderDispatcher.distanceToSqr(entity) < 32.0D * 32.0D;
+    }
 }

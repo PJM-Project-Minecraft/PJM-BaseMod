@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Инструкции для Claude Code при работе в этом репозитории.
 
 ## Project
 
-Ты Senior разработчик, PJM BaseMod (`pjmbasemod`, group `ru.liko`) — тактический PvP-мод для **Minecraft 1.21.1 / NeoForge 21.1.172 / Java 21**. Базовый код-нейм `WRB-BaseMod`. Основной язык общения и комментариев — русский.
+Ты Senior разработчик, PJM BaseMod (`pjmbasemod`, group `ru.liko`) — тактический PvP-мод для **Minecraft 1.21.1 / NeoForge 21.1.172 / Java 21**. Базовый код-нейм `WRB-BaseMod`. Основной язык общения и комментариев — **русский**.
 
 ## Build & verify commands
 
@@ -15,82 +15,184 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew runData            # datagen → src/generated/resources (вливается обратно в main)
 ```
 
-**`runClient` / `runServer` НЕ РАБОТАЮТ из этого каталога.** Путь содержит `!Curseforge Mods`, и символ `!` ломает dev-лаунчер NeoForge (ModLauncher/ASM) на bootstrap: `IllegalArgumentException: Invalid package name: '!MSD' ... is not a Java identifier`. Это ограничение пути, не кода. **Верификацию делай через `compileJava` + `compileClientJava` + валидацию JSON.** Внутриигровую проверку (GUI, телепорт, кастомные дименшены) выполняет пользователь у себя или из пути без `!`.
+**`runClient` / `runServer` НЕ РАБОТАЮТ из этого каталога.** Путь содержит `!Curseforge Mods`, символ `!` ломает dev-лаунчер NeoForge на bootstrap: `IllegalArgumentException: Invalid package name: '!MSD'`. Ограничение пути, не кода. **Верификация — `compileJava` + `compileClientJava` + валидация JSON.** Внутриигровую проверку (GUI, телепорт, кастомные дименшены) выполняет пользователь из пути без `!`.
 
 ## Source set architecture (критично)
 
-Три source set'а из одного gradle-проекта собирают три JAR:
+Три source set'а → три JAR:
 
-| Source set | Назначение |
-|------------|------------|
-| `src/main` (`common`) | Общий код: сервер-логика, сеть, данные, регистры |
-| `src/client` | Только клиент: GUI, рендер, ввод. Зависит от `main` |
-| `src/server` | Серверная точка входа |
+| Source set | Путь | Назначение |
+|------------|------|------------|
+| `common` | `src/main` | Сервер-логика, сеть, данные, регистры |
+| `client` | `src/client` | GUI, рендер, ввод — зависит от `main` |
+| `server` | `src/server` | Серверная точка входа |
 
-**Жёсткое правило направления зависимостей:** `client`/`server` могут импортировать `main`, но **`main` НИКОГДА не импортирует `client`** (иначе ломается dedicated-server JAR без клиентских ассетов).
+**Жёсткое правило:** `client`/`server` могут импортировать `main`, но **`main` НИКОГДА не импортирует `client`** (ломается dedicated-server JAR).
 
-Развязка main→client сделана через **прокси**: `PjmNetworking.CLIENT` — это `ClientPacketProxy` (по умолчанию `NOOP`). `ClientInit.onClientSetup` подменяет его на `ClientPacketHandlersImpl`. Весь Server→Client код в common вызывает `CLIENT.someMethod(packet)`, не зная о клиентских классах.
+Развязка через **прокси**: `PjmNetworking.CLIENT` — интерфейс `ClientPacketProxy` (по умолчанию `NOOP`). `ClientInit.onClientSetup` подменяет его на `ClientPacketHandlersImpl`. Весь S→C код в common вызывает `CLIENT.someMethod(packet)`, не зная о клиентских классах.
 
 ## Точки входа
 
-- `ru.liko.pjmbasemod.Pjmbasemod` (`@Mod`, MODID `pjmbasemod`) — регистрирует `DeferredRegister`-ы (`PjmItems`, `PjmEntities`, `PjmSounds` в `common/init/`), сетевые пакеты и common config.
-- `client/ClientInit` (`@EventBusSubscriber Dist.CLIENT`) — ставит клиентский прокси.
+- `ru.liko.pjmbasemod.Pjmbasemod` (`@Mod`, MODID `pjmbasemod`) — регистрирует `DeferredRegister`-ы (`PjmItems`, `PjmEntities`, `PjmSounds` в `common/init/`), сетевые пакеты, config.
+- `client/ClientInit` (`@EventBusSubscriber Dist.CLIENT`) — ставит клиентский прокси, регистрирует рендеры сущностей, кейбайндинги.
 - `server/ServerInit` — серверная точка входа.
+- `Config.java` (корень пакета, не в `common/init/`) — NeoForge Config с секциями: `general`, `hud`, `milsim`, `controlPoints`, `teams` (TEAM_JOIN_COMMANDS), `region`, `frontline` (с окном реального времени захвата).
 
 ## Сетевой слой
 
-`common/network/PjmNetworking.onRegisterPayloads` регистрирует **все** ~30 пакетов (`VERSION` бампается при изменении состава). Пакеты — records в `common/network/packet/` со `StREAM_CODEC`.
+`common/network/PjmNetworking` регистрирует все пакеты. **`VERSION = "12"` — бампать при изменении состава пакетов.** Пакеты — records в `common/network/packet/` со `STREAM_CODEC`.
 
-- **Client → Server**: обрабатывается в `common/network/handler/ServerPacketHandlers` или напрямую в менеджерах (`GarageManager`, `WarehouseManager`).
-- **Server → Client**: маршрутизируется через `ClientPacketProxy` (см. выше), реализация в `client/network/ClientPacketHandlersImpl`.
+- **C→S**: обрабатываются в `common/network/handler/ServerPacketHandlers` или напрямую в менеджерах (`GarageManager`, `WarehouseManager`).
+- **S→C**: маршрутизируется через `ClientPacketProxy` → `client/network/ClientPacketHandlersImpl`.
 
-Добавляя пакет: создать record-payload → зарегистрировать в `PjmNetworking` → (для S→C) добавить метод в `ClientPacketProxy` интерфейс + реализацию.
+Добавляя пакет: создать record-payload → зарегистрировать в `PjmNetworking` → (для S→C) добавить метод в `ClientPacketProxy` + реализацию.
 
 ## События
 
-Всё событийное — через `@EventBusSubscriber`. Главный server-side хаб — **`common/event/PjmServerEvents`**:
-- `onLogin` — рассылает первичную синхронизацию подсистем и вызывает `*.onPlayerLogin`.
-- `onPlayerTick` (`PlayerTickEvent.Post`) — пер-тик сервисы: `LobbyService`, `FactionMenuService`, `RoleService`, `FactionCommanderService`. **Отложенные действия (телепорт при входе) делать здесь, не в `onLogin`** — на логине entity ещё не полностью заспавнен.
-- `onServerStarted` — `reload()` датапак-регистров + выполнение startup-команд из конфига.
+Всё через `@EventBusSubscriber`. Главный server-side хаб — `common/event/PjmServerEvents`:
+
+- `onLogin` — рассылает первичную синхронизацию подсистем, вызывает `*.onPlayerLogin`.
+- `onPlayerTick` (`PlayerTickEvent.Post`) — тик-сервисы: `FactionCommanderService`, `RoleService`, `LobbyService`, `FactionMenuService`. **Отложенные действия (телепорт при входе) — здесь, не в `onLogin`**: на логине entity ещё не полностью заспавнен.
+- `onServerTick` (`ServerTickEvent.Post`) — `FrontlineManager.onServerTick`, `FrontlineBlueMapService.onServerTick`.
+- `onServerStarted` — `reload()` датапак-регистров + startup-команды из конфига, `RankService.onServerStarted`.
 
 ## Подсистемы (`common/<package>/`)
 
-`faction`, `role`, `rank`, `garage` (техника), `warehouse` (склад/NPC-кладовщик), `frontline` (+`bluemap` интеграция), `region`, `chat`, `voice` (Simple Voice Chat), `dimension`, `customization`, `audio`. Клиентские зеркала — в `src/client/.../client/`.
+### faction
+`FactionSelectionSavedData`, `FactionSelectionSnapshot` — выбор фракции (scoreboard-команда).
+`FactionMenuService` — управляет открытием GUI выбора фракции.
+`FactionCommanderService`, `FactionCommanderSavedData` — роль командира.
+`FactionJoinActions` — действия при вступлении в фракцию.
+`FactionPermissions`, `FactionManagementSnapshot` — права и синхронизация.
+
+### role
+`RoleService`, `RoleSavedData` — боевая роль игрока (enum `CombatRole`).
+`RoleLimitRegistry` — JSON-лимиты ролей из `config/pjmbasemod/roles/`.
+`RolePermissions` — проверки прав роли.
+
+### rank
+`RankService`, `RankSavedData`, `RankRegistry`, `RankDefinition`, `RankConfig`, `RankSnapshot` — система XP и ранга. JSON-конфиг из `config/pjmbasemod/ranks/`. Синхронизируется пакетами `RankSyncPacket` / `RankXpPacket`.
+
+### garage
+`GarageManager`, `GarageSavedData`, `GarageTerminalSavedData`, `GarageTerminalSettings` — управление гаражами.
+`VehicleRegistry`, `VehicleDefinition`, `StoredVehicle`, `CostEntry` — JSON-реестр техники.
+`GaragePermissions`, `GarageSnapshot`, `GarageType` — права и снапшот для GUI.
+`GarageType`: `GROUND` / `AVIATION` — два типа гаражей с раздельными слотами.
+`NotebookItem` — предмет, размещающий терминал-«ноутбук» (`NotebookEntity`, GeckoLib).
+Клиентский экран: `client/gui/screen/GarageScreen`.
+
+### warehouse
+`WarehouseManager`, `WarehouseSavedData`, `WarehouseSettingsSavedData`, `WarehouseSettings`, `WarehouseSnapshot` — склад очков.
+`WarehouseItemRegistry`, `WarehouseItemDefinition`, `CrateRegistry`, `CrateDefinition` — JSON-каталоги.
+`WarehousePoolCategory` — 4 пула: WEAPON/SUPPLY/RAW/SPECIAL.
+`WarehousePermissions` — права.
+`QuartermasterEntity` — NPC-кладовщик (`Mob` без ИИ, рендер `QuartermasterRenderer` через ванильную `PlayerModel`).
+Ящики: `SupplyCrateItem` × 4 (weapon_crate/supply_crate/raw_crate/special_crate).
+Клиентский экран: `client/gui/screen/WarehouseScreen`.
+
+### inventory
+`InventoryLimitService`, `InventoryLimitRegistry`, `InventoryLimitConfig` — блокировка слотов инвентаря.
+`SlotMixin` (единственный mixin) — инжект в `Slot.mayPickup` / `Slot.mayPlace`, запрещает взаимодействие с заблокированными слотами.
+Синхронизируется `LockedSlotsPacket` (S→C). Клиентское зеркало: `client/inventory/LockedSlotsClientState`.
+
+### frontline
+`FrontlineManager`, `FrontlineSavedData`, `FrontlineChunkKey/State`, `FrontlineSectorKey/State` — система захвата секторов по чанкам.
+`FrontlineTeams` — резолв команды игрока через ванильный **scoreboard** (не кастомный enum):
+- `FrontlineTeams.resolvePlayerTeamId(ServerPlayer)` → id команды или null
+- `FrontlineTeams.all()` → `List<Config.ConfiguredTeam>` с `.id()`
+`FrontlineBlueMapRuntime`, `FrontlineBlueMapService` — интеграция с BlueMap.
+Клиентское зеркало: `client/frontline/ClientFrontlineState`.
+JourneyMap: `client/frontline/journeymap/` — плагин карты.
+HUD: `client/gui/overlay/FrontlineHudOverlay`.
+
+### region
+`RegionManager`, `RegionSavedData`, `Region` — именованные регионы мира.
+Клиентское зеркало: `client/region/ClientRegionState`.
+
+### dimension
+`PjmDimensions`, `LobbyService` — кастомные дименшены через datapack JSON.
+Пара файлов: `data/pjmbasemod/dimension/<name>.json` + `data/pjmbasemod/dimension_type/<name>.json`.
+В Java: `ResourceKey<Level>` → `server.getLevel(key)`.
+Платформы/структуры ставятся кодом (`LobbyService.ensurePlatform`), не генератором.
+
+### chat
+`ChatService`, `ChatMode` — режимы чата.
+Клиент: `client/chat/ClientChatModeState`.
+
+### voice / radio (client-only)
+`common/voice/` — `PjmVoiceChatPlugin`, `VoicechatBridge` (Simple Voice Chat integration, `compileOnly`).
+`client/radio/` — `RadioManager`, `PjmVoiceChatClientPlugin`, `RadioStaticSoundInstance`, `VoiceChatBridge`, `VoiceChatActionBarHud`.
+Сервер: `RadioAudioProcessor` (`common/audio/`), пакеты `RadioEventPacket`, `RadioSwitchPacket`.
+
+### customization
+`CustomizationManager`, `CustomizationOption`, `CustomizationType` — кастомизация (скины/цвета техники).
+
+### compat
+`SbwVehicleClassifier` — SuperBWarfare определение типа техники.
+`TaczWarehouseCompat`, `TaczWarehouseIntegration` — интеграция TACZ с системой склада.
+`client/compat/WarBornGuardCompat` — клиентская совместимость WarBorn Guard.
+
+## Клиентские state-классы (зеркала)
+
+Каждая подсистема имеет клиентский singleton-state в `src/client/.../client/<subsystem>/`:
+`ClientFactionCommanderState`, `ClientFrontlineState`, `ClientRankState`, `ClientRoleState`,
+`ClientRegionState`, `LockedSlotsClientState`, `ClientChatModeState`.
+Обновляются из `ClientPacketHandlersImpl` при получении sync-пакетов.
+
+## Клиентские GUI
+
+**Экраны** (`client/gui/screen/`): `FactionSelectionScreen`, `FactionManagementScreen`, `GarageScreen`, `WarehouseScreen`, `TacticalMainMenuScreen`, `RadialMenuScreen` (радиальное меню выбора).
+GUI — кастомные `Screen` **без `AbstractContainerMenu`**.
+
+**Оверлеи** (`client/gui/overlay/`): `FrontlineHudOverlay`, `RankHudOverlay`, `HudOverlay`, `NotificationOverlay`, `VoiceChatOverlay`, `CustomHotbarOverlay`, `CancelVanillaHotbar`.
+
+**Утилиты**: `PjmGuiUtils`, `PjmUiSounds`, `PjmUiButton` (виджет), `GuiItemIcons`.
+
+**Кейбайндинги**: `client/input/ModKeyBindings`.
 
 ## Персистентность
 
-Состояние мира — через ванильный **`SavedData`**-паттерн: `*SavedData` классы (`FactionSelectionSavedData`, `GarageSavedData`, `RankSavedData`, `WarehouseSavedData`, …). Каждый — per-world сохранение, доступ через `level.getDataStorage().computeIfAbsent(...)`.
+Состояние мира — ванильный **`SavedData`**: `*SavedData` классы. Доступ через `level.getDataStorage().computeIfAbsent(...)`. Каждый класс — per-world сохранение. Примеры: `FactionSelectionSavedData`, `GarageSavedData`, `GarageTerminalSavedData`, `RankSavedData`, `RoleSavedData`, `WarehouseSavedData`, `WarehouseSettingsSavedData`, `FrontlineSavedData`, `RegionSavedData`, `FactionCommanderSavedData`.
 
 ## Конфигурируемые JSON-регистры
 
-Часть контента грузится из **рантайм-JSON** в `config/pjmbasemod/<subsystem>/` (НЕ из ресурсов): `VehicleRegistry`, `WarehouseItemRegistry`, `CrateRegistry`, `RoleLimitRegistry`. Перезагружаются в `onServerStarted` и через `/pjm ... reload`.
-
-## Кастомные дименшены
-
-Через **datapack JSON**, не `DeferredRegister`: пара файлов `data/pjmbasemod/dimension/<name>.json` + `data/pjmbasemod/dimension_type/<name>.json`. В Java на них ссылаются через `ResourceKey<Level>` (см. `common/dimension/PjmDimensions`), доступ — `server.getLevel(key)`. Блоки платформ/структур ставятся кодом (`LobbyService.ensurePlatform`), а не генератором.
+Загружаются из `config/pjmbasemod/<subsystem>/` (НЕ из ресурсов мода), читаются через Gson:
+`VehicleRegistry`, `WarehouseItemRegistry`, `CrateRegistry`, `RoleLimitRegistry`, `RankRegistry`.
+Перезагружаются на `ServerStartedEvent` и через `/pjm ... reload`.
 
 ## Команды
 
-Brigadier-дерево в `common/command/PjmCommands` (корень `/pjm`) и `WarehouseCommands`. Регистрация через `RegisterCommandsEvent`.
+Brigadier-дерево: `common/command/PjmCommands` (корень `/pjm`) + `WarehouseCommands`.
+Регистрация через `RegisterCommandsEvent`.
 
 ## Локализация
 
-5 языков в `src/client/resources/assets/pjmbasemod/lang/`: `ru_ru`, `en_us`, `uk_ua`, `de_de`, `zh_cn`. При добавлении ключа — **во все пять** файлов.
+5 языков: `src/client/resources/assets/pjmbasemod/lang/ru_ru.json`, `en_us.json`, `uk_ua.json`, `de_de.json`, `zh_cn.json`. При добавлении ключа — **во все пять**.
 
 ## Опциональные зависимости
 
-`geckolib` (required), `voicechat`/Simple Voice Chat (optional, `compileOnly`), `journeymap` (client), `bluemap`, `superbwarfare`, `tacz` (локальный jar по абсолютному пути в `build.gradle`). Soft-deps грузятся через `common/compat/`.
+`geckolib` (required — используется для `NotebookEntity`), `voicechat`/Simple Voice Chat (`compileOnly`), `journeymap` (client), `bluemap`, `superbwarfare`, `tacz` (локальный jar по абсолютному пути в `build.gradle`). Soft-deps загружаются через `common/compat/` и `client/compat/`.
+
+## Шаблон новой подсистемы (garage / warehouse)
+
+1. `common/<name>/` — `*Manager` + `*Registry` (JSON) + `*SavedData` + `*Snapshot` + `*Permissions`
+2. Пакеты: `Open*Packet` (S→C), `*SyncPacket` (S→C), action-пакеты (C→S) в `common/network/packet/`
+3. Регистрация в `PjmNetworking`, бамп `VERSION`
+4. Метод в `ClientPacketProxy` (default noop) + реализация в `ClientPacketHandlersImpl`
+5. `client/gui/screen/*Screen` (extends `Screen`, без ContainerMenu)
+6. Клиентский state-класс `client/<name>/Client*State`
 
 ## Предостережение по DOCS.md
 
-`DOCS.md` и `docs/` — **идеализированная** документация: описывают классы и команды (`common.map`, `DynamicDimensionManager`, `PjmCommonEvents`, `/pjm dimension`), которых в коде может не быть. Сверяйся с реальным кодом, а не с DOCS.
+`DOCS.md` и `docs/` — **идеализированная** документация: описывают классы и команды (`DynamicDimensionManager`, `PjmCommonEvents`, `/pjm dimension`), которых в коде **нет**. Сверяйся с реальным кодом, а не с DOCS.
 
 ## Conventions
 
-- Команды/состояние нередко проводятся через scoreboard (см. память проекта).
-- `SoundEvents` в моде = собственный `SoundEvent` (не ванильный класс).
-- Новые подсистемы делать по шаблону существующих (garage / warehouse): регистр + менеджер + SavedData + пакеты + клиентский экран.
+- Команды/состояние игроков — через ванильный **scoreboard** (`FrontlineTeams.resolvePlayerTeamId`, `FrontlineTeams.all()`). Классов `PjmPlayerData`/`PjmPermissions` нет.
+- `SoundEvents` в моде = собственный `SoundEvent` (не ванильный `Holder<SoundEvent>`). Передавай напрямую в `level.playSound(...)`, без `.value()`.
+- Гаражи двух типов: `GarageType.GROUND` и `GarageType.AVIATION` — раздельные слоты и терминалы.
+- Единственный mixin — `SlotMixin` (блокировка инвентаря). Добавляй новые mixins в тот же пакет `mixin/`.
 
 ## Git и контроль версий
 
-- После каждой успешной итерации ты предлагаешь закомитить изменения
+После каждой успешной итерации предлагай закоммитить изменения.

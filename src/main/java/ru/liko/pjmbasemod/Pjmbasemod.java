@@ -3,7 +3,6 @@ package ru.liko.pjmbasemod;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +26,8 @@ public final class Pjmbasemod {
         modBus.addListener(PjmNetworking::onRegisterPayloads);
         modBus.addListener(this::onCommonSetup);
 
-        container.registerConfig(ModConfig.Type.COMMON, Config.SPEC, "pjmbasemod-common.toml");
+        // JSON-конфиг в config/pjmbasemod/config.json (см. Config). Грузим сразу при конструировании мода.
+        Config.reload();
     }
 
     private void onCommonSetup(FMLCommonSetupEvent event) {

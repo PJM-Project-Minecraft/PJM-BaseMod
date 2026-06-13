@@ -80,7 +80,46 @@ public final class PjmCommands {
                 .then(regionCommand())
                 .then(frontlineCommand())
                 .then(inventoryCommand())
-                .then(configCommand()));
+                .then(configCommand())
+                .then(debugCommand()));
+    }
+
+    // ---------------------------------------------------------------- debug (принудительное открытие меню)
+
+    private static LiteralArgumentBuilder<CommandSourceStack> debugCommand() {
+        return Commands.literal("debug")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("open")
+                        .then(Commands.literal("faction_selection")
+                                .executes(ctx -> debugOpenSelection(ctx.getSource(), requirePlayer(ctx.getSource())))
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .executes(ctx -> debugOpenSelection(ctx.getSource(),
+                                                EntityArgument.getPlayer(ctx, "target")))))
+                        .then(Commands.literal("faction_management")
+                                .executes(ctx -> debugOpenManagement(ctx.getSource(), requirePlayer(ctx.getSource())))
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .executes(ctx -> debugOpenManagement(ctx.getSource(),
+                                                EntityArgument.getPlayer(ctx, "target"))))));
+    }
+
+    private static int debugOpenSelection(CommandSourceStack source, @Nullable ServerPlayer target) {
+        if (target == null) return 0;
+        FactionMenuService.debugOpenSelection(target);
+        source.sendSuccess(() -> Component.literal(
+                "Открыт экран выбора фракции у игрока " + target.getName().getString()), false);
+        return 1;
+    }
+
+    private static int debugOpenManagement(CommandSourceStack source, @Nullable ServerPlayer target) {
+        if (target == null) return 0;
+        if (!FactionMenuService.debugOpenManagement(target)) {
+            source.sendFailure(Component.literal(
+                    "У игрока " + target.getName().getString() + " нет боевой команды"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "Открыт экран управления фракцией у игрока " + target.getName().getString()), false);
+        return 1;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> inventoryCommand() {
@@ -93,7 +132,7 @@ public final class PjmCommands {
     // ---------------------------------------------------------------- config (централизованная перезагрузка)
 
     /** Секции, которые умеет перезагружать {@code /pjm config reload <section>}. */
-    private static final String[] CONFIG_SECTIONS = {"all", "vehicles", "warehouse", "ranks", "roles", "inventory"};
+    private static final String[] CONFIG_SECTIONS = {"all", "general", "vehicles", "warehouse", "ranks", "roles", "inventory"};
 
     private static LiteralArgumentBuilder<CommandSourceStack> configCommand() {
         return Commands.literal("config")
@@ -116,6 +155,11 @@ public final class PjmCommands {
         StringBuilder report = new StringBuilder();
         int sections = 0;
 
+        if (all || section.equalsIgnoreCase("general")) {
+            boolean ok = Config.reload();
+            report.append("общий конфиг ").append(ok ? "ок" : "ошибка (дефолты)").append("; ");
+            sections++;
+        }
         if (all || section.equalsIgnoreCase("vehicles")) {
             ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.reload(server);
             int count = VehicleRegistry.get().reload();
@@ -150,7 +194,7 @@ public final class PjmCommands {
 
         if (sections == 0) {
             source.sendFailure(Component.literal("Неизвестная секция '" + section
-                    + "'. Используй all, vehicles, warehouse, ranks, roles или inventory."));
+                    + "'. Используй all, general, vehicles, warehouse, ranks, roles или inventory."));
             return 0;
         }
 

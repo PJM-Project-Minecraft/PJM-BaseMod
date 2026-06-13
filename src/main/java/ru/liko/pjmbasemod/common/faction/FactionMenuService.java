@@ -53,6 +53,26 @@ public final class FactionMenuService {
         PjmNetworking.sendToPlayer(player, new OpenFactionSelectionPacket(selectionSnapshot(player, true)));
     }
 
+    /** Debug: принудительно открыть экран выбора фракции у цели (закрываемый, required=false). */
+    public static void debugOpenSelection(ServerPlayer target) {
+        if (target == null || target.getServer() == null) return;
+        PjmNetworking.sendToPlayer(target, new OpenFactionSelectionPacket(selectionSnapshot(target, false)));
+    }
+
+    /**
+     * Debug: открыть экран управления фракцией у цели, минуя проверку прав.
+     * Команда резолвится напрямую по scoreboard цели.
+     *
+     * @return {@code false}, если у цели нет боевой команды.
+     */
+    public static boolean debugOpenManagement(ServerPlayer target) {
+        if (target == null || target.getServer() == null) return false;
+        String team = FrontlineTeams.resolvePlayerTeamId(target);
+        if (team == null || team.isBlank()) return false;
+        PjmNetworking.sendToPlayer(target, new OpenFactionManagementPacket(managementSnapshot(target, team)));
+        return true;
+    }
+
     public static void handleSelection(ServerPlayer player, String rawTeamId, String rawRoleId) {
         if (player == null || player.getServer() == null) return;
         MinecraftServer server = player.getServer();

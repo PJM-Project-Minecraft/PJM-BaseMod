@@ -1,7 +1,14 @@
 package ru.liko.pjmbasemod;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import net.neoforged.fml.loading.FMLPaths;
 
+import java.io.Reader;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -10,231 +17,112 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Конфиг мода в формате JSON: {@code config/pjmbasemod/config.json}.
+ *
+ * <p>Раньше использовался NeoForge {@link net.neoforged.fml.config.ModConfig ModConfigSpec} (TOML
+ * в корне {@code config/}), который при каждой нормализации значений перезаписывал файл и лежал
+ * отдельно от остальных JSON-реестров мода. Теперь конфиг — обычный Gson-JSON рядом с прочими
+ * (ranks.json, roles/, vehicles.json …): пишется только при отсутствии файла, перезагружается
+ * через {@code /pjm config reload}.</p>
+ *
+ * <p>Публичный API (статические геттеры) сохранён один-в-один — места вызова не меняются.</p>
+ */
 public final class Config {
 
     private Config() {}
 
-    public static final ModConfigSpec SPEC;
-    public static final ModConfigSpec.BooleanValue SQUAD_HUD;
-    public static final ModConfigSpec.BooleanValue DEBUG;
-    public static final ModConfigSpec.BooleanValue DISABLE_HUNGER;
-    public static final ModConfigSpec.BooleanValue DISABLE_ARMOR;
-    public static final ModConfigSpec.LongValue ITEM_SWITCH_DISPLAY_MS;
-    public static final ModConfigSpec.IntValue CAPTURE_TIME_SECONDS;
-    public static final ModConfigSpec.BooleanValue CAPTURE_ENABLED;
-    public static final ModConfigSpec.ConfigValue<List<? extends String>> TEAMS;
-    public static final ModConfigSpec.ConfigValue<List<? extends String>> TEAM_JOIN_COMMANDS;
-    public static final ModConfigSpec.BooleanValue FRONTLINE_ENABLED;
-    public static final ModConfigSpec.BooleanValue FRONTLINE_HUD_ENABLED;
-    public static final ModConfigSpec.BooleanValue FRONTLINE_MANUAL_ACTIVE;
-    public static final ModConfigSpec.BooleanValue FRONTLINE_USE_REAL_TIME_WINDOW;
-    public static final ModConfigSpec.ConfigValue<String> FRONTLINE_REAL_TIME_ZONE;
-    public static final ModConfigSpec.ConfigValue<String> FRONTLINE_REAL_TIME_START;
-    public static final ModConfigSpec.ConfigValue<String> FRONTLINE_REAL_TIME_END;
-    public static final ModConfigSpec.IntValue FRONTLINE_CAPTURE_TIME_SECONDS;
-    public static final ModConfigSpec.IntValue FRONTLINE_DECAY_TIME_SECONDS;
-    public static final ModConfigSpec.IntValue FRONTLINE_TICK_INTERVAL_TICKS;
-    public static final ModConfigSpec.IntValue FRONTLINE_MIN_ADVANTAGE;
-    public static final ModConfigSpec.BooleanValue FRONTLINE_CONTESTED_FREEZE;
-    public static final ModConfigSpec.BooleanValue FRONTLINE_REQUIRE_ADJACENT_OWNER;
-    public static final ModConfigSpec.BooleanValue FRONTLINE_ALLOW_NEUTRAL_OPENING;
-    public static final ModConfigSpec.IntValue REGION_MAX_CHUNKS;
-    public static final ModConfigSpec.BooleanValue FRONTLINE_BLUEMAP_ENABLED;
-    public static final ModConfigSpec.IntValue FRONTLINE_BLUEMAP_SYNC_DEBOUNCE_TICKS;
-    public static final ModConfigSpec.ConfigValue<String> FRONTLINE_BLUEMAP_MARKER_SET_ID;
-    public static final ModConfigSpec.ConfigValue<String> FRONTLINE_BLUEMAP_MARKER_SET_LABEL;
-    public static final ModConfigSpec.BooleanValue FRONTLINE_BLUEMAP_DEFAULT_HIDDEN;
-    public static final ModConfigSpec.ConfigValue<List<? extends String>> FRONTLINE_BLUEMAP_DIMENSION_WORLD_OVERRIDES;
-    public static final ModConfigSpec.IntValue FRONTLINE_BLUEMAP_FILL_ALPHA;
-    public static final ModConfigSpec.IntValue FRONTLINE_BLUEMAP_LINE_ALPHA;
-    public static final ModConfigSpec.IntValue FRONTLINE_BLUEMAP_LINE_WIDTH;
-    public static final ModConfigSpec.BooleanValue FRONTLINE_JOURNEYMAP_ENABLED;
-    public static final ModConfigSpec.IntValue FRONTLINE_JOURNEYMAP_FILL_ALPHA;
-    public static final ModConfigSpec.IntValue FRONTLINE_JOURNEYMAP_BORDER_ALPHA;
-    public static final ModConfigSpec.IntValue FRONTLINE_JOURNEYMAP_NEUTRAL_COLOR_RGB;
-    public static final ModConfigSpec.IntValue FRONTLINE_JOURNEYMAP_REGION_BORDER_COLOR_RGB;
-    public static final ModConfigSpec.ConfigValue<List<? extends String>> STARTUP_COMMANDS;
-    public static final ModConfigSpec.BooleanValue GARAGE_ENABLED;
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
-    static {
-        ModConfigSpec.Builder b = new ModConfigSpec.Builder();
+    private static volatile ConfigData data;
 
-        b.push("general");
-        DEBUG = b.comment("Включить подробные логи мода").define("debug", false);
-        b.pop();
+    // ---------------------------------------------------------------- загрузка / перезагрузка
 
-        b.push("hud");
-        SQUAD_HUD = b.comment("Использовать Squad-style HUD").define("squadHud", true);
-        ITEM_SWITCH_DISPLAY_MS = b.comment("Время отображения панели переключения предметов (мс)")
-                .defineInRange("itemSwitchDisplayMs", 1500L, 0L, 60_000L);
-        DISABLE_ARMOR = b.comment("Скрыть ванильную полоску брони").define("hideArmorBar", false);
-        b.pop();
-
-        b.push("milsim");
-        DISABLE_HUNGER = b.comment("Отключить механику голода и скрыть полоску еды").define("disableHunger", false);
-        b.pop();
-
-        b.push("controlPoints");
-        CAPTURE_ENABLED = b.comment("Включить старую систему контрольных точек").define("enabled", true);
-        CAPTURE_TIME_SECONDS = b.comment("Время полного захвата точки (секунды)")
-                .defineInRange("captureTimeSeconds", 30, 5, 600);
-        b.pop();
-
-        b.push("teams");
-        TEAMS = b.comment(
-                "Основной список id scoreboard-команд, которые участвуют в системах мода.",
-                "Имя и цвет подтягиваются из самой scoreboard team.",
-                "Пример настройки в игре: /team add team1; /team modify team1 displayName \"Белые\"; /team modify team1 color white",
-                "Линия фронта, радио и другие системы берут команды отсюда."
-        ).defineListAllowEmpty("definitions", List.of(
-                "team1",
-                "team2"
-        ), o -> o instanceof String s && !s.isBlank());
-
-        TEAM_JOIN_COMMANDS = b.comment(
-                "Команды, выполняемые при выборе игроком этой фракции (например телепорт на базу).",
-                "Формат записи: \"<teamId> <команда>\". Первый токен — id команды, остальное — сама команда.",
-                "Можно несколько записей на одну команду — выполнятся по порядку.",
-                "Выполняются от лица игрока с правами оператора: @s и ~ ~ ~ указывают на игрока.",
-                "Кросс-дим телепорт: \"team1 /execute in pjmbasemod:base run tp @s 0 80 0\".",
-                "Слэш в начале не обязателен. Пример: \"team1 /tp @s 100 64 200\"."
-        ).defineListAllowEmpty("joinCommands", List.of(), o -> o instanceof String s && !s.isBlank());
-        b.pop();
-
-        b.push("region");
-        REGION_MAX_CHUNKS = b.comment("Максимальный размер региона в чанках")
-                .defineInRange("maxChunks", 4096, 1, 1_000_000);
-        b.pop();
-
-        b.push("frontline");
-        FRONTLINE_ENABLED = b.comment("Включить линию фронта").define("enabled", true);
-        FRONTLINE_HUD_ENABLED = b.comment("Показывать HUD линии фронта").define("hudEnabled", true);
-        FRONTLINE_MANUAL_ACTIVE = b.comment("Разрешить захват. Можно менять командой /pjm frontline active <true|false>")
-                .define("manualActive", true);
-
-        b.push("schedule");
-        FRONTLINE_USE_REAL_TIME_WINDOW = b.comment("Ограничить захват окном реального времени")
-                .define("enabled", false);
-        FRONTLINE_REAL_TIME_ZONE = b.comment(
-                "Часовой пояс для окна захвата. Пример: Europe/Simferopol, Europe/Moscow, UTC",
-                "Если значение неверное, будет использован системный часовой пояс сервера."
-        ).define("timeZone", "Europe/Simferopol");
-        FRONTLINE_REAL_TIME_START = b.comment("Начало окна захвата в формате HH:mm")
-                .define("start", "18:00", Config::isValidTime);
-        FRONTLINE_REAL_TIME_END = b.comment("Конец окна захвата в формате HH:mm")
-                .define("end", "23:00", Config::isValidTime);
-        b.pop();
-
-        b.push("capture");
-        FRONTLINE_CAPTURE_TIME_SECONDS = b.comment("Сколько секунд нужно для полного захвата сектора 3x3 при преимуществе в 1 игрока")
-                .defineInRange("captureTimeSeconds", 45, 5, 3600);
-        FRONTLINE_DECAY_TIME_SECONDS = b.comment("За сколько секунд пустой/заблокированный захват откатывается с 100% до 0%")
-                .defineInRange("decayTimeSeconds", 30, 1, 3600);
-        FRONTLINE_TICK_INTERVAL_TICKS = b.comment("Как часто сервер пересчитывает захват секторов, в тиках")
-                .defineInRange("tickIntervalTicks", 20, 1, 200);
-        FRONTLINE_MIN_ADVANTAGE = b.comment("Минимальное преимущество игроков для продвижения захвата. 1 значит 'белых больше красных'")
-                .defineInRange("minAdvantage", 1, 1, 64);
-        FRONTLINE_CONTESTED_FREEZE = b.comment("Если true, при равенстве сил прогресс замораживается; если false, медленно откатывается")
-                .define("contestedFreeze", true);
-        FRONTLINE_REQUIRE_ADJACENT_OWNER = b.comment("Требовать связь с соседней территорией своей команды для атаки")
-                .define("requireAdjacentOwnedChunk", true);
-        FRONTLINE_ALLOW_NEUTRAL_OPENING = b.comment("Разрешить стартовый захват нейтральных секторов без соседней своей территории")
-                .define("allowNeutralOpeningCapture", true);
-        b.pop();
-
-        b.push("bluemap");
-        FRONTLINE_BLUEMAP_ENABLED = b.comment("Включить интеграцию линии фронта с BlueMap")
-                .define("enabled", true);
-        FRONTLINE_BLUEMAP_SYNC_DEBOUNCE_TICKS = b.comment("Дебаунс синхронизации маркеров BlueMap, в тиках")
-                .defineInRange("syncDebounceTicks", 40, 1, 20_000);
-        FRONTLINE_BLUEMAP_MARKER_SET_ID = b.comment("ID marker-set в BlueMap")
-                .define("markerSetId", "pjm_frontline", o -> o instanceof String s && !s.isBlank());
-        FRONTLINE_BLUEMAP_MARKER_SET_LABEL = b.comment("Название marker-set в BlueMap")
-                .define("markerSetLabel", "Линия фронта", o -> o instanceof String s && !s.isBlank());
-        FRONTLINE_BLUEMAP_DEFAULT_HIDDEN = b.comment("Скрывать ли marker-set по умолчанию в UI BlueMap")
-                .define("defaultHidden", false);
-        FRONTLINE_BLUEMAP_DIMENSION_WORLD_OVERRIDES = b.comment(
-                "Явные сопоставления minecraft dimension -> BlueMap worldId",
-                "Формат строки: minecraft:overworld=world",
-                "Используется, если авто-сопоставление не подходит."
-        ).defineListAllowEmpty("dimensionWorldOverrides", List.of(), o -> o instanceof String);
-        FRONTLINE_BLUEMAP_FILL_ALPHA = b.comment("Прозрачность заливки территорий 0..255")
-                .defineInRange("fillAlpha", 96, 0, 255);
-        FRONTLINE_BLUEMAP_LINE_ALPHA = b.comment("Прозрачность линий 0..255")
-                .defineInRange("lineAlpha", 220, 0, 255);
-        FRONTLINE_BLUEMAP_LINE_WIDTH = b.comment("Ширина контура marker shape")
-                .defineInRange("lineWidth", 2, 1, 16);
-        b.pop();
-
-        b.push("journeymap");
-        FRONTLINE_JOURNEYMAP_ENABLED = b.comment("Включить интеграцию линии фронта с JourneyMap")
-                .define("enabled", true);
-        FRONTLINE_JOURNEYMAP_FILL_ALPHA = b.comment("Прозрачность заливки территорий 0..255")
-                .defineInRange("fillAlpha", 96, 0, 255);
-        FRONTLINE_JOURNEYMAP_BORDER_ALPHA = b.comment("Прозрачность границ территорий/регионов 0..255")
-                .defineInRange("borderAlpha", 220, 0, 255);
-        FRONTLINE_JOURNEYMAP_NEUTRAL_COLOR_RGB = b.comment("RGB цвет нейтральных секторов без alpha (0xRRGGBB)")
-                .defineInRange("neutralColorRgb", 0x9B9B9B, 0, 0xFFFFFF);
-        FRONTLINE_JOURNEYMAP_REGION_BORDER_COLOR_RGB = b.comment("RGB цвет границ регионов без alpha")
-                .defineInRange("regionBorderColorRgb", 0xFFFFFF, 0, 0xFFFFFF);
-        b.pop();
-        b.pop();
-
-        b.push("garage");
-        GARAGE_ENABLED = b.comment("Включить систему техники (виртуальный гараж и сборку)").define("enabled", true);
-        b.pop();
-
-        b.push("commands");
-        STARTUP_COMMANDS = b.comment(
-                "Команды, выполняемые на старте сервера. Пример: \"scoreboard objectives add kills playerKillCount\"",
-                "Слэш в начале не обязателен."
-        ).defineListAllowEmpty("startup", List.of(), o -> o instanceof String s && !s.isBlank());
-        b.pop();
-
-        SPEC = b.build();
+    private static synchronized ConfigData data() {
+        if (data == null) reload();
+        return data;
     }
 
-    public static boolean isSquadHud()                { return SQUAD_HUD.get(); }
-    public static boolean isDebug()                   { return DEBUG.get(); }
-    public static boolean isDisableHunger()           { return DISABLE_HUNGER.get(); }
-    public static boolean isDisableArmor()            { return DISABLE_ARMOR.get(); }
-    public static long    getItemSwitchDisplayTime()  { return ITEM_SWITCH_DISPLAY_MS.get(); }
-    public static int     getCaptureTimeSeconds()     { return CAPTURE_TIME_SECONDS.get(); }
-    public static boolean isCaptureSystemEnabled()    { return CAPTURE_ENABLED.get(); }
-    public static boolean isFrontlineEnabled()         { return FRONTLINE_ENABLED.get(); }
-    public static boolean isFrontlineHudEnabled()      { return FRONTLINE_HUD_ENABLED.get(); }
-    public static boolean isFrontlineManualActive()    { return FRONTLINE_MANUAL_ACTIVE.get(); }
-    public static boolean useFrontlineRealTimeWindow() { return FRONTLINE_USE_REAL_TIME_WINDOW.get(); }
-    public static String  getFrontlineRealTimeZone()   { return FRONTLINE_REAL_TIME_ZONE.get(); }
-    public static String  getFrontlineRealTimeStart()  { return FRONTLINE_REAL_TIME_START.get(); }
-    public static String  getFrontlineRealTimeEnd()    { return FRONTLINE_REAL_TIME_END.get(); }
-    public static int     getFrontlineCaptureTimeSeconds() { return FRONTLINE_CAPTURE_TIME_SECONDS.get(); }
-    public static int     getFrontlineDecayTimeSeconds() { return FRONTLINE_DECAY_TIME_SECONDS.get(); }
-    public static int     getFrontlineTickIntervalTicks() { return FRONTLINE_TICK_INTERVAL_TICKS.get(); }
-    public static int     getFrontlineMinAdvantage()   { return FRONTLINE_MIN_ADVANTAGE.get(); }
-    public static boolean isFrontlineContestedFreeze() { return FRONTLINE_CONTESTED_FREEZE.get(); }
-    public static boolean isFrontlineRequireAdjacentOwner() { return FRONTLINE_REQUIRE_ADJACENT_OWNER.get(); }
-    public static boolean isFrontlineAllowNeutralOpening() { return FRONTLINE_ALLOW_NEUTRAL_OPENING.get(); }
-    public static int     getRegionMaxChunks(){ return REGION_MAX_CHUNKS.get(); }
-    public static boolean isFrontlineBlueMapEnabled() { return FRONTLINE_BLUEMAP_ENABLED.get(); }
-    public static int getFrontlineBlueMapSyncDebounceTicks() { return FRONTLINE_BLUEMAP_SYNC_DEBOUNCE_TICKS.get(); }
-    public static String getFrontlineBlueMapMarkerSetId() { return FRONTLINE_BLUEMAP_MARKER_SET_ID.get(); }
-    public static String getFrontlineBlueMapMarkerSetLabel() { return FRONTLINE_BLUEMAP_MARKER_SET_LABEL.get(); }
-    public static boolean isFrontlineBlueMapDefaultHidden() { return FRONTLINE_BLUEMAP_DEFAULT_HIDDEN.get(); }
-    public static List<? extends String> getFrontlineBlueMapDimensionWorldOverrides() { return FRONTLINE_BLUEMAP_DIMENSION_WORLD_OVERRIDES.get(); }
-    public static int getFrontlineBlueMapFillAlpha() { return FRONTLINE_BLUEMAP_FILL_ALPHA.get(); }
-    public static int getFrontlineBlueMapLineAlpha() { return FRONTLINE_BLUEMAP_LINE_ALPHA.get(); }
-    public static int getFrontlineBlueMapLineWidth() { return FRONTLINE_BLUEMAP_LINE_WIDTH.get(); }
-    public static boolean isFrontlineJourneyMapEnabled() { return FRONTLINE_JOURNEYMAP_ENABLED.get(); }
-    public static int getFrontlineJourneyMapFillAlpha() { return FRONTLINE_JOURNEYMAP_FILL_ALPHA.get(); }
-    public static int getFrontlineJourneyMapBorderAlpha() { return FRONTLINE_JOURNEYMAP_BORDER_ALPHA.get(); }
-    public static int getFrontlineJourneyMapNeutralColorRgb() { return FRONTLINE_JOURNEYMAP_NEUTRAL_COLOR_RGB.get(); }
-    public static int getFrontlineJourneyMapRegionBorderColorRgb() { return FRONTLINE_JOURNEYMAP_REGION_BORDER_COLOR_RGB.get(); }
-    public static List<? extends String> getStartupCommands() { return STARTUP_COMMANDS.get(); }
-    public static boolean isGarageEnabled() { return GARAGE_ENABLED.get(); }
+    /** Перезагружает конфиг из {@code config/pjmbasemod/config.json}. Создаёт файл с дефолтами, если его нет. */
+    public static synchronized boolean reload() {
+        Path file = file();
+        try {
+            Files.createDirectories(file.getParent());
+            if (Files.notExists(file)) {
+                data = new ConfigData();
+                data.normalize();
+                write(file, data);
+                Pjmbasemod.LOGGER.info("Config: создан конфиг по умолчанию {}", file);
+                return true;
+            }
+            try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                ConfigData loaded = GSON.fromJson(reader, ConfigData.class);
+                data = loaded == null ? new ConfigData() : loaded;
+                data.normalize();
+                Pjmbasemod.LOGGER.info("Config: загружен {}", file);
+                return true;
+            }
+        } catch (Exception e) {
+            data = new ConfigData();
+            data.normalize();
+            Pjmbasemod.LOGGER.error("Config: не удалось загрузить {}, используются значения по умолчанию.", file, e);
+            return false;
+        }
+    }
+
+    private static Path file() {
+        return FMLPaths.CONFIGDIR.get().resolve(Pjmbasemod.MODID).resolve("config.json");
+    }
+
+    private static void write(Path file, ConfigData data) throws Exception {
+        try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+            GSON.toJson(data, writer);
+        }
+    }
+
+    // ---------------------------------------------------------------- геттеры (публичный API)
+
+    public static boolean isSquadHud()                { return data().hud.squadHud; }
+    public static boolean isDebug()                   { return data().general.debug; }
+    public static boolean isDisableHunger()           { return data().milsim.disableHunger; }
+    public static boolean isDisableArmor()            { return data().hud.hideArmorBar; }
+    public static long    getItemSwitchDisplayTime()  { return data().hud.itemSwitchDisplayMs; }
+    public static int     getCaptureTimeSeconds()     { return data().controlPoints.captureTimeSeconds; }
+    public static boolean isCaptureSystemEnabled()    { return data().controlPoints.enabled; }
+    public static boolean isFrontlineEnabled()         { return data().frontline.enabled; }
+    public static boolean isFrontlineHudEnabled()      { return data().frontline.hudEnabled; }
+    public static boolean isFrontlineManualActive()    { return data().frontline.manualActive; }
+    public static boolean useFrontlineRealTimeWindow() { return data().frontline.schedule.enabled; }
+    public static String  getFrontlineRealTimeZone()   { return data().frontline.schedule.timeZone; }
+    public static String  getFrontlineRealTimeStart()  { return data().frontline.schedule.start; }
+    public static String  getFrontlineRealTimeEnd()    { return data().frontline.schedule.end; }
+    public static int     getFrontlineCaptureTimeSeconds() { return data().frontline.capture.captureTimeSeconds; }
+    public static int     getFrontlineDecayTimeSeconds() { return data().frontline.capture.decayTimeSeconds; }
+    public static int     getFrontlineTickIntervalTicks() { return data().frontline.capture.tickIntervalTicks; }
+    public static int     getFrontlineMinAdvantage()   { return data().frontline.capture.minAdvantage; }
+    public static boolean isFrontlineContestedFreeze() { return data().frontline.capture.contestedFreeze; }
+    public static boolean isFrontlineRequireAdjacentOwner() { return data().frontline.capture.requireAdjacentOwnedChunk; }
+    public static boolean isFrontlineAllowNeutralOpening() { return data().frontline.capture.allowNeutralOpeningCapture; }
+    public static int     getRegionMaxChunks(){ return data().region.maxChunks; }
+    public static boolean isFrontlineBlueMapEnabled() { return data().frontline.bluemap.enabled; }
+    public static int getFrontlineBlueMapSyncDebounceTicks() { return data().frontline.bluemap.syncDebounceTicks; }
+    public static String getFrontlineBlueMapMarkerSetId() { return data().frontline.bluemap.markerSetId; }
+    public static String getFrontlineBlueMapMarkerSetLabel() { return data().frontline.bluemap.markerSetLabel; }
+    public static boolean isFrontlineBlueMapDefaultHidden() { return data().frontline.bluemap.defaultHidden; }
+    public static List<? extends String> getFrontlineBlueMapDimensionWorldOverrides() { return data().frontline.bluemap.dimensionWorldOverrides; }
+    public static int getFrontlineBlueMapFillAlpha() { return data().frontline.bluemap.fillAlpha; }
+    public static int getFrontlineBlueMapLineAlpha() { return data().frontline.bluemap.lineAlpha; }
+    public static int getFrontlineBlueMapLineWidth() { return data().frontline.bluemap.lineWidth; }
+    public static boolean isFrontlineJourneyMapEnabled() { return data().frontline.journeymap.enabled; }
+    public static int getFrontlineJourneyMapFillAlpha() { return data().frontline.journeymap.fillAlpha; }
+    public static int getFrontlineJourneyMapBorderAlpha() { return data().frontline.journeymap.borderAlpha; }
+    public static int getFrontlineJourneyMapNeutralColorRgb() { return data().frontline.journeymap.neutralColorRgb; }
+    public static int getFrontlineJourneyMapRegionBorderColorRgb() { return data().frontline.journeymap.regionBorderColorRgb; }
+    public static List<? extends String> getStartupCommands() { return data().commands.startup; }
+    public static boolean isGarageEnabled() { return data().garage.enabled; }
 
     public static List<ConfiguredTeam> getTeams() {
-        return parseTeams(TEAMS.get());
+        return parseTeams(data().teams.definitions);
     }
 
     public static List<ConfiguredTeam> getFrontlineTeams() {
@@ -244,9 +132,11 @@ public final class Config {
     private static List<ConfiguredTeam> parseTeams(List<? extends String> rawTeams) {
         List<ConfiguredTeam> teams = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
-        for (String raw : rawTeams) {
-            String id = parseTeamId(raw);
-            if (!id.isBlank() && seen.add(id)) teams.add(new ConfiguredTeam(id));
+        if (rawTeams != null) {
+            for (String raw : rawTeams) {
+                String id = parseTeamId(raw);
+                if (!id.isBlank() && seen.add(id)) teams.add(new ConfiguredTeam(id));
+            }
         }
         if (teams.isEmpty()) {
             teams.add(new ConfiguredTeam("team1"));
@@ -263,7 +153,7 @@ public final class Config {
         if (teamId == null || teamId.isBlank()) return List.of();
         String target = teamId.trim().toLowerCase(Locale.ROOT);
         List<String> commands = new ArrayList<>();
-        for (String raw : TEAM_JOIN_COMMANDS.get()) {
+        for (String raw : data().teams.joinCommands) {
             if (raw == null) continue;
             String line = raw.trim();
             if (line.isBlank()) continue;
@@ -304,11 +194,6 @@ public final class Config {
         return id.replaceAll("[^a-z0-9_\\-]", "_");
     }
 
-    private static boolean isValidTime(Object value) {
-        if (!(value instanceof String raw)) return false;
-        return parseTimeToMinute(raw) >= 0;
-    }
-
     public static int parseTimeToMinute(String raw) {
         if (raw == null) return -1;
         String[] parts = raw.trim().split(":");
@@ -344,4 +229,159 @@ public final class Config {
     }
 
     public record ConfiguredTeam(String id) {}
+
+    // ---------------------------------------------------------------- модель данных (Gson)
+
+    private static int clamp(int value, int min, int max) {
+        return value < min ? min : Math.min(value, max);
+    }
+
+    private static long clamp(long value, long min, long max) {
+        return value < min ? min : Math.min(value, max);
+    }
+
+    /**
+     * Структура JSON-конфига. Значения по умолчанию заданы инициализаторами полей —
+     * отсутствующие в файле ключи остаются дефолтными (Gson их не трогает).
+     */
+    static final class ConfigData {
+        General general = new General();
+        Hud hud = new Hud();
+        Milsim milsim = new Milsim();
+        ControlPoints controlPoints = new ControlPoints();
+        Teams teams = new Teams();
+        Region region = new Region();
+        Frontline frontline = new Frontline();
+        Garage garage = new Garage();
+        Commands commands = new Commands();
+
+        /** Заменяет null-секции дефолтами и зажимает числовые значения в допустимые диапазоны. */
+        void normalize() {
+            if (general == null) general = new General();
+            if (hud == null) hud = new Hud();
+            if (milsim == null) milsim = new Milsim();
+            if (controlPoints == null) controlPoints = new ControlPoints();
+            if (teams == null) teams = new Teams();
+            if (region == null) region = new Region();
+            if (frontline == null) frontline = new Frontline();
+            if (garage == null) garage = new Garage();
+            if (commands == null) commands = new Commands();
+
+            if (teams.definitions == null) teams.definitions = new ArrayList<>();
+            if (teams.joinCommands == null) teams.joinCommands = new ArrayList<>();
+            if (commands.startup == null) commands.startup = new ArrayList<>();
+
+            hud.itemSwitchDisplayMs = clamp(hud.itemSwitchDisplayMs, 0L, 60_000L);
+            controlPoints.captureTimeSeconds = clamp(controlPoints.captureTimeSeconds, 5, 600);
+            region.maxChunks = clamp(region.maxChunks, 1, 1_000_000);
+
+            frontline.normalize();
+        }
+    }
+
+    static final class General {
+        boolean debug = false;
+    }
+
+    static final class Hud {
+        boolean squadHud = true;
+        long itemSwitchDisplayMs = 1500L;
+        boolean hideArmorBar = false;
+    }
+
+    static final class Milsim {
+        boolean disableHunger = false;
+    }
+
+    static final class ControlPoints {
+        boolean enabled = true;
+        int captureTimeSeconds = 30;
+    }
+
+    static final class Teams {
+        List<String> definitions = new ArrayList<>(List.of("team1", "team2"));
+        List<String> joinCommands = new ArrayList<>();
+    }
+
+    static final class Region {
+        int maxChunks = 4096;
+    }
+
+    static final class Frontline {
+        boolean enabled = true;
+        boolean hudEnabled = true;
+        boolean manualActive = true;
+        Schedule schedule = new Schedule();
+        Capture capture = new Capture();
+        BlueMap bluemap = new BlueMap();
+        JourneyMap journeymap = new JourneyMap();
+
+        void normalize() {
+            if (schedule == null) schedule = new Schedule();
+            if (capture == null) capture = new Capture();
+            if (bluemap == null) bluemap = new BlueMap();
+            if (journeymap == null) journeymap = new JourneyMap();
+
+            capture.captureTimeSeconds = clamp(capture.captureTimeSeconds, 5, 3600);
+            capture.decayTimeSeconds = clamp(capture.decayTimeSeconds, 1, 3600);
+            capture.tickIntervalTicks = clamp(capture.tickIntervalTicks, 1, 200);
+            capture.minAdvantage = clamp(capture.minAdvantage, 1, 64);
+
+            bluemap.syncDebounceTicks = clamp(bluemap.syncDebounceTicks, 1, 20_000);
+            bluemap.fillAlpha = clamp(bluemap.fillAlpha, 0, 255);
+            bluemap.lineAlpha = clamp(bluemap.lineAlpha, 0, 255);
+            bluemap.lineWidth = clamp(bluemap.lineWidth, 1, 16);
+            if (bluemap.dimensionWorldOverrides == null) bluemap.dimensionWorldOverrides = new ArrayList<>();
+
+            journeymap.fillAlpha = clamp(journeymap.fillAlpha, 0, 255);
+            journeymap.borderAlpha = clamp(journeymap.borderAlpha, 0, 255);
+            journeymap.neutralColorRgb = clamp(journeymap.neutralColorRgb, 0, 0xFFFFFF);
+            journeymap.regionBorderColorRgb = clamp(journeymap.regionBorderColorRgb, 0, 0xFFFFFF);
+        }
+    }
+
+    static final class Schedule {
+        boolean enabled = false;
+        String timeZone = "Europe/Simferopol";
+        String start = "18:00";
+        String end = "23:00";
+    }
+
+    static final class Capture {
+        int captureTimeSeconds = 45;
+        int decayTimeSeconds = 30;
+        int tickIntervalTicks = 20;
+        int minAdvantage = 1;
+        boolean contestedFreeze = true;
+        boolean requireAdjacentOwnedChunk = true;
+        boolean allowNeutralOpeningCapture = true;
+    }
+
+    static final class BlueMap {
+        boolean enabled = true;
+        int syncDebounceTicks = 40;
+        String markerSetId = "pjm_frontline";
+        String markerSetLabel = "Линия фронта";
+        boolean defaultHidden = false;
+        List<String> dimensionWorldOverrides = new ArrayList<>();
+        int fillAlpha = 96;
+        int lineAlpha = 220;
+        int lineWidth = 2;
+    }
+
+    static final class JourneyMap {
+        boolean enabled = true;
+        int fillAlpha = 96;
+        int borderAlpha = 220;
+        int neutralColorRgb = 0x9B9B9B;
+        int regionBorderColorRgb = 0xFFFFFF;
+    }
+
+    static final class Garage {
+        boolean enabled = true;
+    }
+
+    static final class Commands {
+        List<String> startup = new ArrayList<>();
+    }
 }
