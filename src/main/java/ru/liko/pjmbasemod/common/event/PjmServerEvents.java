@@ -155,6 +155,7 @@ public final class PjmServerEvents {
             warehouseScanCounter = 0;
             for (net.minecraft.server.level.ServerLevel level : event.getServer().getAllLevels()) {
                 WarehouseManager.scanReceptionZones(level);
+                WarehouseManager.renderReceptionZones(level);
             }
         }
     }

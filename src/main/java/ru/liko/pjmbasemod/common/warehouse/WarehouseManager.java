@@ -1,5 +1,6 @@
 package ru.liko.pjmbasemod.common.warehouse;
 
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -274,6 +275,59 @@ public final class WarehouseManager {
                     notifyDelivery(level, thrower, added);
                 }
             }
+        }
+    }
+
+    // ---------------------------------------------------------------- подсветка зон приёма
+
+    /** Шаг между частицами вдоль ребра куба зоны, в блоках. */
+    private static final double EDGE_STEP = 0.5;
+    /** Предел частиц на одно ребро — защита от спама на больших радиусах. */
+    private static final int MAX_EDGE_STEPS = 48;
+    /** Радиус, в котором должен находиться игрок, чтобы зона подсвечивалась. */
+    private static final double RENDER_VIEW_DISTANCE = 48.0;
+
+    /**
+     * Рисует частицами контур куба зоны приёма каждого склада в этом измерении.
+     * Куб строится той же формулой, что и зона подбора в {@link #scanReceptionZones},
+     * поэтому подсветка точно совпадает с областью, где ящики засчитываются.
+     * Вызывается из тик-хаба; отрисовка идёт только если рядом есть игрок.
+     */
+    public static void renderReceptionZones(ServerLevel level) {
+        WarehouseSettingsSavedData settings = WarehouseSettingsSavedData.get(level.getServer());
+        String dimension = level.dimension().location().toString();
+        for (WarehouseSettings s : settings.all()) {
+            if (!s.hasReception() || !dimension.equals(s.dimension())) continue;
+            net.minecraft.core.BlockPos center = s.receptionPos();
+            double r = s.receptionRadius();
+            net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(center).inflate(r);
+            net.minecraft.world.phys.Vec3 mid = box.getCenter();
+            if (level.getNearestPlayer(mid.x, mid.y, mid.z, RENDER_VIEW_DISTANCE, false) == null) continue;
+            drawBoxOutline(level, box);
+        }
+    }
+
+    /** Рисует частицы вдоль 12 рёбер куба. */
+    private static void drawBoxOutline(ServerLevel level, net.minecraft.world.phys.AABB box) {
+        double[] xs = {box.minX, box.maxX};
+        double[] ys = {box.minY, box.maxY};
+        double[] zs = {box.minZ, box.maxZ};
+        for (double y : ys) for (double z : zs) drawEdge(level, box.minX, y, z, box.maxX, y, z);
+        for (double x : xs) for (double z : zs) drawEdge(level, x, box.minY, z, x, box.maxY, z);
+        for (double x : xs) for (double y : ys) drawEdge(level, x, y, box.minZ, x, y, box.maxZ);
+    }
+
+    /** Раскладывает частицы по прямой между двумя точками. */
+    private static void drawEdge(ServerLevel level, double x1, double y1, double z1,
+                                 double x2, double y2, double z2) {
+        double dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+        double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        int steps = Math.min(MAX_EDGE_STEPS, Math.max(1, (int) Math.round(length / EDGE_STEP)));
+        for (int i = 0; i <= steps; i++) {
+            double t = i / (double) steps;
+            level.sendParticles(ParticleTypes.END_ROD,
+                    x1 + dx * t, y1 + dy * t, z1 + dz * t,
+                    1, 0.0, 0.0, 0.0, 0.0);
         }
     }
 
