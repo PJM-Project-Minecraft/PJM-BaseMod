@@ -288,9 +288,9 @@ public final class WarehouseManager {
     private static final double RENDER_VIEW_DISTANCE = 48.0;
 
     /**
-     * Рисует частицами контур куба зоны приёма каждого склада в этом измерении.
-     * Куб строится той же формулой, что и зона подбора в {@link #scanReceptionZones},
-     * поэтому подсветка точно совпадает с областью, где ящики засчитываются.
+     * Рисует частицами плоскую рамку зоны приёма каждого склада в этом измерении —
+     * квадрат-«след» по полу на уровне точки приёма. Footprint по X/Z совпадает с областью
+     * подбора в {@link #scanReceptionZones}, поэтому видно, куда бросать ящики.
      * Вызывается из тик-хаба; отрисовка идёт только если рядом есть игрок.
      */
     public static void renderReceptionZones(ServerLevel level) {
@@ -303,18 +303,18 @@ public final class WarehouseManager {
             net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(center).inflate(r);
             net.minecraft.world.phys.Vec3 mid = box.getCenter();
             if (level.getNearestPlayer(mid.x, mid.y, mid.z, RENDER_VIEW_DISTANCE, false) == null) continue;
-            drawBoxOutline(level, box);
+            // Пол зоны на уровне блока точки приёма, чуть выше поверхности, чтобы частицы не тонули.
+            double floorY = center.getY() + 0.05;
+            drawFloorOutline(level, box, floorY);
         }
     }
 
-    /** Рисует частицы вдоль 12 рёбер куба. */
-    private static void drawBoxOutline(ServerLevel level, net.minecraft.world.phys.AABB box) {
-        double[] xs = {box.minX, box.maxX};
-        double[] ys = {box.minY, box.maxY};
-        double[] zs = {box.minZ, box.maxZ};
-        for (double y : ys) for (double z : zs) drawEdge(level, box.minX, y, z, box.maxX, y, z);
-        for (double x : xs) for (double z : zs) drawEdge(level, x, box.minY, z, x, box.maxY, z);
-        for (double x : xs) for (double y : ys) drawEdge(level, x, y, box.minZ, x, y, box.maxZ);
+    /** Рисует частицы вдоль 4 сторон квадрата-следа зоны на заданной высоте. */
+    private static void drawFloorOutline(ServerLevel level, net.minecraft.world.phys.AABB box, double y) {
+        drawEdge(level, box.minX, y, box.minZ, box.maxX, y, box.minZ);
+        drawEdge(level, box.minX, y, box.maxZ, box.maxX, y, box.maxZ);
+        drawEdge(level, box.minX, y, box.minZ, box.minX, y, box.maxZ);
+        drawEdge(level, box.maxX, y, box.minZ, box.maxX, y, box.maxZ);
     }
 
     /** Раскладывает частицы по прямой между двумя точками. */
