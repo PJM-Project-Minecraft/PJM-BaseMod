@@ -1,6 +1,8 @@
 package ru.liko.pjmbasemod.common.entity;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -149,6 +151,15 @@ public class QuartermasterEntity extends Mob {
             return InteractionResult.CONSUME;
         }
         return InteractionResult.sidedSuccess(level().isClientSide());
+    }
+
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        // Кладовщик бессмертен ко всему, кроме принудительного устранения (/kill, выпадение из мира).
+        if (!source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+            return false;
+        }
+        return super.hurt(source, amount);
     }
 
     @Override
