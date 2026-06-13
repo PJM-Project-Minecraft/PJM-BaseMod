@@ -51,15 +51,9 @@ public class WarehouseScreen extends Screen {
     }
 
     private ResourceLocation getCategoryIcon(String category) {
+        // Иконки категорий убраны: остаётся только class.png у категории special.
         return switch (category) {
-            case "weapon" -> ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/icon/target.png");
-            case "ammo" -> ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/icon/target.png");
-            case "armor" -> ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/icon/personalization.png");
-            case "medicine" -> ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/icon/medicine.png");
-            case "food" -> ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/icon/food.png");
-            case "equipment" -> ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/icon/equipment.png");
             case "special" -> ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/icon/class.png");
-            case "raw" -> ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/icon/menu.png");
             default -> null;
         };
     }
