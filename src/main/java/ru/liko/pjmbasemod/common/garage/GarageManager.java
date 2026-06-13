@@ -21,6 +21,7 @@ import net.minecraft.world.phys.Vec3;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.entity.NotebookEntity;
+import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.GarageSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenGaragePacket;
@@ -60,6 +61,17 @@ public final class GarageManager {
     private static final Map<UUID, GarageType> OPEN_TYPE = new ConcurrentHashMap<>();
 
     private GarageManager() {}
+
+    /**
+     * Ключ гаража для игрока. Игрок в команде → общий гараж команды ({@code team:<id>}),
+     * сокомандники делят один пул. Игрок без команды → личный гараж ({@code player:<uuid>}).
+     */
+    private static String garageKey(ServerPlayer player) {
+        String teamId = FrontlineTeams.resolvePlayerTeamId(player);
+        return teamId == null || teamId.isBlank()
+                ? GarageSavedData.playerKey(player.getUUID())
+                : GarageSavedData.teamKey(teamId);
+    }
 
     // ---------------------------------------------------------------- открытие GUI
 
@@ -365,7 +377,7 @@ public final class GarageManager {
             return;
         }
         StoredVehicle stored = StoredVehicle.create(def.id(), def.displayName(), nbt);
-        GarageSavedData.get(player.server).add(player.getUUID(), stored);
+        GarageSavedData.get(player.server).add(garageKey(player), stored);
         player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.crafted", def.displayName()));
         playGarageSound(player, SoundEvents.SMITHING_TABLE_USE, 0.9F, 0.95F);
         resync(player);
@@ -382,7 +394,7 @@ public final class GarageManager {
             return;
         }
         GarageSavedData data = GarageSavedData.get(player.server);
-        StoredVehicle stored = find(data.garageOf(player.getUUID()), instanceId);
+        StoredVehicle stored = find(data.garageOf(garageKey(player)), instanceId);
         if (stored == null) {
             resync(player);
             return;
@@ -435,7 +447,7 @@ public final class GarageManager {
     /** Непосредственно спавнит технику на точке с проверкой занятости. Не списывает технику, если точка занята. */
     private static void performSpawn(ServerPlayer player, UUID instanceId, GarageSpawnPoint point) {
         GarageSavedData data = GarageSavedData.get(player.server);
-        StoredVehicle stored = find(data.garageOf(player.getUUID()), instanceId);
+        StoredVehicle stored = find(data.garageOf(garageKey(player)), instanceId);
         if (stored == null) {
             resync(player);
             return;
@@ -483,7 +495,7 @@ public final class GarageManager {
         entity.setYBodyRot(yaw);
         level.addFreshEntity(entity);
 
-        data.remove(player.getUUID(), instanceId);
+        data.remove(garageKey(player), instanceId);
         player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.spawned", displayName));
         playGarageSound(level, entity.position(), SoundEvents.PISTON_EXTEND, 0.9F, 0.85F);
         playGarageSound(level, entity.position(), SoundEvents.DISPENSER_LAUNCH, 0.65F, 0.75F);
@@ -606,7 +618,7 @@ public final class GarageManager {
         }
 
         GarageSavedData data = GarageSavedData.get(player.server);
-        StoredVehicle stored = find(data.garageOf(player.getUUID()), instanceId);
+        StoredVehicle stored = find(data.garageOf(garageKey(player)), instanceId);
         if (stored == null) {
             resync(player);
             return;
@@ -617,7 +629,7 @@ public final class GarageManager {
             return;
         }
         String displayName = displayNameForStored(stored, def);
-        StoredVehicle removed = data.remove(player.getUUID(), instanceId);
+        StoredVehicle removed = data.remove(garageKey(player), instanceId);
         if (removed == null) {
             resync(player);
             return;
@@ -677,7 +689,7 @@ public final class GarageManager {
         }
         String id = resolvedDef == null ? typeId.toString() : resolvedDef.id();
         StoredVehicle stored = StoredVehicle.create(id, displayName, tag);
-        GarageSavedData.get(player.server).add(player.getUUID(), stored);
+        GarageSavedData.get(player.server).add(garageKey(player), stored);
         playGarageSound(player.serverLevel(), entity.position(), SoundEvents.PISTON_CONTRACT, 0.8F, 0.85F);
         playGarageSound(player.serverLevel(), entity.position(), SoundEvents.IRON_GOLEM_REPAIR, 0.65F, 1.2F);
         entity.discard();
@@ -691,7 +703,7 @@ public final class GarageManager {
         if (def == null || def.entityTypeId() == null) return false;
         CompoundTag nbt = buildDefaultNbt(target.serverLevel(), def.entityTypeId());
         if (nbt == null) return false;
-        GarageSavedData.get(target.server).add(target.getUUID(), StoredVehicle.create(def.id(), def.displayName(), nbt));
+        GarageSavedData.get(target.server).add(garageKey(target), StoredVehicle.create(def.id(), def.displayName(), nbt));
         return true;
     }
 
@@ -721,7 +733,7 @@ public final class GarageManager {
         }
 
         List<GarageSnapshot.InstanceEntry> instances = new ArrayList<>();
-        for (StoredVehicle stored : GarageSavedData.get(player.server).garageOf(player.getUUID())) {
+        for (StoredVehicle stored : GarageSavedData.get(player.server).garageOf(garageKey(player))) {
             VehicleDefinition def = VehicleRegistry.get().get(stored.defId());
             ResourceLocation typeId = def != null ? def.entityTypeId() : ResourceLocation.tryParse(stored.defId());
             // Тип гаража: по определению, иначе авто-классификация по entity id (авиация SBW → авиагараж).

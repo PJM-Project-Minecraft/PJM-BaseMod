@@ -15,8 +15,15 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Персистентное хранилище гаражей. Ключ — UUID владельца, значение — список
- * сохранённых экземпляров техники. Сохраняется в data/{@value #DATA_NAME}.dat overworld-а.
+ * Персистентное хранилище гаражей.
+ *
+ * <p>Ключ — строка гаража: {@code "team:<teamId>"} для общего гаража команды (все сокомандники
+ * делят один пул техники) либо {@code "player:<uuid>"} для личного гаража игрока без команды.
+ * Значение — список сохранённых экземпляров техники. Сохраняется в data/{@value #DATA_NAME}.dat
+ * overworld-а.</p>
+ *
+ * <p>Старый формат (per-owner по UUID) при загрузке мигрирует в личный ключ {@code "player:<uuid>"},
+ * чтобы накопленная техника не терялась.</p>
  */
 public final class GarageSavedData extends SavedData {
 
@@ -25,10 +32,25 @@ public final class GarageSavedData extends SavedData {
             GarageSavedData::new,
             GarageSavedData::load);
 
-    private final Map<UUID, List<StoredVehicle>> garages = new LinkedHashMap<>();
+    /** Префикс ключа личного гаража игрока без команды. */
+    public static final String PLAYER_KEY_PREFIX = "player:";
+    /** Префикс ключа общего гаража команды. */
+    public static final String TEAM_KEY_PREFIX = "team:";
+
+    private final Map<String, List<StoredVehicle>> garages = new LinkedHashMap<>();
 
     public static GarageSavedData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+    }
+
+    /** Ключ личного гаража игрока (фолбэк, если игрок не в команде). */
+    public static String playerKey(UUID owner) {
+        return PLAYER_KEY_PREFIX + owner;
+    }
+
+    /** Ключ общего гаража команды. */
+    public static String teamKey(String teamId) {
+        return TEAM_KEY_PREFIX + teamId;
     }
 
     public static GarageSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
@@ -36,14 +58,22 @@ public final class GarageSavedData extends SavedData {
         ListTag owners = tag.getList("Owners", Tag.TAG_COMPOUND);
         for (int i = 0; i < owners.size(); i++) {
             CompoundTag ownerTag = owners.getCompound(i);
-            if (!ownerTag.hasUUID("Owner")) continue;
-            UUID owner = ownerTag.getUUID("Owner");
+            String key;
+            if (ownerTag.contains("Key", Tag.TAG_STRING)) {
+                key = ownerTag.getString("Key");
+            } else if (ownerTag.hasUUID("Owner")) {
+                // Миграция старого формата: личный гараж по UUID.
+                key = playerKey(ownerTag.getUUID("Owner"));
+            } else {
+                continue;
+            }
+            if (key.isBlank()) continue;
             List<StoredVehicle> list = new ArrayList<>();
             ListTag vehicles = ownerTag.getList("Vehicles", Tag.TAG_COMPOUND);
             for (int j = 0; j < vehicles.size(); j++) {
                 list.add(StoredVehicle.load(vehicles.getCompound(j)));
             }
-            data.garages.put(owner, list);
+            data.garages.put(key, list);
         }
         return data;
     }
@@ -51,10 +81,10 @@ public final class GarageSavedData extends SavedData {
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         ListTag owners = new ListTag();
-        for (Map.Entry<UUID, List<StoredVehicle>> entry : garages.entrySet()) {
+        for (Map.Entry<String, List<StoredVehicle>> entry : garages.entrySet()) {
             if (entry.getValue().isEmpty()) continue;
             CompoundTag ownerTag = new CompoundTag();
-            ownerTag.putUUID("Owner", entry.getKey());
+            ownerTag.putString("Key", entry.getKey());
             ListTag vehicles = new ListTag();
             for (StoredVehicle vehicle : entry.getValue()) {
                 vehicles.add(vehicle.save());
@@ -66,18 +96,18 @@ public final class GarageSavedData extends SavedData {
         return tag;
     }
 
-    public List<StoredVehicle> garageOf(UUID owner) {
-        return List.copyOf(garages.getOrDefault(owner, List.of()));
+    public List<StoredVehicle> garageOf(String key) {
+        return List.copyOf(garages.getOrDefault(key, List.of()));
     }
 
-    public void add(UUID owner, StoredVehicle vehicle) {
-        garages.computeIfAbsent(owner, k -> new ArrayList<>()).add(vehicle);
+    public void add(String key, StoredVehicle vehicle) {
+        garages.computeIfAbsent(key, k -> new ArrayList<>()).add(vehicle);
         setDirty();
     }
 
     @Nullable
-    public StoredVehicle remove(UUID owner, UUID instanceId) {
-        List<StoredVehicle> list = garages.get(owner);
+    public StoredVehicle remove(String key, UUID instanceId) {
+        List<StoredVehicle> list = garages.get(key);
         if (list == null) return null;
         for (int i = 0; i < list.size(); i++) {
             if (list.get(i).instanceId().equals(instanceId)) {
