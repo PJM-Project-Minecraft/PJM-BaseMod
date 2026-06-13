@@ -21,15 +21,16 @@ public class HudOverlay {
     private static final int COMPASS_HEIGHT = 22;
     private static final int COMPASS_BOTTOM_MARGIN = 0; // Вплотную к краю
     private static final float PIXELS_PER_DEGREE = 2.5f;
+    // Азимутная система (север=0), согласованная с yaw = getViewYRot + 180 и числом азимута.
     private static final CompassMark[] COMPASS_MARKS = {
-            new CompassMark("S", 0, true),
-            new CompassMark("SW", 45, false),
-            new CompassMark("W", 90, true),
-            new CompassMark("NW", 135, false),
-            new CompassMark("N", 180, true),
-            new CompassMark("NE", 225, false),
-            new CompassMark("E", 270, true),
-            new CompassMark("SE", 315, false)
+            new CompassMark("N", 0, true),
+            new CompassMark("NE", 45, false),
+            new CompassMark("E", 90, true),
+            new CompassMark("SE", 135, false),
+            new CompassMark("S", 180, true),
+            new CompassMark("SW", 225, false),
+            new CompassMark("W", 270, true),
+            new CompassMark("NW", 315, false)
     };
 
     private static boolean inZone = false;
