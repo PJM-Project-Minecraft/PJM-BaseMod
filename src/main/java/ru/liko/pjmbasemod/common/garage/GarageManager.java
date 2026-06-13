@@ -11,13 +11,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import ru.liko.pjmbasemod.Config;
@@ -26,6 +24,7 @@ import ru.liko.pjmbasemod.common.entity.NotebookEntity;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.GarageSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenGaragePacket;
+import ru.liko.pjmbasemod.common.network.packet.SpawnPointOptionsPacket;
 import ru.liko.pjmbasemod.common.network.packet.StoreOptionsPacket;
 import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.role.RoleService;
@@ -175,6 +174,110 @@ public final class GarageManager {
         return true;
     }
 
+    public static boolean addSpawnPoint(ServerPlayer player) {
+        Session session = editableSession(player);
+        if (session == null) {
+            player.sendSystemMessage(Component.literal("Открой нужный терминал гаража или встань рядом с ним."));
+            return false;
+        }
+        BlockPos pos = player.blockPosition().immutable();
+        float yaw = player.getYRot();
+        GarageTerminalSettings settings = GarageTerminalSavedData.get(player.server)
+                .addSpawnPoint(session.settings().terminalId(), session.level(), session.settings().terminalPos(),
+                        session.settings().terminalYaw(), pos, yaw);
+        SESSIONS.put(player.getUUID(), new Session(session.level(), settings, true));
+        player.sendSystemMessage(Component.literal("Точка спавна №" + settings.spawnPoints().size()
+                + " добавлена: " + formatPos(pos) + ", yaw " + Math.round(yaw)));
+        playGarageSound(player, SoundEvents.LEVER_CLICK, 0.6F, 1.25F);
+        return true;
+    }
+
+    public static boolean addSpawnPoint(ServerPlayer player, String direction) {
+        Float yaw = yawFromDirection(direction);
+        if (yaw == null) {
+            player.sendSystemMessage(Component.literal("Неизвестное направление: " + direction + ". Используй north, east, south или west."));
+            return false;
+        }
+        Session session = editableSession(player);
+        if (session == null) {
+            player.sendSystemMessage(Component.literal("Открой нужный терминал гаража или встань рядом с ним."));
+            return false;
+        }
+        BlockPos pos = player.blockPosition().immutable();
+        GarageTerminalSettings settings = GarageTerminalSavedData.get(player.server)
+                .addSpawnPoint(session.settings().terminalId(), session.level(), session.settings().terminalPos(),
+                        session.settings().terminalYaw(), pos, yaw);
+        SESSIONS.put(player.getUUID(), new Session(session.level(), settings, true));
+        player.sendSystemMessage(Component.literal("Точка спавна №" + settings.spawnPoints().size()
+                + " добавлена: " + formatPos(pos) + ", направление " + normalizedDirection(direction)));
+        playGarageSound(player, SoundEvents.LEVER_CLICK, 0.6F, 1.25F);
+        return true;
+    }
+
+    public static boolean listSpawnPoints(ServerPlayer player) {
+        Session session = editableSession(player);
+        if (session == null) {
+            session = SESSIONS.get(player.getUUID());
+        }
+        if (session == null) {
+            player.sendSystemMessage(Component.literal("Открой нужный терминал гаража или встань рядом с ним."));
+            return false;
+        }
+        GarageTerminalSettings settings = session.settings();
+        List<GarageSpawnPoint> points = settings.spawnPoints();
+        if (points.isEmpty()) {
+            player.sendSystemMessage(Component.literal("Точек спавна нет (дефолт над терминалом: "
+                    + formatPos(settings.resolvedSpawnPos()) + ")."));
+            return true;
+        }
+        player.sendSystemMessage(Component.literal("Точки спавна гаража " + shortId(settings.terminalId()) + ":"));
+        ServerLevel level = session.level();
+        for (int i = 0; i < points.size(); i++) {
+            GarageSpawnPoint point = points.get(i);
+            String state = isSpawnPointFree(level, point) ? "свободна" : "занята";
+            player.sendSystemMessage(Component.literal(" " + (i + 1) + ") " + formatPos(point.pos())
+                    + ", yaw " + Math.round(point.yaw()) + " — " + state));
+        }
+        return true;
+    }
+
+    public static boolean removeSpawnPoint(ServerPlayer player, int number) {
+        Session session = editableSession(player);
+        if (session == null) {
+            player.sendSystemMessage(Component.literal("Открой нужный терминал гаража или встань рядом с ним."));
+            return false;
+        }
+        GarageTerminalSettings current = session.settings();
+        int size = current.spawnPoints().size();
+        if (number < 1 || number > size) {
+            player.sendSystemMessage(Component.literal("Нет точки спавна №" + number + " (всего " + size + ")."));
+            return false;
+        }
+        GarageTerminalSettings settings = GarageTerminalSavedData.get(player.server)
+                .removeSpawnPoint(current.terminalId(), session.level(), current.terminalPos(),
+                        current.terminalYaw(), number - 1);
+        SESSIONS.put(player.getUUID(), new Session(session.level(), settings, true));
+        player.sendSystemMessage(Component.literal("Точка спавна №" + number + " удалена (осталось "
+                + settings.spawnPoints().size() + ")."));
+        playGarageSound(player, SoundEvents.LEVER_CLICK, 0.55F, 1.0F);
+        return true;
+    }
+
+    public static boolean clearSpawnPoints(ServerPlayer player) {
+        Session session = editableSession(player);
+        if (session == null) {
+            player.sendSystemMessage(Component.literal("Открой нужный терминал гаража или встань рядом с ним."));
+            return false;
+        }
+        GarageTerminalSettings settings = GarageTerminalSavedData.get(player.server)
+                .clearSpawnPoints(session.settings().terminalId(), session.level(),
+                        session.settings().terminalPos(), session.settings().terminalYaw());
+        SESSIONS.put(player.getUUID(), new Session(session.level(), settings, true));
+        player.sendSystemMessage(Component.literal("Все точки спавна гаража очищены (дефолт над терминалом)."));
+        playGarageSound(player, SoundEvents.LEVER_CLICK, 0.55F, 0.9F);
+        return true;
+    }
+
     public static boolean setStoragePoint(ServerPlayer player) {
         Session session = editableSession(player);
         if (session == null) {
@@ -221,7 +324,11 @@ public final class GarageManager {
         GarageTerminalSettings settings = session.settings();
         player.sendSystemMessage(Component.literal("Гараж " + shortId(settings.terminalId()) + ":"));
         player.sendSystemMessage(Component.literal(" терминал: " + formatPos(settings.terminalPos()) + " [" + settings.dimension() + "]"));
-        player.sendSystemMessage(Component.literal(" спавн: " + formatPos(settings.resolvedSpawnPos()) + ", yaw " + Math.round(settings.spawnYaw())));
+        int pointCount = settings.spawnPoints().size();
+        player.sendSystemMessage(Component.literal(" спавн: " + formatPos(settings.resolvedSpawnPos())
+                + ", yaw " + Math.round(settings.spawnYaw())
+                + (pointCount > 1 ? " (точек: " + pointCount + ", см. /pjm garage spawn list)"
+                        : pointCount == 0 ? " (дефолт над терминалом)" : "")));
         player.sendSystemMessage(Component.literal(" хранение: " + formatPos(settings.resolvedStoragePos()) + ", радиус " + settings.storageRadius()));
         return true;
     }
@@ -266,6 +373,9 @@ public final class GarageManager {
 
     // ---------------------------------------------------------------- спавн
 
+    /** Радиус вокруг точки спавна, в котором наличие техники делает точку занятой. */
+    private static final double SPAWN_OCCUPANCY_RADIUS = 2.5D;
+
     public static void handleSpawn(ServerPlayer player, UUID instanceId) {
         if (!GaragePermissions.can(player, GaragePermissions.SPAWN)) {
             player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.no_permission_spawn"));
@@ -278,10 +388,63 @@ public final class GarageManager {
             return;
         }
         VehicleDefinition def = VehicleRegistry.get().get(stored.defId());
-        ResourceLocation typeId = def != null ? def.entityTypeId() : ResourceLocation.tryParse(stored.defId());
         if (!canUseVehicle(player, def)) {
             return;
         }
+        ResourceLocation typeId = def != null ? def.entityTypeId() : ResourceLocation.tryParse(stored.defId());
+        if (typeId == null || resolveType(typeId) == null) {
+            player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.entity_missing",
+                    def == null ? stored.defId() : def.entityTypeString()));
+            return;
+        }
+
+        Session session = SESSIONS.getOrDefault(player.getUUID(), fallbackSession(player));
+        List<GarageSpawnPoint> points = session.settings().resolvedSpawnPoints();
+        if (points.size() <= 1) {
+            performSpawn(player, instanceId, points.get(0));
+            return;
+        }
+
+        // Несколько точек — открыть на клиенте меню выбора с пометкой занятости.
+        ServerLevel level = session.level();
+        List<SpawnPointOptionsPacket.PointOption> options = new ArrayList<>();
+        for (int i = 0; i < points.size(); i++) {
+            GarageSpawnPoint point = points.get(i);
+            boolean free = isSpawnPointFree(level, point);
+            String label = "Точка " + (i + 1) + " (" + formatPos(point.pos()) + ")";
+            options.add(new SpawnPointOptionsPacket.PointOption(i, label, free));
+        }
+        PjmNetworking.sendToPlayer(player, new SpawnPointOptionsPacket(instanceId, List.copyOf(options)));
+    }
+
+    /** Выбор точки спавна из меню: спавнит технику на точке по индексу. */
+    public static void handleSpawnAtPoint(ServerPlayer player, UUID instanceId, int index) {
+        if (!GaragePermissions.can(player, GaragePermissions.SPAWN)) {
+            player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.no_permission_spawn"));
+            return;
+        }
+        Session session = SESSIONS.getOrDefault(player.getUUID(), fallbackSession(player));
+        List<GarageSpawnPoint> points = session.settings().resolvedSpawnPoints();
+        if (index < 0 || index >= points.size()) {
+            resync(player);
+            return;
+        }
+        performSpawn(player, instanceId, points.get(index));
+    }
+
+    /** Непосредственно спавнит технику на точке с проверкой занятости. Не списывает технику, если точка занята. */
+    private static void performSpawn(ServerPlayer player, UUID instanceId, GarageSpawnPoint point) {
+        GarageSavedData data = GarageSavedData.get(player.server);
+        StoredVehicle stored = find(data.garageOf(player.getUUID()), instanceId);
+        if (stored == null) {
+            resync(player);
+            return;
+        }
+        VehicleDefinition def = VehicleRegistry.get().get(stored.defId());
+        if (!canUseVehicle(player, def)) {
+            return;
+        }
+        ResourceLocation typeId = def != null ? def.entityTypeId() : ResourceLocation.tryParse(stored.defId());
         EntityType<?> type = typeId == null ? null : resolveType(typeId);
         if (type == null) {
             player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.entity_missing",
@@ -292,6 +455,13 @@ public final class GarageManager {
 
         Session session = SESSIONS.getOrDefault(player.getUUID(), fallbackSession(player));
         ServerLevel level = session.level();
+
+        if (!isSpawnPointFree(level, point)) {
+            player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.spawn_point_occupied"));
+            resync(player);
+            return;
+        }
+
         Entity entity = type.create(level);
         if (entity == null) {
             player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.entity_missing", typeId.toString()));
@@ -303,11 +473,11 @@ public final class GarageManager {
         entity.load(tag);
         entity.setUUID(UUID.randomUUID());
 
-        BlockPos spawn = session.settings().resolvedSpawnPos();
+        BlockPos spawn = point.pos();
         double x = spawn.getX() + 0.5D;
         double y = spawn.getY();
         double z = spawn.getZ() + 0.5D;
-        float yaw = session.settings().spawnYaw();
+        float yaw = point.yaw();
         entity.moveTo(x, y, z, yaw, 0F);
         entity.setYHeadRot(yaw);
         entity.setYBodyRot(yaw);
@@ -318,6 +488,21 @@ public final class GarageManager {
         playGarageSound(level, entity.position(), SoundEvents.PISTON_EXTEND, 0.9F, 0.85F);
         playGarageSound(level, entity.position(), SoundEvents.DISPENSER_LAUNCH, 0.65F, 0.75F);
         resync(player);
+    }
+
+    /** true — на точке нет техники/сущностей (кроме игроков, ноутбуков и мелочи вроде предметов). */
+    private static boolean isSpawnPointFree(ServerLevel level, GarageSpawnPoint point) {
+        Vec3 center = Vec3.atCenterOf(point.pos());
+        AABB box = AABB.ofSize(center, SPAWN_OCCUPANCY_RADIUS * 2.0D,
+                SPAWN_OCCUPANCY_RADIUS * 2.0D, SPAWN_OCCUPANCY_RADIUS * 2.0D);
+        for (Entity entity : level.getEntities((Entity) null, box, c -> !c.isRemoved())) {
+            if (entity instanceof ServerPlayer || entity instanceof NotebookEntity) continue;
+            if (entity instanceof net.minecraft.world.entity.item.ItemEntity
+                    || entity instanceof net.minecraft.world.entity.ExperienceOrb) continue;
+            if (entity.getBoundingBox().distanceToSqr(center) > SPAWN_OCCUPANCY_RADIUS * SPAWN_OCCUPANCY_RADIUS) continue;
+            return false;
+        }
+        return true;
     }
 
     /** Кнопка «Убрать»: собирает подходящую технику и открывает на клиенте меню выбора. */
@@ -432,17 +617,14 @@ public final class GarageManager {
             return;
         }
         String displayName = displayNameForStored(stored, def);
-        int metal = salvageMetalAmount(player.serverLevel(), stored, def);
         StoredVehicle removed = data.remove(player.getUUID(), instanceId);
         if (removed == null) {
             resync(player);
             return;
         }
 
-        giveMetal(player, metal);
-        player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.recycled", displayName, metal));
+        player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.recycled", displayName));
         playGarageSound(player, SoundEvents.GRINDSTONE_USE, 0.75F, 0.85F);
-        playGarageSound(player, SoundEvents.ITEM_PICKUP, 0.45F, 1.1F);
         resync(player);
     }
 
@@ -877,69 +1059,6 @@ public final class GarageManager {
             Item item = cost.resolveItem();
             if (item == null) continue;
             removeItems(inv, item, cost.count());
-        }
-    }
-
-    private static int salvageMetalAmount(ServerLevel level, StoredVehicle stored, @Nullable VehicleDefinition def) {
-        int fromCost = 0;
-        if (def != null) {
-            for (CostEntry cost : def.cost()) {
-                fromCost += metalValue(cost);
-            }
-        }
-        if (fromCost > 0) {
-            return Mth.clamp(Math.max(4, fromCost / 2), 4, 256);
-        }
-
-        ResourceLocation typeId = def != null ? def.entityTypeId() : ResourceLocation.tryParse(stored.defId());
-        EntityType<?> type = typeId == null ? null : resolveType(typeId);
-        Entity entity = type == null ? null : type.create(level);
-        if (entity == null) {
-            return 24;
-        }
-
-        try {
-            CompoundTag tag = stored.entityNbt().copy();
-            tag.remove("UUID");
-            entity.load(tag);
-        } catch (RuntimeException ignored) {
-            // Если чужая техника не прочитала NBT, считаем металл по дефолтным размерам EntityType.
-        }
-
-        float width = Math.max(1.0F, entity.getBbWidth());
-        float height = Math.max(1.0F, entity.getBbHeight());
-        entity.discard();
-        return Mth.clamp(Math.round(width * width * height * 2.5F), 12, 192);
-    }
-
-    private static int metalValue(CostEntry cost) {
-        ResourceLocation itemId = ResourceLocation.tryParse(cost.item());
-        if (itemId == null) return 0;
-        String path = itemId.getPath().toLowerCase(Locale.ROOT);
-        int count = cost.count();
-        if (path.endsWith("iron_block") || path.endsWith("steel_block")
-                || path.equals("block_of_iron") || path.equals("block_of_steel")) {
-            return count * 9;
-        }
-        if (path.endsWith("iron_ingot") || path.endsWith("steel_ingot")
-                || path.equals("ingot_iron") || path.equals("ingot_steel")) {
-            return count;
-        }
-        if (path.endsWith("iron_nugget") || path.endsWith("steel_nugget")) {
-            return Math.max(1, count / 9);
-        }
-        if (path.contains("iron") || path.contains("steel")) {
-            return count;
-        }
-        return 0;
-    }
-
-    private static void giveMetal(ServerPlayer player, int amount) {
-        int remaining = Math.max(1, amount);
-        while (remaining > 0) {
-            int count = Math.min(64, remaining);
-            player.getInventory().placeItemBackInInventory(new ItemStack(Items.IRON_INGOT, count));
-            remaining -= count;
         }
     }
 

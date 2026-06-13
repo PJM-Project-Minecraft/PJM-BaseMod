@@ -65,7 +65,32 @@ public class GarageScreen extends Screen {
     private static final int STORE_MENU_HEADER = 24;
     private static final int STORE_MENU_VISIBLE_ROWS = 8;
 
+    // Меню выбора точки спавна (оверлей поверх экрана, переиспользует раскладку store-меню).
+    @Nullable
+    private java.util.List<ru.liko.pjmbasemod.common.network.packet.SpawnPointOptionsPacket.PointOption> spawnOptions;
+    @Nullable
+    private java.util.UUID spawnInstanceId;
+    private int spawnScroll;
+
     private record PreviewTarget(String key, String displayName, String entityType, CompoundTag entityNbt) {}
+
+    /** Открывает оверлей-меню выбора точки спавна. */
+    public void showSpawnOptions(java.util.UUID instanceId,
+            java.util.List<ru.liko.pjmbasemod.common.network.packet.SpawnPointOptionsPacket.PointOption> options) {
+        this.spawnInstanceId = instanceId;
+        this.spawnOptions = options;
+        this.spawnScroll = 0;
+    }
+
+    private boolean spawnMenuOpen() {
+        return spawnOptions != null && !spawnOptions.isEmpty();
+    }
+
+    private void closeSpawnMenu() {
+        spawnOptions = null;
+        spawnInstanceId = null;
+        spawnScroll = 0;
+    }
 
     /** Открывает оверлей-меню выбора техники для возврата в гараж. */
     public void showStoreOptions(java.util.List<ru.liko.pjmbasemod.common.network.packet.StoreOptionsPacket.Option> options) {
@@ -135,6 +160,13 @@ public class GarageScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (spawnMenuOpen()) {
+            if (scrollY != 0) {
+                int max = Math.max(0, spawnOptions.size() - spawnMenuRows());
+                spawnScroll = Math.max(0, Math.min(max, spawnScroll - (int) Math.signum(scrollY)));
+            }
+            return true;
+        }
         if (storeMenuOpen()) {
             if (scrollY != 0) {
                 int max = Math.max(0, storeOptions.size() - storeMenuRows());
@@ -153,6 +185,11 @@ public class GarageScreen extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         // Esc при открытом меню выбора — закрывает только меню, не весь экран.
+        if (spawnMenuOpen() && keyCode == 256) {
+            PjmUiSounds.playClick();
+            closeSpawnMenu();
+            return true;
+        }
         if (storeMenuOpen() && keyCode == 256) {
             PjmUiSounds.playClick();
             closeStoreMenu();
@@ -164,6 +201,10 @@ public class GarageScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+
+        if (spawnMenuOpen()) {
+            return handleSpawnMenuClick(mouseX, mouseY);
+        }
 
         if (storeMenuOpen()) {
             return handleStoreMenuClick(mouseX, mouseY);
@@ -292,10 +333,18 @@ public class GarageScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        
+
         int left = guiLeft();
         int top = guiTop();
-        
+
+        // Меню выбора (модальный оверлей): рисуем только его, контент гаража пропускаем,
+        // чтобы 3D-превью техники не просвечивало поверх меню через depth-буфер.
+        if (storeMenuOpen() || spawnMenuOpen()) {
+            if (storeMenuOpen()) renderStoreMenu(graphics, mouseX, mouseY);
+            if (spawnMenuOpen()) renderSpawnMenu(graphics, mouseX, mouseY);
+            return;
+        }
+
         // Заголовок
         graphics.drawString(font, getTitle(), left + 8, top + 7, 0xFFE8E8E8, false);
 
@@ -374,9 +423,93 @@ public class GarageScreen extends Screen {
             graphics.fill(scrollX, thumbY, scrollX + 3, thumbY + thumbHeight, 0xFF35506E);
         }
 
-        if (storeMenuOpen()) {
-            renderStoreMenu(graphics, mouseX, mouseY);
+    }
+
+    // ----------------------------------------------------- меню выбора точки спавна
+
+    private int spawnMenuRows() {
+        return spawnOptions == null ? 0 : Math.min(STORE_MENU_VISIBLE_ROWS, spawnOptions.size());
+    }
+
+    private int spawnMenuHeight() {
+        return STORE_MENU_HEADER + spawnMenuRows() * STORE_ROW_HEIGHT + 6;
+    }
+
+    private int spawnMenuTop() { return (height - spawnMenuHeight()) / 2; }
+
+    private void renderSpawnMenu(GuiGraphics graphics, int mouseX, int mouseY) {
+        graphics.fill(0, 0, width, height, 0xB0000000);
+
+        int left = storeMenuLeft();
+        int top = spawnMenuTop();
+        int w = STORE_MENU_WIDTH;
+        int h = spawnMenuHeight();
+
+        graphics.fill(left, top, left + w, top + h, 0xF21B1B22);
+        graphics.fill(left - 1, top - 1, left + w + 1, top, 0xFF353540);
+        graphics.fill(left - 1, top + h, left + w + 1, top + h + 1, 0xFF353540);
+        graphics.fill(left - 1, top, left, top + h, 0xFF353540);
+        graphics.fill(left + w, top, left + w + 1, top + h, 0xFF353540);
+
+        graphics.fill(left, top, left + w, top + STORE_MENU_HEADER, 0xFF1F1F26);
+        graphics.drawString(font, Component.translatable("gui.pjmbasemod.garage.spawn_select_title"),
+                left + 8, top + 8, 0xFFE8E8E8, false);
+        boolean hoverClose = mouseX >= left + w - 22 && mouseX <= left + w && mouseY >= top && mouseY <= top + STORE_MENU_HEADER;
+        graphics.drawString(font, "✕", left + w - 16, top + 8, hoverClose ? 0xFFD06060 : 0xFFB05050, false);
+
+        int rows = spawnMenuRows();
+        int y = top + STORE_MENU_HEADER + 3;
+        for (int i = spawnScroll; i < spawnOptions.size() && i < spawnScroll + rows; i++) {
+            var option = spawnOptions.get(i);
+            boolean hovered = option.free() && mouseX >= left + 4 && mouseX <= left + w - 4
+                    && mouseY >= y && mouseY <= y + STORE_ROW_HEIGHT - 2;
+            int bg = !option.free() ? 0xFF302024 : hovered ? 0xFF35506E : 0xFF26262E;
+            graphics.fill(left + 4, y, left + w - 4, y + STORE_ROW_HEIGHT - 2, bg);
+            String suffix = option.free() ? "" : " — "
+                    + Component.translatable("gui.pjmbasemod.garage.spawn_point_busy").getString();
+            String name = ellipsize(option.label() + suffix, w - 16);
+            int color = option.free() ? 0xFFFFFFFF : 0xFF8A7A7A;
+            graphics.drawString(font, name, left + 10, y + 6, color, false);
+            y += STORE_ROW_HEIGHT;
         }
+
+        if (spawnOptions.size() > rows) {
+            String more = "▾ " + spawnOptions.size();
+            graphics.drawString(font, more, left + w - 4 - font.width(more), top + h - 10, 0xFF8890A0, false);
+        }
+    }
+
+    private boolean handleSpawnMenuClick(double mouseX, double mouseY) {
+        int left = storeMenuLeft();
+        int top = spawnMenuTop();
+        int w = STORE_MENU_WIDTH;
+
+        if (mouseX >= left + w - 22 && mouseX <= left + w && mouseY >= top && mouseY <= top + STORE_MENU_HEADER) {
+            PjmUiSounds.playClick();
+            closeSpawnMenu();
+            return true;
+        }
+
+        int rows = spawnMenuRows();
+        int y = top + STORE_MENU_HEADER + 3;
+        for (int i = spawnScroll; i < spawnOptions.size() && i < spawnScroll + rows; i++) {
+            if (mouseX >= left + 4 && mouseX <= left + w - 4 && mouseY >= y && mouseY <= y + STORE_ROW_HEIGHT - 2) {
+                var option = spawnOptions.get(i);
+                if (!option.free()) {
+                    return true; // занятая точка — клик игнорируется
+                }
+                PjmUiSounds.playClick();
+                java.util.UUID instanceId = spawnInstanceId;
+                if (instanceId != null) {
+                    PjmNetworking.sendToServer(
+                            new ru.liko.pjmbasemod.common.network.packet.SpawnAtPointPacket(instanceId, option.index()));
+                }
+                closeSpawnMenu();
+                return true;
+            }
+            y += STORE_ROW_HEIGHT;
+        }
+        return true;
     }
 
     private int storeMenuRows() {

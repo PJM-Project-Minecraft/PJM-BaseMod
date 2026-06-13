@@ -2,59 +2,114 @@ package ru.liko.pjmbasemod.common.garage;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Настройки конкретного терминала гаража, сохранённые в мире.
+ *
+ * <p>Терминал хранит упорядоченный список точек спавна техники ({@link GarageSpawnPoint}).
+ * Пустой список означает дефолтную точку над терминалом.</p>
  */
 public record GarageTerminalSettings(UUID terminalId, String dimension, BlockPos terminalPos, float terminalYaw,
-                                     @Nullable BlockPos spawnPos, float spawnYaw,
+                                     List<GarageSpawnPoint> spawnPoints,
                                      @Nullable BlockPos storagePos, int storageRadius) {
 
     public static final int DEFAULT_STORAGE_RADIUS = 5;
 
+    public GarageTerminalSettings {
+        spawnPoints = spawnPoints == null ? List.of() : List.copyOf(spawnPoints);
+    }
+
     public static GarageTerminalSettings create(UUID terminalId, ResourceKey<Level> dimension,
                                                 BlockPos terminalPos, float terminalYaw) {
         return new GarageTerminalSettings(terminalId, dimension.location().toString(), terminalPos, terminalYaw,
-                null, terminalYaw, null, DEFAULT_STORAGE_RADIUS);
+                List.of(), null, DEFAULT_STORAGE_RADIUS);
     }
 
     public static GarageTerminalSettings temporary(ResourceKey<Level> dimension, BlockPos pos, float yaw) {
         return new GarageTerminalSettings(UUID.randomUUID(), dimension.location().toString(), pos, yaw,
-                pos.above(), yaw, pos, DEFAULT_STORAGE_RADIUS);
+                List.of(new GarageSpawnPoint(pos.above(), yaw)), pos, DEFAULT_STORAGE_RADIUS);
     }
 
     public GarageTerminalSettings withTerminal(ResourceKey<Level> dimension, BlockPos terminalPos, float terminalYaw) {
         return new GarageTerminalSettings(terminalId, dimension.location().toString(), terminalPos, terminalYaw,
-                spawnPos, spawnYaw, storagePos, storageRadius);
+                spawnPoints, storagePos, storageRadius);
     }
 
-    public GarageTerminalSettings withSpawn(BlockPos pos, float yaw) {
+    /** Заменяет весь список единственной точкой (команда «set spawn»). */
+    public GarageTerminalSettings withPrimarySpawn(BlockPos pos, float yaw) {
         return new GarageTerminalSettings(terminalId, dimension, terminalPos, terminalYaw,
-                pos.immutable(), yaw, storagePos, storageRadius);
+                List.of(new GarageSpawnPoint(pos, yaw)), storagePos, storageRadius);
     }
 
-    public GarageTerminalSettings withSpawnYaw(float yaw) {
+    /** Меняет направление первой точки; если точек нет — создаёт одну над терминалом (команда «set facing»). */
+    public GarageTerminalSettings withFirstSpawnYaw(float yaw) {
+        List<GarageSpawnPoint> next = new ArrayList<>(spawnPoints);
+        if (next.isEmpty()) {
+            next.add(new GarageSpawnPoint(terminalPos.above(), yaw));
+        } else {
+            next.set(0, new GarageSpawnPoint(next.get(0).pos(), yaw));
+        }
         return new GarageTerminalSettings(terminalId, dimension, terminalPos, terminalYaw,
-                spawnPos, yaw, storagePos, storageRadius);
+                next, storagePos, storageRadius);
+    }
+
+    /** Добавляет точку спавна в конец списка. */
+    public GarageTerminalSettings withAddedSpawn(BlockPos pos, float yaw) {
+        List<GarageSpawnPoint> next = new ArrayList<>(spawnPoints);
+        next.add(new GarageSpawnPoint(pos, yaw));
+        return new GarageTerminalSettings(terminalId, dimension, terminalPos, terminalYaw,
+                next, storagePos, storageRadius);
+    }
+
+    /** Удаляет точку по индексу (0-based). Вне диапазона — возвращает себя без изменений. */
+    public GarageTerminalSettings withoutSpawn(int index) {
+        if (index < 0 || index >= spawnPoints.size()) return this;
+        List<GarageSpawnPoint> next = new ArrayList<>(spawnPoints);
+        next.remove(index);
+        return new GarageTerminalSettings(terminalId, dimension, terminalPos, terminalYaw,
+                next, storagePos, storageRadius);
+    }
+
+    public GarageTerminalSettings withClearedSpawns() {
+        return new GarageTerminalSettings(terminalId, dimension, terminalPos, terminalYaw,
+                List.of(), storagePos, storageRadius);
     }
 
     public GarageTerminalSettings withStorage(BlockPos pos) {
         return new GarageTerminalSettings(terminalId, dimension, terminalPos, terminalYaw,
-                spawnPos, spawnYaw, pos.immutable(), storageRadius);
+                spawnPoints, pos.immutable(), storageRadius);
     }
 
     public GarageTerminalSettings withStorageRadius(int radius) {
         return new GarageTerminalSettings(terminalId, dimension, terminalPos, terminalYaw,
-                spawnPos, spawnYaw, storagePos, Math.max(1, radius));
+                spawnPoints, storagePos, Math.max(1, radius));
     }
 
+    /** Точки спавна с подстановкой дефолтной (над терминалом), если список пуст. Минимум одна. */
+    public List<GarageSpawnPoint> resolvedSpawnPoints() {
+        if (spawnPoints.isEmpty()) {
+            return List.of(new GarageSpawnPoint(terminalPos.above(), terminalYaw));
+        }
+        return spawnPoints;
+    }
+
+    /** Позиция первой (основной) точки спавна. */
     public BlockPos resolvedSpawnPos() {
-        return spawnPos == null ? terminalPos.above() : spawnPos;
+        return resolvedSpawnPoints().get(0).pos();
+    }
+
+    /** Направление первой (основной) точки спавна. */
+    public float spawnYaw() {
+        return resolvedSpawnPoints().get(0).yaw();
     }
 
     public BlockPos resolvedStoragePos() {
@@ -67,11 +122,11 @@ public record GarageTerminalSettings(UUID terminalId, String dimension, BlockPos
         tag.putString("Dimension", dimension);
         writePos(tag, "Terminal", terminalPos);
         tag.putFloat("TerminalYaw", terminalYaw);
-        if (spawnPos != null) {
-            writePos(tag, "Spawn", spawnPos);
-            tag.putBoolean("HasSpawn", true);
+        ListTag points = new ListTag();
+        for (GarageSpawnPoint point : spawnPoints) {
+            points.add(point.save());
         }
-        tag.putFloat("SpawnYaw", spawnYaw);
+        tag.put("SpawnPoints", points);
         if (storagePos != null) {
             writePos(tag, "Storage", storagePos);
             tag.putBoolean("HasStorage", true);
@@ -85,12 +140,24 @@ public record GarageTerminalSettings(UUID terminalId, String dimension, BlockPos
         String dimension = tag.getString("Dimension");
         BlockPos terminalPos = readPos(tag, "Terminal", BlockPos.ZERO);
         float terminalYaw = tag.getFloat("TerminalYaw");
-        BlockPos spawnPos = tag.getBoolean("HasSpawn") ? readPos(tag, "Spawn", terminalPos.above()) : null;
-        float spawnYaw = tag.contains("SpawnYaw") ? tag.getFloat("SpawnYaw") : terminalYaw;
+
+        List<GarageSpawnPoint> spawnPoints = new ArrayList<>();
+        if (tag.contains("SpawnPoints", Tag.TAG_LIST)) {
+            ListTag list = tag.getList("SpawnPoints", Tag.TAG_COMPOUND);
+            for (int i = 0; i < list.size(); i++) {
+                spawnPoints.add(GarageSpawnPoint.load(list.getCompound(i)));
+            }
+        } else if (tag.getBoolean("HasSpawn")) {
+            // Обратная совместимость со старым форматом одиночной точки.
+            BlockPos spawnPos = readPos(tag, "Spawn", terminalPos.above());
+            float spawnYaw = tag.contains("SpawnYaw") ? tag.getFloat("SpawnYaw") : terminalYaw;
+            spawnPoints.add(new GarageSpawnPoint(spawnPos, spawnYaw));
+        }
+
         BlockPos storagePos = tag.getBoolean("HasStorage") ? readPos(tag, "Storage", terminalPos) : null;
         int storageRadius = tag.contains("StorageRadius") ? tag.getInt("StorageRadius") : DEFAULT_STORAGE_RADIUS;
         return new GarageTerminalSettings(terminalId, dimension, terminalPos, terminalYaw,
-                spawnPos, spawnYaw, storagePos, Math.max(1, storageRadius));
+                spawnPoints, storagePos, Math.max(1, storageRadius));
     }
 
     private static void writePos(CompoundTag tag, String prefix, BlockPos pos) {

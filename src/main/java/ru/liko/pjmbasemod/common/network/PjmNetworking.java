@@ -13,7 +13,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "12";
+    public static final String VERSION = "13";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -37,6 +37,7 @@ public final class PjmNetworking {
         r.playToServer(SpawnVehiclePacket.TYPE,        SpawnVehiclePacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> GarageManager.handleSpawn((ServerPlayer) ctx.player(), p.instanceId())));
         r.playToServer(StoreVehiclePacket.TYPE,        StoreVehiclePacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> GarageManager.handleStore((ServerPlayer) ctx.player())));
         r.playToServer(StoreSelectedPacket.TYPE,       StoreSelectedPacket.STREAM_CODEC,       (p, ctx) -> ctx.enqueueWork(() -> GarageManager.handleStoreSelected((ServerPlayer) ctx.player(), p.entityId())));
+        r.playToServer(SpawnAtPointPacket.TYPE,        SpawnAtPointPacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> GarageManager.handleSpawnAtPoint((ServerPlayer) ctx.player(), p.instanceId(), p.index())));
         r.playToServer(RecycleVehiclePacket.TYPE,      RecycleVehiclePacket.STREAM_CODEC,      (p, ctx) -> ctx.enqueueWork(() -> GarageManager.handleRecycle((ServerPlayer) ctx.player(), p.instanceId())));
         r.playToServer(WithdrawItemPacket.TYPE,        WithdrawItemPacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> WarehouseManager.handleWithdraw((ServerPlayer) ctx.player(), p.defId(), p.count())));
         r.playToServer(DepositItemPacket.TYPE,         DepositItemPacket.STREAM_CODEC,         (p, ctx) -> ctx.enqueueWork(() -> WarehouseManager.handleDeposit((ServerPlayer) ctx.player(), p.defId(), p.count())));
@@ -54,6 +55,7 @@ public final class PjmNetworking {
         r.playToClient(OpenGaragePacket.TYPE,   OpenGaragePacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openGarage(p)));
         r.playToClient(GarageSyncPacket.TYPE,   GarageSyncPacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> CLIENT.garageSync(p)));
         r.playToClient(StoreOptionsPacket.TYPE, StoreOptionsPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openStoreOptions(p)));
+        r.playToClient(SpawnPointOptionsPacket.TYPE, SpawnPointOptionsPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openSpawnPointOptions(p)));
         r.playToClient(RankSyncPacket.TYPE,     RankSyncPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> CLIENT.rankSync(p)));
         r.playToClient(RankXpPacket.TYPE,       RankXpPacket.STREAM_CODEC,       (p, ctx) -> ctx.enqueueWork(() -> CLIENT.rankXp(p)));
         r.playToClient(RoleSyncPacket.TYPE,     RoleSyncPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> CLIENT.roleSync(p)));

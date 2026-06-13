@@ -98,6 +98,13 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     }
 
     @Override
+    public void openSpawnPointOptions(ru.liko.pjmbasemod.common.network.packet.SpawnPointOptionsPacket payload) {
+        if (Minecraft.getInstance().screen instanceof GarageScreen screen) {
+            screen.showSpawnOptions(payload.instanceId(), payload.points());
+        }
+    }
+
+    @Override
     public void openWarehouse(OpenWarehousePacket payload) {
         WarehouseScreen.open(payload.snapshot());
     }

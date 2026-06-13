@@ -75,19 +75,51 @@ public final class GarageTerminalSavedData extends SavedData {
         return updated;
     }
 
+    /** Заменяет список точек спавна единственной (команда «set spawn»). */
     public GarageTerminalSettings setSpawn(UUID terminalId, ServerLevel level, BlockPos terminalPos, float terminalYaw,
                                            BlockPos spawnPos, float spawnYaw) {
         GarageTerminalSettings settings = remember(terminalId, level, terminalPos, terminalYaw)
-                .withSpawn(spawnPos, spawnYaw);
+                .withPrimarySpawn(spawnPos, spawnYaw);
         terminals.put(terminalId, settings);
         setDirty();
         return settings;
     }
 
+    /** Меняет направление основной (первой) точки спавна (команда «set facing»). */
     public GarageTerminalSettings setSpawnYaw(UUID terminalId, ServerLevel level, BlockPos terminalPos, float terminalYaw,
                                               float spawnYaw) {
         GarageTerminalSettings settings = remember(terminalId, level, terminalPos, terminalYaw)
-                .withSpawnYaw(spawnYaw);
+                .withFirstSpawnYaw(spawnYaw);
+        terminals.put(terminalId, settings);
+        setDirty();
+        return settings;
+    }
+
+    /** Добавляет точку спавна в конец списка. */
+    public GarageTerminalSettings addSpawnPoint(UUID terminalId, ServerLevel level, BlockPos terminalPos,
+                                                float terminalYaw, BlockPos spawnPos, float spawnYaw) {
+        GarageTerminalSettings settings = remember(terminalId, level, terminalPos, terminalYaw)
+                .withAddedSpawn(spawnPos, spawnYaw);
+        terminals.put(terminalId, settings);
+        setDirty();
+        return settings;
+    }
+
+    /** Удаляет точку спавна по индексу (0-based). */
+    public GarageTerminalSettings removeSpawnPoint(UUID terminalId, ServerLevel level, BlockPos terminalPos,
+                                                   float terminalYaw, int index) {
+        GarageTerminalSettings settings = remember(terminalId, level, terminalPos, terminalYaw)
+                .withoutSpawn(index);
+        terminals.put(terminalId, settings);
+        setDirty();
+        return settings;
+    }
+
+    /** Очищает все точки спавна (остаётся дефолтная над терминалом). */
+    public GarageTerminalSettings clearSpawnPoints(UUID terminalId, ServerLevel level, BlockPos terminalPos,
+                                                   float terminalYaw) {
+        GarageTerminalSettings settings = remember(terminalId, level, terminalPos, terminalYaw)
+                .withClearedSpawns();
         terminals.put(terminalId, settings);
         setDirty();
         return settings;

@@ -189,24 +189,28 @@ public final class PjmCommands {
                         .executes(ctx -> garagePointInfo(ctx.getSource())))
                 .then(Commands.literal("set")
                         .requires(source -> source.hasPermission(2))
-                        .then(Commands.literal("spawn")
-                                .executes(ctx -> setGarageSpawn(ctx.getSource()))
-                                .then(Commands.argument("direction", StringArgumentType.word())
-                                        .suggests((ctx, builder) -> suggestGarageDirections(builder))
-                                        .executes(ctx -> setGarageSpawn(ctx.getSource(),
-                                                StringArgumentType.getString(ctx, "direction")))))
-                        .then(Commands.literal("facing")
-                                .executes(ctx -> setGarageFacing(ctx.getSource()))
-                                .then(Commands.argument("direction", StringArgumentType.word())
-                                        .suggests((ctx, builder) -> suggestGarageDirections(builder))
-                                        .executes(ctx -> setGarageFacing(ctx.getSource(),
-                                                StringArgumentType.getString(ctx, "direction")))))
                         .then(Commands.literal("storage")
                                 .executes(ctx -> setGarageStorage(ctx.getSource())))
                         .then(Commands.literal("radius")
                                 .then(Commands.argument("blocks", IntegerArgumentType.integer(1, 128))
                                         .executes(ctx -> setGarageRadius(ctx.getSource(),
                                                 IntegerArgumentType.getInteger(ctx, "blocks"))))))
+                .then(Commands.literal("spawn")
+                        .requires(source -> source.hasPermission(2))
+                        .then(Commands.literal("add")
+                                .executes(ctx -> addSpawnPoint(ctx.getSource()))
+                                .then(Commands.argument("direction", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> suggestGarageDirections(builder))
+                                        .executes(ctx -> addSpawnPoint(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "direction")))))
+                        .then(Commands.literal("list")
+                                .executes(ctx -> listSpawnPoints(ctx.getSource())))
+                        .then(Commands.literal("remove")
+                                .then(Commands.argument("index", IntegerArgumentType.integer(1))
+                                        .executes(ctx -> removeSpawnPoint(ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "index")))))
+                        .then(Commands.literal("clear")
+                                .executes(ctx -> clearSpawnPoints(ctx.getSource()))))
                 .then(Commands.literal("list")
                         .executes(ctx -> listVehicles(ctx.getSource())))
                 .then(Commands.literal("add")
@@ -256,26 +260,6 @@ public final class PjmCommands {
         return builder.buildFuture();
     }
 
-    private static int setGarageSpawn(CommandSourceStack source) {
-        ServerPlayer player = requirePlayer(source);
-        return player != null && GarageManager.setSpawnPoint(player) ? 1 : 0;
-    }
-
-    private static int setGarageSpawn(CommandSourceStack source, String direction) {
-        ServerPlayer player = requirePlayer(source);
-        return player != null && GarageManager.setSpawnPoint(player, direction) ? 1 : 0;
-    }
-
-    private static int setGarageFacing(CommandSourceStack source) {
-        ServerPlayer player = requirePlayer(source);
-        return player != null && GarageManager.setSpawnFacing(player) ? 1 : 0;
-    }
-
-    private static int setGarageFacing(CommandSourceStack source, String direction) {
-        ServerPlayer player = requirePlayer(source);
-        return player != null && GarageManager.setSpawnFacing(player, direction) ? 1 : 0;
-    }
-
     private static int setGarageStorage(CommandSourceStack source) {
         ServerPlayer player = requirePlayer(source);
         return player != null && GarageManager.setStoragePoint(player) ? 1 : 0;
@@ -289,6 +273,31 @@ public final class PjmCommands {
     private static int garagePointInfo(CommandSourceStack source) {
         ServerPlayer player = requirePlayer(source);
         return player != null && GarageManager.showPointInfo(player) ? 1 : 0;
+    }
+
+    private static int addSpawnPoint(CommandSourceStack source) {
+        ServerPlayer player = requirePlayer(source);
+        return player != null && GarageManager.addSpawnPoint(player) ? 1 : 0;
+    }
+
+    private static int addSpawnPoint(CommandSourceStack source, String direction) {
+        ServerPlayer player = requirePlayer(source);
+        return player != null && GarageManager.addSpawnPoint(player, direction) ? 1 : 0;
+    }
+
+    private static int listSpawnPoints(CommandSourceStack source) {
+        ServerPlayer player = requirePlayer(source);
+        return player != null && GarageManager.listSpawnPoints(player) ? 1 : 0;
+    }
+
+    private static int removeSpawnPoint(CommandSourceStack source, int index) {
+        ServerPlayer player = requirePlayer(source);
+        return player != null && GarageManager.removeSpawnPoint(player, index) ? 1 : 0;
+    }
+
+    private static int clearSpawnPoints(CommandSourceStack source) {
+        ServerPlayer player = requirePlayer(source);
+        return player != null && GarageManager.clearSpawnPoints(player) ? 1 : 0;
     }
 
     private static int listVehicles(CommandSourceStack source) {
