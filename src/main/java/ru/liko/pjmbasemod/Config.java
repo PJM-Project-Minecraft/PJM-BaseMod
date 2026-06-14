@@ -87,8 +87,6 @@ public final class Config {
     public static boolean isDisableHunger()           { return data().hud.disableHunger; }
     public static boolean isDisableArmor()            { return data().hud.hideArmorBar; }
     public static long    getItemSwitchDisplayTime()  { return data().hud.itemSwitchDisplayMs; }
-    public static int     getCaptureTimeSeconds()     { return data().controlPoints.captureTimeSeconds; }
-    public static boolean isCaptureSystemEnabled()    { return data().controlPoints.enabled; }
     public static boolean isFrontlineEnabled()         { return data().frontline.enabled; }
     public static boolean isFrontlineHudEnabled()      { return data().frontline.hudEnabled; }
     public static boolean isFrontlineManualActive()    { return data().frontline.manualActive; }
@@ -247,7 +245,6 @@ public final class Config {
     static final class ConfigData {
         General general = new General();
         Hud hud = new Hud();
-        ControlPoints controlPoints = new ControlPoints();
         Teams teams = new Teams();
         Region region = new Region();
         Frontline frontline = new Frontline();
@@ -258,7 +255,6 @@ public final class Config {
         void normalize() {
             if (general == null) general = new General();
             if (hud == null) hud = new Hud();
-            if (controlPoints == null) controlPoints = new ControlPoints();
             if (teams == null) teams = new Teams();
             if (region == null) region = new Region();
             if (frontline == null) frontline = new Frontline();
@@ -270,7 +266,6 @@ public final class Config {
             if (commands.startup == null) commands.startup = new ArrayList<>();
 
             hud.itemSwitchDisplayMs = clamp(hud.itemSwitchDisplayMs, 0L, 60_000L);
-            controlPoints.captureTimeSeconds = clamp(controlPoints.captureTimeSeconds, 5, 600);
             region.maxChunks = clamp(region.maxChunks, 1, 1_000_000);
 
             frontline.normalize();
@@ -286,11 +281,6 @@ public final class Config {
         long itemSwitchDisplayMs = 1500L;
         boolean hideArmorBar = false;
         boolean disableHunger = false;
-    }
-
-    static final class ControlPoints {
-        boolean enabled = true;
-        int captureTimeSeconds = 30;
     }
 
     static final class Teams {
