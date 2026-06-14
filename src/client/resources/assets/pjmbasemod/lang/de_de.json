@@ -75,6 +75,7 @@
   "gui.pjmbasemod.warehouse.category.vehicle": "Fahrzeuge",
   "gui.pjmbasemod.warehouse.category.special": "Spezial",
   "gui.pjmbasemod.warehouse.no_access": "Dieser Quartiermeister ist für dein Team nicht verfügbar",
+  "gui.pjmbasemod.warehouse.team_restricted": "Dieser Gegenstand ist für dein Team nicht verfügbar",
   "gui.pjmbasemod.warehouse.npc_unbound": "Quartiermeister ist keinem Lager zugeordnet",
   "gui.pjmbasemod.warehouse.no_permission": "Du hast keine Berechtigung zum Entnehmen",
   "gui.pjmbasemod.warehouse.category_blocked": "Diese Kategorie ist hier nicht verfügbar",

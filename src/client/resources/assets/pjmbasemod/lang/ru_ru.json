@@ -75,6 +75,7 @@
   "gui.pjmbasemod.warehouse.category.vehicle": "Техника",
   "gui.pjmbasemod.warehouse.category.special": "Спецпредметы",
   "gui.pjmbasemod.warehouse.no_access": "Этот кладовщик недоступен вашей команде",
+  "gui.pjmbasemod.warehouse.team_restricted": "Этот предмет недоступен вашей команде",
   "gui.pjmbasemod.warehouse.npc_unbound": "Кладовщик не привязан к складу",
   "gui.pjmbasemod.warehouse.no_permission": "У вас нет прав на получение предметов",
   "gui.pjmbasemod.warehouse.category_blocked": "Эта категория недоступна у кладовщика",

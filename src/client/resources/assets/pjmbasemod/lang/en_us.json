@@ -75,6 +75,7 @@
   "gui.pjmbasemod.warehouse.category.vehicle": "Vehicles",
   "gui.pjmbasemod.warehouse.category.special": "Special",
   "gui.pjmbasemod.warehouse.no_access": "This quartermaster is not available to your team",
+  "gui.pjmbasemod.warehouse.team_restricted": "This item is not available to your team",
   "gui.pjmbasemod.warehouse.npc_unbound": "Quartermaster is not bound to a warehouse",
   "gui.pjmbasemod.warehouse.no_permission": "You don't have permission to withdraw items",
   "gui.pjmbasemod.warehouse.category_blocked": "This category is not available here",

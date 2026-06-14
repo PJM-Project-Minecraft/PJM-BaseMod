@@ -79,6 +79,10 @@ public final class WarehouseManager {
             player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.category_blocked"), true);
             return;
         }
+        if (!teamAllows(player, def)) {
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.team_restricted"), true);
+            return;
+        }
         if (!RoleService.hasAllowedRole(player, def.allowedRoles())) {
             player.displayClientMessage(RoleService.requiredRoleMessage(def.allowedRoles()), true);
             return;
@@ -347,6 +351,8 @@ public final class WarehouseManager {
         List<WarehouseSnapshot.ItemEntry> items = new ArrayList<>();
         for (WarehouseItemDefinition def : WarehouseItemRegistry.get().all()) {
             if (!allowsCategory(session, def.displayCategory())) continue;
+            // Предметы, ограниченные по командам, не показываются чужим командам в каталоге.
+            if (!teamAllows(player, def)) continue;
             int available = points.getOrDefault(def.pool(), 0);
             boolean affordable = available >= def.pointCost();
             int inInventory = countInInventory(player, def);
@@ -380,6 +386,13 @@ public final class WarehouseManager {
         if (restriction == null || restriction.isBlank()) return true;
         String playerTeam = FrontlineTeams.resolvePlayerTeamId(player);
         return restriction.equalsIgnoreCase(playerTeam);
+    }
+
+    /** Доступен ли предмет команде игрока (true, если ограничения по командам нет). */
+    private static boolean teamAllows(ServerPlayer player, WarehouseItemDefinition def) {
+        if (!def.teamRestricted()) return true;
+        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        return team != null && def.allowedTeams().contains(team);
     }
 
     private static void giveItem(ServerPlayer player, WarehouseItemDefinition def, int amount) {

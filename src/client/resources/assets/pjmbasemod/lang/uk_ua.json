@@ -75,6 +75,7 @@
   "gui.pjmbasemod.warehouse.category.vehicle": "Техніка",
   "gui.pjmbasemod.warehouse.category.special": "Спецпредмети",
   "gui.pjmbasemod.warehouse.no_access": "Цей комірник недоступний вашій команді",
+  "gui.pjmbasemod.warehouse.team_restricted": "Цей предмет недоступний вашій команді",
   "gui.pjmbasemod.warehouse.npc_unbound": "Комірник не прив'язаний до складу",
   "gui.pjmbasemod.warehouse.no_permission": "У вас немає прав на отримання предметів",
   "gui.pjmbasemod.warehouse.category_blocked": "Ця категорія тут недоступна",

@@ -182,9 +182,11 @@ public final class WarehouseItemRegistry {
 
     private List<WarehouseItemDefinition> exampleDefinitions() {
         // Пример ограничения по рангу: СВД доступна только начиная с ранга «сержант» и выше.
+        // allowedTeams ограничивает выдачу командами (id из конфига teams); пусто/нет поля — всем командам.
         WarehouseItemDefinition svdm = new WarehouseItemDefinition("svdm", "СВДМ", "superbwarfare:svd",
                 WarehousePoolCategory.WEAPON, "weapon", 3, 4, List.of("sniper", "marksman"));
         svdm.setMinRank("sergeant");
+        svdm.setAllowedTeams(List.of("team1"));
         return List.of(
                 new WarehouseItemDefinition("ak74m", "АК-74М", "superbwarfare:ak_47",
                         WarehousePoolCategory.WEAPON, "weapon", 1, 8, List.of("assault", "sso")),

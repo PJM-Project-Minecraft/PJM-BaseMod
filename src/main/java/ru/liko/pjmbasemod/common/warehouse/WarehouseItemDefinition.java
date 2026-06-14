@@ -43,6 +43,9 @@ public final class WarehouseItemDefinition {
     /** Список ролей, которым доступна выдача; пусто или null — доступно всем. */
     private List<String> allowedRoles;
     private transient boolean invalidAllowedRoles;
+    /** Список команд (id), которым доступна выдача; пусто или null — доступно всем командам. */
+    private List<String> allowedTeams;
+    private transient boolean invalidAllowedTeams;
     /** Минимальный ранг (id), начиная с которого предмет доступен; пусто/null — без ограничения по рангу. */
     private String minRank;
 
@@ -112,6 +115,22 @@ public final class WarehouseItemDefinition {
         return invalidAllowedRoles;
     }
 
+    public List<String> allowedTeams() {
+        return allowedTeams == null ? List.of() : List.copyOf(allowedTeams);
+    }
+
+    public boolean teamRestricted() {
+        return allowedTeams != null && !allowedTeams.isEmpty();
+    }
+
+    public boolean hasInvalidAllowedTeams() {
+        return invalidAllowedTeams;
+    }
+
+    public void setAllowedTeams(List<String> allowedTeams) {
+        this.allowedTeams = allowedTeams;
+    }
+
     /** Минимальный требуемый ранг (id) или "" если ограничения нет. */
     public String minRank() {
         return minRank == null ? "" : minRank;
@@ -173,6 +192,7 @@ public final class WarehouseItemDefinition {
         ResourceLocation loc = itemLocation();
         return !id().isBlank() && loc != null
                 && !invalidAllowedRoles
+                && !invalidAllowedTeams
                 && (resolveItem() != null || TaczWarehouseCompat.canResolve(loc));
     }
 
@@ -188,6 +208,25 @@ public final class WarehouseItemDefinition {
         } else {
             allowedRoles = List.of();
             invalidAllowedRoles = false;
+        }
+        if (allowedTeams != null && !allowedTeams.isEmpty()) {
+            List<String> normalized = new java.util.ArrayList<>();
+            for (String raw : allowedTeams) {
+                String team = ru.liko.pjmbasemod.common.frontline.FrontlineTeams.normalize(raw);
+                if (team.isBlank() || normalized.contains(team)) continue;
+                if (ru.liko.pjmbasemod.common.frontline.FrontlineTeams.exists(team)) {
+                    normalized.add(team);
+                } else {
+                    ru.liko.pjmbasemod.Pjmbasemod.LOGGER.warn(
+                            "Warehouse: предмет '{}' ссылается на неизвестную команду '{}', она пропущена.",
+                            id(), raw);
+                }
+            }
+            invalidAllowedTeams = normalized.isEmpty();
+            allowedTeams = normalized;
+        } else {
+            allowedTeams = List.of();
+            invalidAllowedTeams = false;
         }
         if (minRank != null && !minRank.isBlank()) {
             String id = minRank.trim().toLowerCase(Locale.ROOT);

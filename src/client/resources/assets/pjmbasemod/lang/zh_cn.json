@@ -75,6 +75,7 @@
   "gui.pjmbasemod.warehouse.category.vehicle": "载具",
   "gui.pjmbasemod.warehouse.category.special": "特殊物品",
   "gui.pjmbasemod.warehouse.no_access": "该军需官对你的队伍不可用",
+  "gui.pjmbasemod.warehouse.team_restricted": "该物品对你的队伍不可用",
   "gui.pjmbasemod.warehouse.npc_unbound": "军需官未绑定仓库",
   "gui.pjmbasemod.warehouse.no_permission": "你没有领取物品的权限",
   "gui.pjmbasemod.warehouse.category_blocked": "此处不提供该分类",
