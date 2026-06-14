@@ -6,7 +6,9 @@
   "mixins": [
     "SlotMixin"
   ],
-  "client": [],
+  "client": [
+    "AbstractClientPlayerMixin"
+  ],
   "server": [],
   "injectors": {
     "defaultRequire": 1

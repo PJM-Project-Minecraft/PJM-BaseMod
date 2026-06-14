@@ -5,12 +5,13 @@ import net.minecraft.server.level.ServerPlayer;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
+import ru.liko.pjmbasemod.common.customization.CustomizationType;
+import ru.liko.pjmbasemod.common.customization.SkinService;
 import ru.liko.pjmbasemod.common.faction.FactionMenuService;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionRolePacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioSwitchPacket;
-import ru.liko.pjmbasemod.common.network.packet.RefillAmmunitionPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectRolePacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectCustomizationPacket;
 import ru.liko.pjmbasemod.common.network.packet.SubmitFactionSelectionPacket;
@@ -43,12 +44,11 @@ public final class ServerPacketHandlers {
 
     public static void handleSelectCustomization(SelectCustomizationPacket p, ServerPlayer player) {
         if (player == null) return;
+        if (p.customizationType() == CustomizationType.PLAYER_SKIN) {
+            SkinService.select(player, p.optionId());
+            return;
+        }
         player.displayClientMessage(Component.translatable("gui.pjmbasemod.chat.customization_unavailable"), true);
-    }
-
-    public static void handleRefillAmmunition(RefillAmmunitionPacket p, ServerPlayer player) {
-        if (player == null) return;
-        player.displayClientMessage(Component.translatable("gui.pjmbasemod.chat.refill_unavailable"), true);
     }
 
     public static void handleSelectRole(SelectRolePacket p, ServerPlayer player) {

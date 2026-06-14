@@ -21,6 +21,8 @@ import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
 import ru.liko.pjmbasemod.common.chat.ChatService;
+import ru.liko.pjmbasemod.common.customization.SkinRegistry;
+import ru.liko.pjmbasemod.common.customization.SkinService;
 import ru.liko.pjmbasemod.common.dimension.LobbyService;
 import ru.liko.pjmbasemod.common.faction.FactionMenuService;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
@@ -62,6 +64,7 @@ public final class PjmServerEvents {
         RoleService.onPlayerLogin(sp);
         FactionMenuService.onPlayerLogin(sp);
         InventoryLimitService.sync(sp);
+        SkinService.onPlayerLogin(sp);
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -108,6 +111,7 @@ public final class PjmServerEvents {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         FactionCommanderService.onPlayerTick(player);
         RoleService.onPlayerTick(player);
+        SkinService.onPlayerTick(player);
         LobbyService.onPlayerTick(player);
         FactionMenuService.onPlayerTick(player);
         if (player.tickCount % Math.max(1, InventoryLimitRegistry.get().config().enforceEveryTicks()) == 0) {
@@ -169,6 +173,7 @@ public final class PjmServerEvents {
         CrateRegistry.get().reload();
         RoleLimitRegistry.get().reload();
         InventoryLimitRegistry.get().reload();
+        SkinRegistry.get().reload();
         RankService.onServerStarted(event.getServer());
 
         List<? extends String> commands = Config.getStartupCommands();

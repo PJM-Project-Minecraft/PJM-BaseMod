@@ -21,12 +21,14 @@ import net.minecraft.world.phys.EntityHitResult;
 import org.joml.Matrix4f;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.chat.ClientChatModeState;
+import ru.liko.pjmbasemod.client.customization.ClientSkinState;
 import ru.liko.pjmbasemod.client.input.ModKeyBindings;
 import ru.liko.pjmbasemod.client.role.ClientRoleState;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
+import ru.liko.pjmbasemod.common.customization.CustomizationType;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
-import ru.liko.pjmbasemod.common.network.packet.RefillAmmunitionPacket;
+import ru.liko.pjmbasemod.common.network.packet.SelectCustomizationPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectRolePacket;
 import ru.liko.pjmbasemod.common.role.CombatRole;
 
@@ -100,14 +102,14 @@ public class RadialMenuScreen extends Screen {
                 (SubmenuAction) p -> openRoleSubmenu()));
 
         actions.add(new RadialAction(
-                Component.translatable("gui.pjmbasemod.radial.refill_kit"),
-                0xFFFFCC00,
-                new ItemStack(Items.CHEST),
+                Component.translatable("gui.pjmbasemod.radial.character"),
+                0xFFB59CD8,
+                new ItemStack(Items.ARMOR_STAND),
                 null,
                 null,
                 null,
                 true,
-                p -> PjmNetworking.sendToServer(new RefillAmmunitionPacket())));
+                (SubmenuAction) p -> openCharacterSubmenu()));
 
         if (actions.isEmpty()) {
             actions.add(new RadialAction(
@@ -200,6 +202,104 @@ public class RadialMenuScreen extends Screen {
                 null,
                 true,
                 (SubmenuAction) p -> buildMainActions()));
+    }
+
+    private void openCharacterSubmenu() {
+        page = Page.CHARACTER;
+        hoveredIndex = -1;
+        lastHoveredIndex = -1;
+        hoveredProgress = 0f;
+        actions = new ArrayList<>();
+
+        actions.add(new RadialAction(
+                Component.translatable("gui.pjmbasemod.radial.customization"),
+                0xFF8FB3C8,
+                new ItemStack(Items.LEATHER_CHESTPLATE),
+                null,
+                null,
+                null,
+                true,
+                (SubmenuAction) p -> openSkinSubmenu()));
+
+        actions.add(new RadialAction(
+                Component.translatable("gui.pjmbasemod.radial.back"),
+                0xFFAAAAAA,
+                new ItemStack(Items.ARROW),
+                null,
+                null,
+                null,
+                true,
+                (SubmenuAction) p -> buildMainActions()));
+    }
+
+    private void openSkinSubmenu() {
+        page = Page.SKIN;
+        hoveredIndex = -1;
+        lastHoveredIndex = -1;
+        hoveredProgress = 0f;
+        actions = new ArrayList<>();
+
+        List<String> skins = ClientSkinState.allowed();
+        if (skins.isEmpty()) {
+            actions.add(new RadialAction(
+                    Component.translatable("gui.pjmbasemod.radial.skin_none"),
+                    0xFF888888,
+                    ItemStack.EMPTY,
+                    null,
+                    null,
+                    null,
+                    false,
+                    p -> {}));
+        } else {
+            for (String skin : skins) {
+                actions.add(new RadialAction(
+                        skinLabel(skin),
+                        0xFF8FB3C8,
+                        new ItemStack(Items.LEATHER_CHESTPLATE),
+                        null,
+                        null,
+                        skin,
+                        true,
+                        p -> PjmNetworking.sendToServer(
+                                new SelectCustomizationPacket(CustomizationType.PLAYER_SKIN, skin))));
+            }
+        }
+
+        actions.add(new RadialAction(
+                Component.translatable("gui.pjmbasemod.radial.back"),
+                0xFFAAAAAA,
+                new ItemStack(Items.ARROW),
+                null,
+                null,
+                null,
+                true,
+                (SubmenuAction) p -> openCharacterSubmenu()));
+    }
+
+    /** Подпись скина: ключ локализации {@code skin.pjmbasemod.<id>} с фолбэком на «красивый» id. */
+    private Component skinLabel(String skinId) {
+        return Component.translatableWithFallback("skin.pjmbasemod." + skinId, prettifySkin(skinId));
+    }
+
+    private String prettifySkin(String skinId) {
+        String base = skinId.startsWith("skin_") ? skinId.substring("skin_".length()) : skinId;
+        base = base.replace('_', ' ').trim();
+        if (base.isEmpty()) return skinId;
+        StringBuilder sb = new StringBuilder(base.length());
+        boolean capitalize = true;
+        for (int i = 0; i < base.length(); i++) {
+            char c = base.charAt(i);
+            if (c == ' ') {
+                capitalize = true;
+                sb.append(c);
+            } else if (capitalize) {
+                sb.append(Character.toUpperCase(c));
+                capitalize = false;
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     private int chatModeColor(ChatMode mode) {
@@ -416,6 +516,9 @@ public class RadialMenuScreen extends Screen {
     }
 
     private boolean isActive(RadialAction action) {
+        if (page == Page.SKIN && action.roleId() != null) {
+            return action.roleId().equals(ClientSkinState.current());
+        }
         if (action.chatMode() != null) {
             return action.chatMode() == ClientChatModeState.getMode();
         }
@@ -428,6 +531,12 @@ public class RadialMenuScreen extends Screen {
     private Component centerText() {
         if (page == Page.CHAT) {
             return Component.translatable("gui.pjmbasemod.radial.chat_mode");
+        }
+        if (page == Page.CHARACTER) {
+            return Component.translatable("gui.pjmbasemod.radial.character");
+        }
+        if (page == Page.SKIN) {
+            return Component.translatable("gui.pjmbasemod.radial.customization");
         }
         if (page == Page.ROLE) {
             if (ClientRoleState.canAssignRoles()) {
@@ -580,7 +689,9 @@ public class RadialMenuScreen extends Screen {
     private enum Page {
         MAIN,
         CHAT,
-        ROLE
+        ROLE,
+        CHARACTER,
+        SKIN
     }
 
     @FunctionalInterface

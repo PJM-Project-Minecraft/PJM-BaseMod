@@ -13,7 +13,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "13";
+    public static final String VERSION = "14";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -31,7 +31,6 @@ public final class PjmNetworking {
         // ===== Client → Server =====
         r.playToServer(ChangeChatModePacket.TYPE,      ChangeChatModePacket.STREAM_CODEC,      (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleChangeChatMode(p, (ServerPlayer) ctx.player())));
         r.playToServer(SelectCustomizationPacket.TYPE, SelectCustomizationPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleSelectCustomization(p, (ServerPlayer) ctx.player())));
-        r.playToServer(RefillAmmunitionPacket.TYPE,    RefillAmmunitionPacket.STREAM_CODEC,    (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRefillAmmunition(p, (ServerPlayer) ctx.player())));
         r.playToServer(RadioSwitchPacket.TYPE,         RadioSwitchPacket.STREAM_CODEC,         (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRadioSwitch(p, (ServerPlayer) ctx.player())));
         r.playToServer(CraftVehiclePacket.TYPE,        CraftVehiclePacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> GarageManager.handleCraft((ServerPlayer) ctx.player(), p.defId())));
         r.playToServer(SpawnVehiclePacket.TYPE,        SpawnVehiclePacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> GarageManager.handleSpawn((ServerPlayer) ctx.player(), p.instanceId())));
@@ -66,8 +65,10 @@ public final class PjmNetworking {
         r.playToClient(OpenFactionManagementPacket.TYPE, OpenFactionManagementPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openFactionManagement(p)));
         r.playToClient(FactionManagementSyncPacket.TYPE, FactionManagementSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.factionManagementSync(p)));
         r.playToClient(LockedSlotsPacket.TYPE, LockedSlotsPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.lockedSlots(p)));
+        r.playToClient(PlayerSkinSyncPacket.TYPE, PlayerSkinSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.playerSkinSync(p)));
+        r.playToClient(SkinSelectionSyncPacket.TYPE, SkinSelectionSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.skinSelectionSync(p)));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 31);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 32);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {

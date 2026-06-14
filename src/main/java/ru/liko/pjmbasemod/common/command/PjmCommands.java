@@ -132,7 +132,7 @@ public final class PjmCommands {
     // ---------------------------------------------------------------- config (централизованная перезагрузка)
 
     /** Секции, которые умеет перезагружать {@code /pjm config reload <section>}. */
-    private static final String[] CONFIG_SECTIONS = {"all", "general", "vehicles", "warehouse", "ranks", "roles", "inventory"};
+    private static final String[] CONFIG_SECTIONS = {"all", "general", "vehicles", "warehouse", "ranks", "roles", "inventory", "skins"};
 
     private static LiteralArgumentBuilder<CommandSourceStack> configCommand() {
         return Commands.literal("config")
@@ -189,6 +189,13 @@ public final class PjmCommands {
             ru.liko.pjmbasemod.common.inventory.InventoryLimitService.syncAll(server);
             int locked = ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry.get().config().lockedSlots().size();
             report.append("инвентарь: заблок. слотов ").append(locked).append("; ");
+            sections++;
+        }
+        if (all || section.equalsIgnoreCase("skins")) {
+            ru.liko.pjmbasemod.common.customization.SkinRegistry.get().reload();
+            ru.liko.pjmbasemod.common.customization.SkinService.syncAll(server);
+            int teams = ru.liko.pjmbasemod.common.customization.SkinRegistry.get().teamCount();
+            report.append("скины: пулов ").append(teams).append("; ");
             sections++;
         }
 
