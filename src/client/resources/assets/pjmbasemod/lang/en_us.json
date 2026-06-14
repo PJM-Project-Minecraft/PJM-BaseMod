@@ -125,6 +125,7 @@
   "gui.pjmbasemod.garage.empty_catalog": "Vehicle catalog is empty",
   "gui.pjmbasemod.garage.empty_garage": "No vehicles in garage",
   "gui.pjmbasemod.garage.no_permission_craft": "You don't have permission to assemble vehicles",
+  "gui.pjmbasemod.garage.team_restricted": "This vehicle is not available to your team",
   "gui.pjmbasemod.garage.no_permission_spawn": "You don't have permission to spawn vehicles",
   "gui.pjmbasemod.garage.no_permission_store": "You don't have permission to load vehicles into the garage",
   "gui.pjmbasemod.garage.unknown_vehicle": "Unknown vehicle: %s",

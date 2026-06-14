@@ -196,6 +196,8 @@ public final class VehicleRegistry {
                 List.of("crew"));
         // garageType не задан: техника SuperbWarfare классифицируется автоматически (m1a2 → наземка).
         // При необходимости можно переопределить вручную: tank.setGarageType("ground").
+        // allowedTeams ограничивает выдачу командами (id из конфига teams); пусто/нет поля — всем командам.
+        tank.setAllowedTeams(List.of("team1"));
         VehicleDefinition heli = new VehicleDefinition(
                 "mi28", "Mi-28", "superbwarfare:mi_28",
                 "minecraft:iron_block", "heli", 0,

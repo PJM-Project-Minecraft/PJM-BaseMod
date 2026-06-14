@@ -125,6 +125,7 @@
   "gui.pjmbasemod.garage.empty_catalog": "Fahrzeugkatalog ist leer",
   "gui.pjmbasemod.garage.empty_garage": "Keine Fahrzeuge in der Garage",
   "gui.pjmbasemod.garage.no_permission_craft": "Du hast keine Berechtigung zum Montieren von Fahrzeugen",
+  "gui.pjmbasemod.garage.team_restricted": "Dieses Fahrzeug ist für dein Team nicht verfügbar",
   "gui.pjmbasemod.garage.no_permission_spawn": "Du hast keine Berechtigung zum Spawnen von Fahrzeugen",
   "gui.pjmbasemod.garage.no_permission_store": "Du hast keine Berechtigung, Fahrzeuge in die Garage einzulagern",
   "gui.pjmbasemod.garage.unknown_vehicle": "Unbekanntes Fahrzeug: %s",

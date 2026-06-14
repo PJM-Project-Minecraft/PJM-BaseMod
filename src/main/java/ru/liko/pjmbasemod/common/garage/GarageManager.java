@@ -714,6 +714,8 @@ public final class GarageManager {
         List<GarageSnapshot.DefEntry> defs = new ArrayList<>();
         for (VehicleDefinition def : VehicleRegistry.get().all()) {
             if (def.garageType() != type) continue;
+            // Техника, ограниченная по командам, не показывается чужим командам в каталоге.
+            if (!teamAllows(player, def)) continue;
             List<GarageSnapshot.CostView> costViews = new ArrayList<>();
             boolean affordable = true;
             for (CostEntry cost : def.cost()) {
@@ -763,6 +765,10 @@ public final class GarageManager {
         if (def == null) {
             return true;
         }
+        if (!teamAllows(player, def)) {
+            player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.team_restricted"));
+            return false;
+        }
         if (!RoleService.hasAllowedRole(player, def.allowedRoles())) {
             player.sendSystemMessage(RoleService.requiredRoleMessage(def.allowedRoles()));
             return false;
@@ -772,6 +778,13 @@ public final class GarageManager {
             return false;
         }
         return true;
+    }
+
+    /** Доступна ли техника команде игрока (true, если ограничения по командам нет). */
+    private static boolean teamAllows(ServerPlayer player, VehicleDefinition def) {
+        if (!def.teamRestricted()) return true;
+        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        return team != null && def.allowedTeams().contains(team);
     }
 
     @Nullable

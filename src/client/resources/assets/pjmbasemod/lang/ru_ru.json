@@ -125,6 +125,7 @@
   "gui.pjmbasemod.garage.empty_catalog": "Каталог техники пуст",
   "gui.pjmbasemod.garage.empty_garage": "В гараже нет техники",
   "gui.pjmbasemod.garage.no_permission_craft": "У вас нет прав на сборку техники",
+  "gui.pjmbasemod.garage.team_restricted": "Эта техника недоступна вашей команде",
   "gui.pjmbasemod.garage.no_permission_spawn": "У вас нет прав на спавн техники",
   "gui.pjmbasemod.garage.no_permission_store": "У вас нет прав на загрузку техники в гараж",
   "gui.pjmbasemod.garage.unknown_vehicle": "Неизвестная техника: %s",

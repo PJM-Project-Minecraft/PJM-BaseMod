@@ -125,6 +125,7 @@
   "gui.pjmbasemod.garage.empty_catalog": "载具目录为空",
   "gui.pjmbasemod.garage.empty_garage": "车库中没有载具",
   "gui.pjmbasemod.garage.no_permission_craft": "你没有组装载具的权限",
+  "gui.pjmbasemod.garage.team_restricted": "你的队伍无法使用该载具",
   "gui.pjmbasemod.garage.no_permission_spawn": "你没有生成载具的权限",
   "gui.pjmbasemod.garage.no_permission_store": "你没有将载具存入车库的权限",
   "gui.pjmbasemod.garage.unknown_vehicle": "未知载具：%s",
