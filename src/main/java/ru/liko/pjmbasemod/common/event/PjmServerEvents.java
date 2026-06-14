@@ -57,6 +57,7 @@ public final class PjmServerEvents {
         if (!(event.getEntity() instanceof ServerPlayer sp)) return;
         ChatMode mode = ServerPacketHandlers.getChatMode(sp);
         PjmNetworking.sendToPlayer(sp, new SyncPjmDataPacket(sp.getUUID(), mode.getKey()));
+        ServerPacketHandlers.sendHudConfig(sp);
         RegionManager.sendInitialSync(sp);
         FrontlineManager.sendInitialSync(sp);
         RankService.sync(sp);

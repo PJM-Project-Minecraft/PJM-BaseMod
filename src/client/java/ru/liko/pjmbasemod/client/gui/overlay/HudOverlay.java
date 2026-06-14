@@ -11,8 +11,8 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
-import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.client.config.ClientHudConfig;
 
 @EventBusSubscriber(modid = Pjmbasemod.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
 public class HudOverlay {
@@ -226,14 +226,14 @@ public class HudOverlay {
 
     @SubscribeEvent
     public static void onRenderFood(RenderGuiLayerEvent.Pre e) {
-        if (Config.isDisableHunger() && e.getName().equals(VanillaGuiLayers.FOOD_LEVEL)) {
+        if (ClientHudConfig.disableHunger() && e.getName().equals(VanillaGuiLayers.FOOD_LEVEL)) {
             e.setCanceled(true);
         }
     }
 
     @SubscribeEvent
     public static void onRenderArmor(RenderGuiLayerEvent.Pre e) {
-        if (Config.isDisableArmor() && e.getName().equals(VanillaGuiLayers.ARMOR_LEVEL)) {
+        if (ClientHudConfig.hideArmorBar() && e.getName().equals(VanillaGuiLayers.ARMOR_LEVEL)) {
             e.setCanceled(true);
         }
     }

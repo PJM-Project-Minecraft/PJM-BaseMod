@@ -84,7 +84,7 @@ public final class Config {
 
     public static boolean isSquadHud()                { return data().hud.squadHud; }
     public static boolean isDebug()                   { return data().general.debug; }
-    public static boolean isDisableHunger()           { return data().milsim.disableHunger; }
+    public static boolean isDisableHunger()           { return data().hud.disableHunger; }
     public static boolean isDisableArmor()            { return data().hud.hideArmorBar; }
     public static long    getItemSwitchDisplayTime()  { return data().hud.itemSwitchDisplayMs; }
     public static int     getCaptureTimeSeconds()     { return data().controlPoints.captureTimeSeconds; }
@@ -247,7 +247,6 @@ public final class Config {
     static final class ConfigData {
         General general = new General();
         Hud hud = new Hud();
-        Milsim milsim = new Milsim();
         ControlPoints controlPoints = new ControlPoints();
         Teams teams = new Teams();
         Region region = new Region();
@@ -259,7 +258,6 @@ public final class Config {
         void normalize() {
             if (general == null) general = new General();
             if (hud == null) hud = new Hud();
-            if (milsim == null) milsim = new Milsim();
             if (controlPoints == null) controlPoints = new ControlPoints();
             if (teams == null) teams = new Teams();
             if (region == null) region = new Region();
@@ -287,9 +285,6 @@ public final class Config {
         boolean squadHud = true;
         long itemSwitchDisplayMs = 1500L;
         boolean hideArmorBar = false;
-    }
-
-    static final class Milsim {
         boolean disableHunger = false;
     }
 

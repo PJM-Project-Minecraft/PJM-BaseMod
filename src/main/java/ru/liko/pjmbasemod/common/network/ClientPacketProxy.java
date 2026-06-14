@@ -3,6 +3,7 @@ package ru.liko.pjmbasemod.common.network;
 import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
 import ru.liko.pjmbasemod.common.network.packet.FactionManagementSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.FrontlineHudPacket;
+import ru.liko.pjmbasemod.common.network.packet.HudConfigPacket;
 import ru.liko.pjmbasemod.common.network.packet.FrontlineMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.GarageSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.LockedSlotsPacket;
@@ -49,4 +50,5 @@ public interface ClientPacketProxy {
     default void lockedSlots(LockedSlotsPacket payload) {}
     default void playerSkinSync(PlayerSkinSyncPacket payload) {}
     default void skinSelectionSync(SkinSelectionSyncPacket payload) {}
+    default void hudConfig(HudConfigPacket payload) {}
 }

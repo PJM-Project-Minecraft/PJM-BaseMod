@@ -1,6 +1,7 @@
 package ru.liko.pjmbasemod.common.network.handler;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
@@ -10,6 +11,7 @@ import ru.liko.pjmbasemod.common.customization.SkinService;
 import ru.liko.pjmbasemod.common.faction.FactionMenuService;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
+import ru.liko.pjmbasemod.common.network.packet.HudConfigPacket;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionRolePacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioSwitchPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectRolePacket;
@@ -32,6 +34,19 @@ public final class ServerPacketHandlers {
     public static ChatMode getChatMode(ServerPlayer player) {
         if (player == null) return ChatMode.GLOBAL;
         return CHAT_MODE.getOrDefault(player.getUUID(), ChatMode.GLOBAL);
+    }
+
+    /** Отправляет клиенту серверные HUD-флаги (скрытие полосок голода/брони). */
+    public static void sendHudConfig(ServerPlayer player) {
+        if (player == null) return;
+        PjmNetworking.sendToPlayer(player, new HudConfigPacket(Config.isDisableHunger(), Config.isDisableArmor()));
+    }
+
+    public static void sendHudConfigAll(MinecraftServer server) {
+        if (server == null) return;
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            sendHudConfig(p);
+        }
     }
 
     public static void handleChangeChatMode(ChangeChatModePacket p, ServerPlayer player) {

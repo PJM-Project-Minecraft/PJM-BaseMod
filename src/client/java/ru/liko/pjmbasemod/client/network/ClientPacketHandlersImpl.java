@@ -10,9 +10,11 @@ import ru.liko.pjmbasemod.client.gui.screen.FactionManagementScreen;
 import ru.liko.pjmbasemod.client.gui.screen.FactionSelectionScreen;
 import ru.liko.pjmbasemod.client.gui.screen.GarageScreen;
 import ru.liko.pjmbasemod.client.gui.screen.WarehouseScreen;
+import ru.liko.pjmbasemod.client.config.ClientHudConfig;
 import ru.liko.pjmbasemod.client.customization.ClientSkinState;
 import ru.liko.pjmbasemod.client.inventory.LockedSlotsClientState;
 import ru.liko.pjmbasemod.common.customization.PlayerSkinClientCache;
+import ru.liko.pjmbasemod.common.network.packet.HudConfigPacket;
 import ru.liko.pjmbasemod.common.network.packet.PlayerSkinSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.SkinSelectionSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.FactionManagementSyncPacket;
@@ -193,5 +195,10 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     @Override
     public void skinSelectionSync(SkinSelectionSyncPacket payload) {
         ClientSkinState.update(payload);
+    }
+
+    @Override
+    public void hudConfig(HudConfigPacket payload) {
+        ClientHudConfig.update(payload);
     }
 }

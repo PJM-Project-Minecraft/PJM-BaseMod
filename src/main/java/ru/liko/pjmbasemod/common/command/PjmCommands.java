@@ -157,6 +157,7 @@ public final class PjmCommands {
 
         if (all || section.equalsIgnoreCase("general")) {
             boolean ok = Config.reload();
+            ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers.sendHudConfigAll(server);
             report.append("общий конфиг ").append(ok ? "ок" : "ошибка (дефолты)").append("; ");
             sections++;
         }

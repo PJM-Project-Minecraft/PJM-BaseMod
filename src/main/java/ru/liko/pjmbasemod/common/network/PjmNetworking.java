@@ -13,7 +13,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "14";
+    public static final String VERSION = "15";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -67,8 +67,9 @@ public final class PjmNetworking {
         r.playToClient(LockedSlotsPacket.TYPE, LockedSlotsPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.lockedSlots(p)));
         r.playToClient(PlayerSkinSyncPacket.TYPE, PlayerSkinSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.playerSkinSync(p)));
         r.playToClient(SkinSelectionSyncPacket.TYPE, SkinSelectionSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.skinSelectionSync(p)));
+        r.playToClient(HudConfigPacket.TYPE, HudConfigPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.hudConfig(p)));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 32);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 33);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {
