@@ -108,13 +108,9 @@ public final class WarehouseManager {
             }
         }
 
-        int limit = def.maxPerWithdraw();
-        if (session.withdrawLimit() > 0) {
-            limit = Math.min(limit, session.withdrawLimit());
-        }
-        int amount = Math.max(1, Math.min(count, limit));
-
-        int cost = def.pointCost() * amount;
+        // Одна выдача = ровно quantity штук за pointCost очков (фиксированная пачка, без массовой выдачи).
+        int amount = def.quantity();
+        int cost = def.pointCost();
         WarehouseSavedData stock = WarehouseSavedData.get(player.server);
         if (!stock.trySpend(session.warehouseId(), def.pool(), cost)) {
             player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.not_enough_points"), true);
@@ -360,7 +356,7 @@ public final class WarehouseManager {
             boolean rankAllowed = RankService.meetsMinRank(player, def.minRank());
             String requiredRankName = RankService.rankDisplayName(def.minRank());
             items.add(new WarehouseSnapshot.ItemEntry(def.id(), def.displayName(), def.itemIdString(),
-                    def.displayCategory(), def.pool(), def.pointCost(), def.maxPerWithdraw(),
+                    def.displayCategory(), def.pool(), def.pointCost(), def.maxPerWithdraw(), def.quantity(),
                     def.refundValue(), inInventory, available, affordable,
                     roleAllowed, def.allowedRoles(), rankAllowed, requiredRankName));
         }
@@ -396,11 +392,12 @@ public final class WarehouseManager {
     }
 
     private static void giveItem(ServerPlayer player, WarehouseItemDefinition def, int amount) {
+        net.minecraft.core.HolderLookup.Provider lookup = player.level().registryAccess();
         int remaining = amount;
-        int maxStack = Math.max(1, def.createStack(1).getMaxStackSize());
+        int maxStack = Math.max(1, def.createStack(1, lookup).getMaxStackSize());
         while (remaining > 0) {
             int take = Math.min(maxStack, remaining);
-            ItemStack stack = def.createStack(take);
+            ItemStack stack = def.createStack(take, lookup);
             if (stack.isEmpty()) return;
             player.getInventory().placeItemBackInInventory(stack);
             remaining -= take;

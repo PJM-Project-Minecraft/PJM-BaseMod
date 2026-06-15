@@ -16,7 +16,7 @@ public record WarehouseSnapshot(String warehouseId, Map<WarehousePoolCategory, I
 
     /** Выдаваемый предмет + рассчитанная для текущего склада доступность. */
     public record ItemEntry(String defId, String displayName, String itemId, String displayCategory,
-                            WarehousePoolCategory pool, int pointCost, int maxPerWithdraw,
+                            WarehousePoolCategory pool, int pointCost, int maxPerWithdraw, int quantity,
                             int refundValue, int inventoryCount,
                             int availablePoints, boolean affordable,
                             boolean roleAllowed, List<String> allowedRoles,
@@ -43,6 +43,7 @@ public record WarehouseSnapshot(String warehouseId, Map<WarehousePoolCategory, I
             buf.writeEnum(item.pool());
             buf.writeVarInt(item.pointCost());
             buf.writeVarInt(item.maxPerWithdraw());
+            buf.writeVarInt(item.quantity());
             buf.writeVarInt(item.refundValue());
             buf.writeVarInt(item.inventoryCount());
             buf.writeVarInt(item.availablePoints());
@@ -76,6 +77,7 @@ public record WarehouseSnapshot(String warehouseId, Map<WarehousePoolCategory, I
             WarehousePoolCategory pool = buf.readEnum(WarehousePoolCategory.class);
             int pointCost = buf.readVarInt();
             int maxPerWithdraw = buf.readVarInt();
+            int quantity = buf.readVarInt();
             int refundValue = buf.readVarInt();
             int inventoryCount = buf.readVarInt();
             int availablePoints = buf.readVarInt();
@@ -89,7 +91,7 @@ public record WarehouseSnapshot(String warehouseId, Map<WarehousePoolCategory, I
             boolean rankAllowed = buf.readBoolean();
             String requiredRankName = buf.readUtf();
             items.add(new ItemEntry(defId, displayName, itemId, displayCategory, pool,
-                    pointCost, maxPerWithdraw, refundValue, inventoryCount, availablePoints, affordable,
+                    pointCost, maxPerWithdraw, quantity, refundValue, inventoryCount, availablePoints, affordable,
                     roleAllowed, List.copyOf(allowedRoles), rankAllowed, requiredRankName));
         }
 

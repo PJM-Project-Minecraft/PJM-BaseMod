@@ -1,5 +1,9 @@
 package ru.liko.pjmbasemod.common.warehouse;
 
+import com.mojang.brigadier.StringReader;
+import net.minecraft.commands.arguments.item.ItemParser;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -48,6 +52,18 @@ public final class WarehouseItemDefinition {
     private transient boolean invalidAllowedTeams;
     /** Минимальный ранг (id), начиная с которого предмет доступен; пусто/null — без ограничения по рангу. */
     private String minRank;
+    /** Сколько штук предмета выдаётся за одну покупку (за {@link #pointCost} очков). По умолчанию 1. */
+    private int quantity = 1;
+    /**
+     * Компоненты данных (NBT) предмета в синтаксисе команды {@code /give}, например
+     * {@code "[minecraft:custom_name='АК-74М',minecraft:max_stack_size=1]"}.
+     * Применяются поверх созданного стека, включая предметы TACZ/SuperBWarfare.
+     * Пусто/null — стек выдаётся без изменений.
+     */
+    private String components;
+    /** Кеш разобранного патча компонентов (ленивая инициализация на сервере, есть доступ к реестрам). */
+    private transient DataComponentPatch parsedComponents;
+    private transient boolean componentsParsed;
 
     public WarehouseItemDefinition() {
         // для Gson
@@ -92,6 +108,17 @@ public final class WarehouseItemDefinition {
     public int pointCost() { return Math.max(1, pointCost); }
 
     public int maxPerWithdraw() { return Math.max(1, maxPerWithdraw); }
+
+    /** Сколько штук выдаётся за одну покупку (за {@link #pointCost()} очков). Минимум 1. */
+    public int quantity() { return Math.max(1, quantity); }
+
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+
+    public String componentsString() { return components == null ? "" : components; }
+
+    public boolean hasComponents() { return components != null && !components.isBlank(); }
+
+    public void setComponents(String components) { this.components = components; }
 
     /** Базовый возврат очков за сдачу одной штуки; {@code null} → равен стоимости выдачи. */
     public int refundValue() {
@@ -160,17 +187,56 @@ public final class WarehouseItemDefinition {
         return stack.isEmpty() ? new ItemStack(Items.BARRIER) : stack;
     }
 
-    /** Создаёт реальный ItemStack для выдачи игроку, включая виртуальные TACZ id. */
+    /** Создаёт реальный ItemStack для выдачи игроку без применения компонентов (для иконок/проверок). */
     public ItemStack createStack(int count) {
+        return createStack(count, null);
+    }
+
+    /**
+     * Создаёт реальный ItemStack для выдачи игроку, включая виртуальные TACZ id.
+     * Если задан {@link #components} и передан {@code lookup} (реестры), применяет компоненты (NBT) поверх стека.
+     */
+    public ItemStack createStack(int count, @Nullable HolderLookup.Provider lookup) {
         ResourceLocation loc = itemLocation();
         if (loc == null) return ItemStack.EMPTY;
 
         Item item = resolveItem();
-        if (item != null) {
-            return new ItemStack(item, Math.max(1, count));
-        }
+        ItemStack stack = item != null
+                ? new ItemStack(item, Math.max(1, count))
+                : TaczWarehouseCompat.createStack(loc, count);
 
-        return TaczWarehouseCompat.createStack(loc, count);
+        applyComponents(stack, lookup);
+        return stack;
+    }
+
+    /** Применяет настроенные компоненты (NBT) к стеку; ничего не делает без lookup или без components. */
+    private void applyComponents(ItemStack stack, @Nullable HolderLookup.Provider lookup) {
+        if (stack.isEmpty() || lookup == null || !hasComponents()) return;
+        DataComponentPatch patch = parsedComponents(lookup);
+        if (patch != null && patch != DataComponentPatch.EMPTY) {
+            stack.applyComponents(patch);
+        }
+    }
+
+    /** Лениво разбирает {@link #components} в патч компонентов; кеширует результат (в т.ч. неудачу как null). */
+    @Nullable
+    private DataComponentPatch parsedComponents(HolderLookup.Provider lookup) {
+        if (componentsParsed) return parsedComponents;
+        componentsParsed = true;
+        String raw = components.trim();
+        if (!raw.startsWith("[")) raw = "[" + raw + "]";
+        try {
+            ItemParser parser = new ItemParser(lookup);
+            // Парсим компоненты на «фиктивном» предмете — нужен лишь патч, применяемый к реальному стеку.
+            ItemParser.ItemResult result = parser.parse(new StringReader("minecraft:stone" + raw));
+            parsedComponents = result.components();
+        } catch (Exception e) {
+            parsedComponents = null;
+            ru.liko.pjmbasemod.Pjmbasemod.LOGGER.warn(
+                    "Warehouse: предмет '{}' — не удалось разобрать components '{}': {}",
+                    id(), components, e.getMessage());
+        }
+        return parsedComponents;
     }
 
     /** Проверяет, что стек соответствует этой записи склада. */
@@ -200,6 +266,10 @@ public final class WarehouseItemDefinition {
     public void normalize() {
         if (pointCost <= 0) pointCost = 1;
         if (maxPerWithdraw <= 0) maxPerWithdraw = 16;
+        if (quantity <= 0) quantity = 1;
+        // Сброс кеша компонентов: при перезагрузке конфига строка могла измениться.
+        componentsParsed = false;
+        parsedComponents = null;
         if (displayCategory == null || displayCategory.isBlank()) displayCategory = pool().id();
         if (allowedRoles != null && !allowedRoles.isEmpty()) {
             List<String> normalized = CombatRole.normalizeList(allowedRoles);

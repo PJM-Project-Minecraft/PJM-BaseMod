@@ -186,9 +186,9 @@ public class WarehouseScreen extends Screen {
                     && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
             if (withdrawHovered && snapshot.canWithdraw() && item.affordable()
                     && item.roleAllowed() && item.rankAllowed()) {
-                int amount = hasShiftDown() ? item.maxPerWithdraw() : 1;
+                // Одна выдача = фиксированная пачка (quantity штук), задаётся в конфиге; count здесь не нужен.
                 PjmUiSounds.playClick();
-                PjmNetworking.sendToServer(new WithdrawItemPacket(item.defId(), amount));
+                PjmNetworking.sendToServer(new WithdrawItemPacket(item.defId(), 1));
                 return true;
             }
 
@@ -299,6 +299,9 @@ public class WarehouseScreen extends Screen {
             graphics.drawString(this.font, item.displayName(), contentLeft + 26, y + 4,
                     locked ? 0xFF9A9A9A : 0xFFE8E8E8, false);
             String cost = Component.translatable("gui.pjmbasemod.warehouse.cost", item.pointCost()).getString();
+            if (item.quantity() > 1) {
+                cost += " ×" + item.quantity();
+            }
             if (item.depositable()) {
                 cost += "  " + Component.translatable("gui.pjmbasemod.warehouse.refund", item.refundValue()).getString();
             }

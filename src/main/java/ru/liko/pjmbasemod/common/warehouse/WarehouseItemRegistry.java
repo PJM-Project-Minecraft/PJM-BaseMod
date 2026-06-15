@@ -187,14 +187,20 @@ public final class WarehouseItemRegistry {
                 WarehousePoolCategory.WEAPON, "weapon", 3, 4, List.of("sniper", "marksman"));
         svdm.setMinRank("sergeant");
         svdm.setAllowedTeams(List.of("team1"));
+        // Пример компонентов (NBT) в синтаксисе команды /give: применяются поверх выданного стека.
+        WarehouseItemDefinition ak74m = new WarehouseItemDefinition("ak74m", "АК-74М", "superbwarfare:ak_47",
+                WarehousePoolCategory.WEAPON, "weapon", 1, 8, List.of("assault", "sso"));
+        ak74m.setComponents("[minecraft:custom_name='АК-74М',minecraft:max_stack_size=1]");
+        // Пример quantity: за 1 очко выдаётся сразу 64 патрона.
+        WarehouseItemDefinition ammo545 = new WarehouseItemDefinition("ammo_545", "Патроны 5.45",
+                "superbwarfare:rifle_ammo", WarehousePoolCategory.SUPPLY, "ammo", 1, 64);
+        ammo545.setQuantity(64);
         return List.of(
-                new WarehouseItemDefinition("ak74m", "АК-74М", "superbwarfare:ak_47",
-                        WarehousePoolCategory.WEAPON, "weapon", 1, 8, List.of("assault", "sso")),
+                ak74m,
                 svdm,
                 new WarehouseItemDefinition("pistol", "Пистолет", "superbwarfare:glock_17",
                         WarehousePoolCategory.WEAPON, "weapon", 1, 8),
-                new WarehouseItemDefinition("ammo_545", "Патроны 5.45", "superbwarfare:rifle_ammo",
-                        WarehousePoolCategory.SUPPLY, "ammo", 1, 64),
+                ammo545,
                 new WarehouseItemDefinition("medkit", "Аптечка", "minecraft:golden_apple",
                         WarehousePoolCategory.SUPPLY, "medicine", 1, 16),
                 new WarehouseItemDefinition("ration", "Паёк", "minecraft:cooked_beef",
