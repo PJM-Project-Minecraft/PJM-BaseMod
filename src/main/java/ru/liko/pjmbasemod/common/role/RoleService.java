@@ -73,7 +73,11 @@ public final class RoleService {
             return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.target_no_team"));
         }
 
-        if (actor != null && !RolePermissions.can(actor, RolePermissions.ADMIN)) {
+        boolean selfAssignPaid = actor != null && actor == target && role != null
+                && RoleAccessRegistry.get().isPaid(role)
+                && RolePermissions.canUseRole(target, role);
+
+        if (actor != null && !selfAssignPaid && !RolePermissions.can(actor, RolePermissions.ADMIN)) {
             String commanderTeam = FactionCommanderService.activeCommanderTeam(actor);
             if (commanderTeam == null) {
                 return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.no_assign_permission"));
@@ -92,6 +96,11 @@ public final class RoleService {
             }
             return AssignmentResult.success(Component.translatable("gui.pjmbasemod.role.cleared",
                     target.getName().getString()));
+        }
+
+        if (!RolePermissions.canUseRole(target, role)) {
+            return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.not_unlocked",
+                    Component.translatable(role.translationKey())));
         }
 
         AssignmentResult capResult = validateRoleCap(target.getServer(), target.getUUID(), targetTeam, role);
