@@ -34,5 +34,6 @@ public final class ClientOverlays {
         e.registerAbove(VanillaGuiLayers.HOTBAR, id("frontline_hud"),     FrontlineHudOverlay.OVERLAY);
         e.registerAbove(VanillaGuiLayers.HOTBAR, id("rank_hud"),          RankHudOverlay.OVERLAY);
         e.registerAbove(VanillaGuiLayers.HOTBAR, id("notifications"),     NotificationOverlay.OVERLAY);
+        e.registerAbove(VanillaGuiLayers.TAB_LIST, id("tactical_tab"), TacticalTabOverlay.LAYER);
     }
 }
