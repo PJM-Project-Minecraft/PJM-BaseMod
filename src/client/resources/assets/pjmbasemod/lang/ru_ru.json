@@ -149,6 +149,7 @@
   "gui.pjmbasemod.radial.role_none": "Роль не назначена",
   "gui.pjmbasemod.radial.current_role": "Роль: %s",
   "gui.pjmbasemod.role.required": "Требуется роль: %s",
+  "gui.pjmbasemod.role.not_unlocked": "§cРоль %s ещё не разблокирована (доступна за донат).",
   "gui.pjmbasemod.role.locked_short": "Роль",
   "gui.pjmbasemod.rank.required": "Требуется ранг: %s",
   "gui.pjmbasemod.rank.locked_short": "Ранг",

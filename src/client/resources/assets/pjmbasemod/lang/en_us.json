@@ -149,6 +149,7 @@
   "gui.pjmbasemod.radial.role_none": "No role assigned",
   "gui.pjmbasemod.radial.current_role": "Role: %s",
   "gui.pjmbasemod.role.required": "Required role: %s",
+  "gui.pjmbasemod.role.not_unlocked": "§cRole %s is not unlocked yet (available via donation).",
   "gui.pjmbasemod.role.locked_short": "Role",
   "gui.pjmbasemod.rank.required": "Required rank: %s",
   "gui.pjmbasemod.rank.locked_short": "Rank",
