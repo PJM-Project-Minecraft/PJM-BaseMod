@@ -41,6 +41,7 @@ import ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers;
 import ru.liko.pjmbasemod.common.network.packet.SyncPjmDataPacket;
 import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.region.RegionManager;
+import ru.liko.pjmbasemod.common.role.RoleAccessRegistry;
 import ru.liko.pjmbasemod.common.role.RoleLimitRegistry;
 import ru.liko.pjmbasemod.common.role.RoleService;
 import ru.liko.pjmbasemod.common.voice.VoicechatBridge;
@@ -173,6 +174,7 @@ public final class PjmServerEvents {
         WarehouseItemRegistry.get().reload();
         CrateRegistry.get().reload();
         RoleLimitRegistry.get().reload();
+        RoleAccessRegistry.get().reload();
         InventoryLimitRegistry.get().reload();
         SkinRegistry.get().reload();
         RankService.onServerStarted(event.getServer());
