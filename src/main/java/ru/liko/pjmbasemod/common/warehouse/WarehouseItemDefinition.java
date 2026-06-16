@@ -4,6 +4,8 @@ import com.mojang.brigadier.StringReader;
 import net.minecraft.commands.arguments.item.ItemParser;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -64,6 +66,15 @@ public final class WarehouseItemDefinition {
     /** Кеш разобранного патча компонентов (ленивая инициализация на сервере, есть доступ к реестрам). */
     private transient DataComponentPatch parsedComponents;
     private transient boolean componentsParsed;
+    /**
+     * Полный SNBT предмета в форме {@code {components:{...},count:1,id:"namespace:item"}}
+     * (как при копировании предмета в игре). Если задан — предмет выдаётся точно по этому NBT,
+     * {@link #components} игнорируется, {@link #itemId} используется лишь для иконки/совпадения.
+     * Заполняется командой {@code /pjm warehouse additem}.
+     */
+    private String itemNbt;
+    private transient ItemStack templateStack;
+    private transient boolean templateParsed;
 
     public WarehouseItemDefinition() {
         // для Gson
@@ -120,6 +131,12 @@ public final class WarehouseItemDefinition {
 
     public void setComponents(String components) { this.components = components; }
 
+    public String itemNbtString() { return itemNbt == null ? "" : itemNbt; }
+
+    public boolean hasItemNbt() { return itemNbt != null && !itemNbt.isBlank(); }
+
+    public void setItemNbt(String itemNbt) { this.itemNbt = itemNbt; }
+
     /** Базовый возврат очков за сдачу одной штуки; {@code null} → равен стоимости выдачи. */
     public int refundValue() {
         return refundValue == null ? pointCost() : Math.max(0, refundValue);
@@ -171,6 +188,15 @@ public final class WarehouseItemDefinition {
 
     @Nullable
     public ResourceLocation itemLocation() {
+        // itemId необязателен, если задан itemNbt — id берётся из самого NBT.
+        if ((itemId == null || itemId.isBlank()) && hasItemNbt()) {
+            try {
+                String id = TagParser.parseTag(itemNbt.trim()).getString("id");
+                if (!id.isBlank()) return ResourceLocation.tryParse(id);
+            } catch (Exception ignored) {
+                // ниже вернётся попытка по itemIdString()
+            }
+        }
         return ResourceLocation.tryParse(itemIdString());
     }
 
@@ -197,6 +223,16 @@ public final class WarehouseItemDefinition {
      * Если задан {@link #components} и передан {@code lookup} (реестры), применяет компоненты (NBT) поверх стека.
      */
     public ItemStack createStack(int count, @Nullable HolderLookup.Provider lookup) {
+        // Полный SNBT (захват командой) воспроизводит предмет точь-в-точь, включая данные TACZ.
+        if (hasItemNbt() && lookup != null) {
+            ItemStack template = templateStack(lookup);
+            if (template != null && !template.isEmpty()) {
+                ItemStack copy = template.copy();
+                copy.setCount(Math.max(1, count));
+                return copy;
+            }
+        }
+
         ResourceLocation loc = itemLocation();
         if (loc == null) return ItemStack.EMPTY;
 
@@ -207,6 +243,22 @@ public final class WarehouseItemDefinition {
 
         applyComponents(stack, lookup);
         return stack;
+    }
+
+    /** Лениво разбирает {@link #itemNbt} в шаблонный стек; кеширует результат (в т.ч. неудачу как null). */
+    @Nullable
+    private ItemStack templateStack(HolderLookup.Provider lookup) {
+        if (templateParsed) return templateStack;
+        templateParsed = true;
+        templateStack = null;
+        try {
+            CompoundTag tag = TagParser.parseTag(itemNbt.trim());
+            templateStack = ItemStack.parse(lookup, tag).orElse(null);
+        } catch (Exception e) {
+            ru.liko.pjmbasemod.Pjmbasemod.LOGGER.warn(
+                    "Warehouse: предмет '{}' — не удалось разобрать itemNbt: {}", id(), e.getMessage());
+        }
+        return templateStack;
     }
 
     /** Применяет настроенные компоненты (NBT) к стеку; ничего не делает без lookup или без components. */
@@ -267,9 +319,11 @@ public final class WarehouseItemDefinition {
         if (pointCost <= 0) pointCost = 1;
         if (maxPerWithdraw <= 0) maxPerWithdraw = 16;
         if (quantity <= 0) quantity = 1;
-        // Сброс кеша компонентов: при перезагрузке конфига строка могла измениться.
+        // Сброс кешей: при перезагрузке конфига строки могли измениться.
         componentsParsed = false;
         parsedComponents = null;
+        templateParsed = false;
+        templateStack = null;
         if (displayCategory == null || displayCategory.isBlank()) displayCategory = pool().id();
         if (allowedRoles != null && !allowedRoles.isEmpty()) {
             List<String> normalized = CombatRole.normalizeList(allowedRoles);

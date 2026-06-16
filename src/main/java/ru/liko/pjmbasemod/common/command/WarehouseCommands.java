@@ -10,6 +10,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import ru.liko.pjmbasemod.common.entity.QuartermasterEntity;
 import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.init.PjmEntities;
@@ -76,6 +77,24 @@ public final class WarehouseCommands {
                                 .then(Commands.argument("id", StringArgumentType.word())
                                         .suggests((ctx, b) -> suggestWarehouses(ctx.getSource(), b))
                                         .executes(ctx -> getPoints(ctx.getSource(), StringArgumentType.getString(ctx, "id"))))))
+                .then(Commands.literal("additem")
+                        .then(Commands.argument("pool", StringArgumentType.word())
+                                .suggests((ctx, b) -> suggestPools(b))
+                                .then(Commands.argument("cost", IntegerArgumentType.integer(1, 100000))
+                                        .executes(ctx -> addItem(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "pool"),
+                                                IntegerArgumentType.getInteger(ctx, "cost"), 1, null))
+                                        .then(Commands.argument("quantity", IntegerArgumentType.integer(1, 6400))
+                                                .executes(ctx -> addItem(ctx.getSource(),
+                                                        StringArgumentType.getString(ctx, "pool"),
+                                                        IntegerArgumentType.getInteger(ctx, "cost"),
+                                                        IntegerArgumentType.getInteger(ctx, "quantity"), null))
+                                                .then(Commands.argument("category", StringArgumentType.word())
+                                                        .executes(ctx -> addItem(ctx.getSource(),
+                                                                StringArgumentType.getString(ctx, "pool"),
+                                                                IntegerArgumentType.getInteger(ctx, "cost"),
+                                                                IntegerArgumentType.getInteger(ctx, "quantity"),
+                                                                StringArgumentType.getString(ctx, "category"))))))))
                 .then(Commands.literal("npc")
                         .then(Commands.literal("spawn")
                                 .then(Commands.argument("warehouseId", StringArgumentType.word())
@@ -186,6 +205,34 @@ public final class WarehouseCommands {
             sb.append(pool.id()).append('=').append(data.getPoints(wid, pool)).append("  ");
         }
         source.sendSuccess(() -> Component.literal(sb.toString().trim()), false);
+        return 1;
+    }
+
+    // ---------------------------------------------------------------- каталог предметов
+
+    /** Захватывает предмет из руки игрока (полный NBT) и добавляет его в каталог склада. */
+    private static int addItem(CommandSourceStack source, String poolId, int cost, int quantity,
+                               @Nullable String category) {
+        ServerPlayer player = requirePlayer(source);
+        if (player == null) return 0;
+        WarehousePoolCategory pool = WarehousePoolCategory.byId(poolId);
+        if (pool == null) {
+            source.sendFailure(Component.literal("Неизвестный пул: " + poolId
+                    + ". Используй weapon, supply, equipment, raw или special."));
+            return 0;
+        }
+        ItemStack held = player.getMainHandItem();
+        if (held.isEmpty()) {
+            source.sendFailure(Component.literal("Возьми предмет в основную руку, прежде чем добавлять его."));
+            return 0;
+        }
+        String id = WarehouseItemRegistry.get().captureAndAdd(source.getServer(), held, pool, cost, quantity, category);
+        if (id == null) {
+            source.sendFailure(Component.literal("Не удалось добавить предмет в склад (см. лог)."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Предмет '" + id + "' добавлен: pool=" + pool.id()
+                + ", cost=" + cost + ", quantity=" + quantity + "."), true);
         return 1;
     }
 

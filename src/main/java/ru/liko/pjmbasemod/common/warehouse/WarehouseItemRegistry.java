@@ -2,8 +2,13 @@ package ru.liko.pjmbasemod.common.warehouse;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.fml.loading.FMLPaths;
 import ru.liko.pjmbasemod.Pjmbasemod;
 
@@ -179,6 +184,82 @@ public final class WarehouseItemRegistry {
     }
 
     public boolean isEmpty() { return definitions.isEmpty(); }
+
+    /**
+     * Захватывает предмет из руки игрока (полный NBT) и дозаписывает его в {@code items.json},
+     * затем перезагружает каталог. Возвращает id созданного определения или {@code null} при ошибке.
+     */
+    public synchronized String captureAndAdd(MinecraftServer server, ItemStack stack,
+                                             WarehousePoolCategory pool, int cost, int quantity,
+                                             @Nullable String category) {
+        if (stack == null || stack.isEmpty()) return null;
+        ResourceLocation itemKey = BuiltInRegistries.ITEM.getKey(stack.getItem());
+
+        String base = sanitizeId(itemKey.getPath());
+        if (base.isBlank()) base = "item";
+        String id = base;
+        for (int n = 2; definitions.containsKey(id); n++) {
+            id = base + "_" + n;
+        }
+
+        String snbt;
+        try {
+            // Полный SNBT предмета: {components:{...},count:..,id:"..."}.
+            snbt = stack.save(server.registryAccess()).toString();
+        } catch (Exception e) {
+            Pjmbasemod.LOGGER.error("Warehouse: не удалось сохранить NBT предмета '{}'", itemKey, e);
+            return null;
+        }
+
+        String displayName = stack.getHoverName().getString();
+        String cat = (category == null || category.isBlank()) ? pool.id() : category.trim();
+        int qty = Math.max(1, quantity);
+        WarehouseItemDefinition def = new WarehouseItemDefinition(id, displayName, itemKey.toString(),
+                pool, cat, Math.max(1, cost), qty);
+        def.setQuantity(qty);
+        def.setItemNbt(snbt);
+        def.normalize();
+        if (!def.isValid()) {
+            Pjmbasemod.LOGGER.warn("Warehouse: захваченный предмет '{}' не прошёл валидацию.", itemKey);
+            return null;
+        }
+        if (!appendToConfig(def)) return null;
+        reload();
+        return id;
+    }
+
+    /** Дозаписывает одно определение в конец массива {@code items} в items.json, не трогая остальные. */
+    private boolean appendToConfig(WarehouseItemDefinition def) {
+        Path file = configFile();
+        try {
+            Files.createDirectories(warehouseDirectory());
+            JsonObject root = new JsonObject();
+            JsonArray items = new JsonArray();
+            if (Files.isRegularFile(file)) {
+                try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                    JsonElement existing = GSON.fromJson(reader, JsonElement.class);
+                    if (existing != null && existing.isJsonObject()) {
+                        root = existing.getAsJsonObject();
+                        if (root.has("items") && root.get("items").isJsonArray()) {
+                            items = root.getAsJsonArray("items");
+                        }
+                    } else if (existing != null && existing.isJsonArray()) {
+                        items = existing.getAsJsonArray();
+                    }
+                }
+            }
+            if (!root.has("schemaVersion")) root.addProperty("schemaVersion", 1);
+            items.add(GSON.toJsonTree(def));
+            root.add("items", items);
+            try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+                GSON.toJson(root, writer);
+            }
+            return true;
+        } catch (Exception e) {
+            Pjmbasemod.LOGGER.error("Warehouse: не удалось дозаписать предмет в конфиг {}", file, e);
+            return false;
+        }
+    }
 
     private List<WarehouseItemDefinition> exampleDefinitions() {
         // Пример ограничения по рангу: СВД доступна только начиная с ранга «сержант» и выше.
