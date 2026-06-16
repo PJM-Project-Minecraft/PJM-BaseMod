@@ -355,7 +355,7 @@ public final class WarehouseManager {
             boolean roleAllowed = RoleService.hasAllowedRole(player, def.allowedRoles());
             boolean rankAllowed = RankService.meetsMinRank(player, def.minRank());
             String requiredRankName = RankService.rankDisplayName(def.minRank());
-            items.add(new WarehouseSnapshot.ItemEntry(def.id(), def.displayName(), def.itemIdString(),
+            items.add(new WarehouseSnapshot.ItemEntry(def.id(), def.rawDisplayName(), def.itemIdString(),
                     def.displayCategory(), def.pool(), def.pointCost(), def.maxPerWithdraw(), def.quantity(),
                     def.refundValue(), inInventory, available, affordable,
                     roleAllowed, def.allowedRoles(), rankAllowed, requiredRankName));

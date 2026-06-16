@@ -286,6 +286,11 @@ public class WarehouseScreen extends Screen {
             int itemY = y + (ROW_HEIGHT - 3 - 16) / 2;
             ItemStack icon = GuiItemIcons.stackFor(item.itemId());
             graphics.renderItem(icon, contentLeft + 4, itemY);
+
+            // Имя: своё из конфига, иначе — локализованное имя предмета (клиентская сторона).
+            String itemName = item.displayName().isBlank()
+                    ? icon.getHoverName().getString()
+                    : item.displayName();
             if (locked) {
                 graphics.pose().pushPose();
                 graphics.pose().translate(0, 0, 200.0F);
@@ -296,7 +301,7 @@ public class WarehouseScreen extends Screen {
                 graphics.pose().popPose();
             }
 
-            graphics.drawString(this.font, item.displayName(), contentLeft + 26, y + 4,
+            graphics.drawString(this.font, itemName, contentLeft + 26, y + 4,
                     locked ? 0xFF9A9A9A : 0xFFE8E8E8, false);
             String cost = Component.translatable("gui.pjmbasemod.warehouse.cost", item.pointCost()).getString();
             if (item.quantity() > 1) {

@@ -132,6 +132,11 @@ public final class WarehouseItemDefinition {
         return displayName == null || displayName.isBlank() ? id() : displayName;
     }
 
+    /** Имя как задано автором ("" если не задано) — клиент сам подтянет локализованное имя предмета. */
+    public String rawDisplayName() {
+        return displayName == null ? "" : displayName;
+    }
+
     public String itemIdString() { return itemId == null ? "" : itemId; }
 
     public WarehousePoolCategory pool() {

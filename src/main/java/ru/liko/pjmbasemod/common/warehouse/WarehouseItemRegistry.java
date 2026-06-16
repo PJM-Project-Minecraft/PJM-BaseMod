@@ -211,10 +211,10 @@ public final class WarehouseItemRegistry {
             return null;
         }
 
-        String displayName = stack.getHoverName().getString();
+        // Имя не сохраняем: GUI сам подтянет локализованное имя предмета по itemId.
         String cat = (category == null || category.isBlank()) ? pool.id() : category.trim();
         int qty = Math.max(1, quantity);
-        WarehouseItemDefinition def = new WarehouseItemDefinition(id, displayName, itemKey.toString(),
+        WarehouseItemDefinition def = new WarehouseItemDefinition(id, "", itemKey.toString(),
                 pool, cat, Math.max(1, cost), qty);
         def.setQuantity(qty);
         def.setItemNbt(snbt);
