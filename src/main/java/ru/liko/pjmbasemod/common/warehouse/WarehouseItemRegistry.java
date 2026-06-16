@@ -225,7 +225,18 @@ public final class WarehouseItemRegistry {
         }
         if (!appendToConfig(def)) return null;
         reload();
+        Pjmbasemod.LOGGER.info("Warehouse: предмет '{}' дозаписан в {} (всего предметов в каталоге: {})",
+                id, configFile().toAbsolutePath(), definitions.size());
         return id;
+    }
+
+    /** Абсолютный путь к items.json — для диагностики из команд. */
+    public String configPath() {
+        return configFile().toAbsolutePath().toString();
+    }
+
+    public int size() {
+        return definitions.size();
     }
 
     /** Дозаписывает одно определение в конец массива {@code items} в items.json, не трогая остальные. */

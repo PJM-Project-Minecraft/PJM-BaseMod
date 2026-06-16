@@ -226,13 +226,15 @@ public final class WarehouseCommands {
             source.sendFailure(Component.literal("Возьми предмет в основную руку, прежде чем добавлять его."));
             return 0;
         }
-        String id = WarehouseItemRegistry.get().captureAndAdd(source.getServer(), held, pool, cost, quantity, category);
+        WarehouseItemRegistry registry = WarehouseItemRegistry.get();
+        String id = registry.captureAndAdd(source.getServer(), held, pool, cost, quantity, category);
         if (id == null) {
             source.sendFailure(Component.literal("Не удалось добавить предмет в склад (см. лог)."));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal("Предмет '" + id + "' добавлен: pool=" + pool.id()
-                + ", cost=" + cost + ", quantity=" + quantity + "."), true);
+        source.sendSuccess(() -> Component.literal("Предмет '" + id + "' добавлен (pool=" + pool.id()
+                + ", cost=" + cost + ", quantity=" + quantity + "). Всего предметов: " + registry.size()), true);
+        source.sendSuccess(() -> Component.literal("Файл: " + registry.configPath()), false);
         return 1;
     }
 
