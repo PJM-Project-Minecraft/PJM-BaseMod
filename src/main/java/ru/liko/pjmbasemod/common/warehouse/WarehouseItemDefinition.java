@@ -17,6 +17,7 @@ import ru.liko.pjmbasemod.common.role.CombatRole;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Описание одного выдаваемого предмета склада
@@ -75,6 +76,32 @@ public final class WarehouseItemDefinition {
     private String itemNbt;
     private transient ItemStack templateStack;
     private transient boolean templateParsed;
+    /**
+     * Декларативное описание ствола TACZ: id ствола, патроны, режим огня и обвесы по слотам.
+     * Предпочтительный способ задавать TACZ-оружие — читаемо и не требует ручного NBT.
+     */
+    private TaczGunConfig tacz;
+
+    /** Конфиг TACZ-ствола из JSON-секции {@code "tacz"}. Поля парсятся Gson по именам. */
+    public static final class TaczGunConfig {
+        /** Id ствола TACZ/ганпака, напр. "mk16:ak74m" или "tacz:ak47". */
+        private String gunId;
+        /** Патронов в магазине. */
+        private int ammo;
+        /** Режим огня: AUTO / SEMI / BURST (без учёта регистра). Пусто — по умолчанию ствола. */
+        private String fireMode;
+        /** Дослан ли патрон в ствол; null — определяется автоматически (ammo > 0). */
+        private Boolean ammoInBarrel;
+        /** Обвесы по слотам: ключ — scope/muzzle/stock/grip/laser/extended_mag, значение — id обвеса. */
+        private Map<String, String> attachments;
+
+        public String gunId() { return gunId == null ? "" : gunId; }
+        public int ammo() { return Math.max(0, ammo); }
+        public String fireMode() { return fireMode == null ? "" : fireMode; }
+        public Boolean ammoInBarrel() { return ammoInBarrel; }
+        public Map<String, String> attachments() { return attachments == null ? Map.of() : attachments; }
+        public boolean isPresent() { return gunId != null && !gunId.isBlank(); }
+    }
 
     public WarehouseItemDefinition() {
         // для Gson
@@ -136,6 +163,11 @@ public final class WarehouseItemDefinition {
     public boolean hasItemNbt() { return itemNbt != null && !itemNbt.isBlank(); }
 
     public void setItemNbt(String itemNbt) { this.itemNbt = itemNbt; }
+
+    public boolean hasTaczGun() { return tacz != null && tacz.isPresent(); }
+
+    @Nullable
+    public TaczGunConfig taczGun() { return tacz; }
 
     /** Базовый возврат очков за сдачу одной штуки; {@code null} → равен стоимости выдачи. */
     public int refundValue() {
@@ -223,6 +255,16 @@ public final class WarehouseItemDefinition {
      * Если задан {@link #components} и передан {@code lookup} (реестры), применяет компоненты (NBT) поверх стека.
      */
     public ItemStack createStack(int count, @Nullable HolderLookup.Provider lookup) {
+        // Декларативный TACZ-ствол: собираем через GunItemBuilder (обвесы, патроны, режим огня).
+        if (hasTaczGun() && lookup != null) {
+            ItemStack gun = TaczWarehouseCompat.createGun(lookup, tacz.gunId(), tacz.ammo(),
+                    tacz.fireMode(), tacz.ammoInBarrel(), tacz.attachments(), Math.max(1, count));
+            if (!gun.isEmpty()) {
+                applyComponents(gun, lookup); // дополнительные ванильные компоненты поверх, если заданы
+                return gun;
+            }
+        }
+
         // Полный SNBT (захват командой) воспроизводит предмет точь-в-точь, включая данные TACZ.
         if (hasItemNbt() && lookup != null) {
             ItemStack template = templateStack(lookup);
@@ -319,6 +361,11 @@ public final class WarehouseItemDefinition {
         if (pointCost <= 0) pointCost = 1;
         if (maxPerWithdraw <= 0) maxPerWithdraw = 16;
         if (quantity <= 0) quantity = 1;
+        // Для декларативного TACZ-ствола itemId не обязателен — подставляем базовый предмет
+        // (нужен для иконки в каталоге, совпадения при сдаче и валидации).
+        if (hasTaczGun() && (itemId == null || itemId.isBlank())) {
+            itemId = "tacz:modern_kinetic_gun";
+        }
         // Сброс кешей: при перезагрузке конфига строки могли измениться.
         componentsParsed = false;
         parsedComponents = null;

@@ -4,15 +4,21 @@ import com.tacz.guns.api.TimelessAPI;
 import com.tacz.guns.api.item.IAmmo;
 import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.api.item.IGun;
+import com.tacz.guns.api.item.attachment.AttachmentType;
 import com.tacz.guns.api.item.builder.AmmoItemBuilder;
 import com.tacz.guns.api.item.builder.AttachmentItemBuilder;
+import com.tacz.guns.api.item.builder.GunItemBuilder;
+import com.tacz.guns.api.item.gun.FireMode;
 import com.tacz.guns.init.ModItems;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import ru.liko.pjmbasemod.Pjmbasemod;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /** Actual TACZ calls. Only touch this class after confirming the TACZ mod is loaded. */
@@ -54,6 +60,61 @@ final class TaczWarehouseIntegration {
         }
 
         return ItemStack.EMPTY;
+    }
+
+    /** Декларативная сборка ствола: id, патроны, режим огня, дослан ли патрон, обвесы по слотам. */
+    static ItemStack createGun(HolderLookup.Provider lookup, String gunIdStr, int ammo, String fireMode,
+                               @Nullable Boolean ammoInBarrel, Map<String, String> attachments, int count) {
+        ResourceLocation parsed = ResourceLocation.tryParse(gunIdStr);
+        if (parsed == null) return ItemStack.EMPTY;
+        ResourceLocation gunId = resolveTaczId(parsed);
+        if (gunId == null || TimelessAPI.getCommonGunIndex(gunId).isEmpty()) {
+            Pjmbasemod.LOGGER.warn("Warehouse: TACZ-ствол '{}' не найден.", gunIdStr);
+            return ItemStack.EMPTY;
+        }
+
+        GunItemBuilder builder = GunItemBuilder.create()
+                .setId(gunId)
+                .setCount(Math.max(1, count))
+                .setAmmoCount(Math.max(0, ammo));
+
+        FireMode fm = parseFireMode(fireMode);
+        if (fm != null) builder.setFireMode(fm);
+        builder.setAmmoInBarrel(ammoInBarrel != null ? ammoInBarrel : ammo > 0);
+
+        if (attachments != null) {
+            for (Map.Entry<String, String> entry : attachments.entrySet()) {
+                AttachmentType type = parseAttachmentType(entry.getKey());
+                ResourceLocation attachmentId = ResourceLocation.tryParse(entry.getValue());
+                if (type == null || type == AttachmentType.NONE || attachmentId == null) {
+                    Pjmbasemod.LOGGER.warn("Warehouse: обвес '{}'='{}' для ствола '{}' пропущен (неизвестный слот или id).",
+                            entry.getKey(), entry.getValue(), gunIdStr);
+                    continue;
+                }
+                builder.putAttachment(type, attachmentId);
+            }
+        }
+        return builder.build(lookup);
+    }
+
+    @Nullable
+    private static FireMode parseFireMode(@Nullable String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return FireMode.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private static AttachmentType parseAttachmentType(@Nullable String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return AttachmentType.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     static boolean matches(ItemStack stack, ResourceLocation configuredId) {
