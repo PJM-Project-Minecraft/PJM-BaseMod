@@ -48,7 +48,7 @@ public final class RolePermissions {
 
     /** true, если роль бесплатная (по RoleAccessRegistry) ИЛИ у игрока есть нода разблокировки. */
     public static boolean canUseRole(ServerPlayer player, CombatRole role) {
-        if (role == null) return false;
+        if (player == null || role == null) return false;
         if (!RoleAccessRegistry.get().isPaid(role)) return true;
         PermissionNode<Boolean> node = UNLOCK_NODES.get(role);
         return node != null && can(player, node);
