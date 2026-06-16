@@ -6,9 +6,11 @@ import net.minecraft.server.level.ServerPlayer;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
 import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
+import ru.liko.pjmbasemod.common.network.packet.RoleAccessSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RoleSyncPacket;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -160,6 +162,18 @@ public final class RoleService {
         if (player == null || player.getServer() == null) return;
         PjmNetworking.sendToPlayer(player, new RoleSyncPacket(player.getUUID(),
                 currentRoleId(player), canAssignAny(player)));
+        PjmNetworking.sendToPlayer(player, new RoleAccessSyncPacket(selfAssignableRoleIds(player)));
+    }
+
+    /** id донат-ролей, которыми игрок владеет (может назначить себе сам). */
+    private static List<String> selfAssignableRoleIds(ServerPlayer player) {
+        List<String> ids = new ArrayList<>();
+        for (CombatRole role : CombatRole.values()) {
+            if (RoleAccessRegistry.get().isPaid(role) && RolePermissions.canUseRole(player, role)) {
+                ids.add(role.id());
+            }
+        }
+        return ids;
     }
 
     public static void syncAll(MinecraftServer server) {
