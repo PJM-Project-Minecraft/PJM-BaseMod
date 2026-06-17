@@ -90,6 +90,7 @@
   "gui.pjmbasemod.warehouse.not_depositable": "This item is not accepted by the warehouse",
   "gui.pjmbasemod.warehouse.crate_unknown": "This crate is not configured",
   "gui.pjmbasemod.warehouse.delivery_accepted": "Delivery accepted. Warehouse restocked (+%s pts)",
+  "gui.pjmbasemod.equipment.wrong_role": "§cThis equipment is restricted to its role.",
   "gui.pjmbasemod.faction.commander.badge": "CMD · FACTION COMMANDER",
   "gui.pjmbasemod.faction.selection.title": "Choose Faction And Role",
   "gui.pjmbasemod.faction.selection.required": "Required selection",

@@ -6,11 +6,13 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.food.FoodData;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
@@ -30,6 +32,7 @@ import ru.liko.pjmbasemod.common.frontline.FrontlineManager;
 import ru.liko.pjmbasemod.common.frontline.bluemap.FrontlineBlueMapService;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
 import ru.liko.pjmbasemod.common.garage.VehicleRegistry;
+import ru.liko.pjmbasemod.common.inventory.EquipmentLockService;
 import ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry;
 import ru.liko.pjmbasemod.common.inventory.InventoryLimitService;
 import ru.liko.pjmbasemod.common.init.PjmItems;
@@ -105,6 +108,7 @@ public final class PjmServerEvents {
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer sp) {
             ServerPacketHandlers.onPlayerLogout(sp);
+            ru.liko.pjmbasemod.common.inventory.EquipmentLockService.onPlayerLogout(sp.getUUID());
         }
     }
 
@@ -113,6 +117,7 @@ public final class PjmServerEvents {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         FactionCommanderService.onPlayerTick(player);
         RoleService.onPlayerTick(player);
+        EquipmentLockService.enforceHeld(player);
         SkinService.onPlayerTick(player);
         LobbyService.onPlayerTick(player);
         FactionMenuService.onPlayerTick(player);
@@ -129,6 +134,11 @@ public final class PjmServerEvents {
         if (event.getHand() != InteractionHand.MAIN_HAND) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
 
+        if (EquipmentLockService.shouldCancelUse(player, player.getMainHandItem())) {
+            event.setCanceled(true);
+            return;
+        }
+
         ru.liko.pjmbasemod.common.garage.GarageType garageType;
         if (player.getMainHandItem().is(PjmItems.NOTEBOOK.get())) {
             garageType = ru.liko.pjmbasemod.common.garage.GarageType.GROUND;
@@ -141,6 +151,35 @@ public final class PjmServerEvents {
         if (GarageManager.storeVehicle(player, event.getTarget(), garageType)) {
             event.setCanceled(true);
             event.setCancellationResult(InteractionResult.SUCCESS);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        if (event.getLevel().isClientSide()) return;
+        if (event.getHand() != InteractionHand.MAIN_HAND) return;
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        if (EquipmentLockService.shouldCancelUse(player, event.getItemStack())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getLevel().isClientSide()) return;
+        if (event.getHand() != InteractionHand.MAIN_HAND) return;
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        if (EquipmentLockService.shouldCancelUse(player, event.getItemStack())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onAttackEntity(AttackEntityEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        if (player.level().isClientSide()) return;
+        if (EquipmentLockService.shouldCancelUse(player, player.getMainHandItem())) {
+            event.setCanceled(true);
         }
     }
 
@@ -172,6 +211,7 @@ public final class PjmServerEvents {
         ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.reload(event.getServer());
         VehicleRegistry.get().reload();
         WarehouseItemRegistry.get().reload();
+        ru.liko.pjmbasemod.common.inventory.EquipmentRoleIndex.get().rebuild();
         CrateRegistry.get().reload();
         RoleLimitRegistry.get().reload();
         RoleAccessRegistry.get().reload();

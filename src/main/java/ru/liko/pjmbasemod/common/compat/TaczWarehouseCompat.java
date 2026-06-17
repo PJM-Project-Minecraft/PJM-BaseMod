@@ -28,6 +28,11 @@ public final class TaczWarehouseCompat {
         return isLoaded() && TaczWarehouseIntegration.matches(stack, configuredId);
     }
 
+    /** true, если TACZ загружен и предмет — TACZ-ствол (IGun). */
+    public static boolean isGun(ItemStack stack) {
+        return isLoaded() && TaczWarehouseIntegration.isGun(stack);
+    }
+
     /** Собирает декларативно описанный TACZ-ствол (id, патроны, режим огня, обвесы по слотам). */
     public static ItemStack createGun(HolderLookup.Provider lookup, String gunId, int ammo, String fireMode,
                                       Boolean ammoInBarrel, Map<String, String> attachments, int count) {

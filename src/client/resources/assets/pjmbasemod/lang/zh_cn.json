@@ -90,6 +90,7 @@
   "gui.pjmbasemod.warehouse.not_depositable": "仓库不接收此物品",
   "gui.pjmbasemod.warehouse.crate_unknown": "该箱子未配置",
   "gui.pjmbasemod.warehouse.delivery_accepted": "补给已接收。仓库已补充（+%s 点）",
+  "gui.pjmbasemod.equipment.wrong_role": "§c该装备仅限对应职业使用。",
   "gui.pjmbasemod.faction.commander.badge": "CMD · 阵营指挥官",
   "gui.pjmbasemod.faction.selection.title": "选择阵营和角色",
   "gui.pjmbasemod.faction.selection.required": "必须选择",

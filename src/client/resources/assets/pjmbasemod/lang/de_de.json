@@ -90,6 +90,7 @@
   "gui.pjmbasemod.warehouse.not_depositable": "Dieser Gegenstand wird vom Lager nicht angenommen",
   "gui.pjmbasemod.warehouse.crate_unknown": "Diese Kiste ist nicht konfiguriert",
   "gui.pjmbasemod.warehouse.delivery_accepted": "Lieferung angenommen. Lager aufgefüllt (+%s Pkt.)",
+  "gui.pjmbasemod.equipment.wrong_role": "§cDiese Ausrüstung ist nur für ihre Rolle verfügbar.",
   "gui.pjmbasemod.faction.commander.badge": "CMD · FRAKTIONSKOMMANDANT",
   "gui.pjmbasemod.faction.selection.title": "Fraktion und Rolle wählen",
   "gui.pjmbasemod.faction.selection.required": "Pflichtauswahl",

@@ -134,6 +134,10 @@ final class TaczWarehouseIntegration {
         return false;
     }
 
+    static boolean isGun(ItemStack stack) {
+        return !stack.isEmpty() && stack.getItem() instanceof IGun;
+    }
+
     @Nullable
     private static ResourceLocation resolveTaczId(ResourceLocation configuredId) {
         for (ResourceLocation candidate : candidates(configuredId)) {

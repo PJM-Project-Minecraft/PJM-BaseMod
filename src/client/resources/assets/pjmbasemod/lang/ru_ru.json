@@ -90,6 +90,7 @@
   "gui.pjmbasemod.warehouse.not_depositable": "Этот предмет не принимается складом",
   "gui.pjmbasemod.warehouse.crate_unknown": "Этот ящик не настроен",
   "gui.pjmbasemod.warehouse.delivery_accepted": "Поставка принята. Склад пополнен (+%s оч.)",
+  "gui.pjmbasemod.equipment.wrong_role": "§cЭто снаряжение доступно только своей роли.",
   "gui.pjmbasemod.faction.commander.badge": "КМД · КОМАНДИР ФРАКЦИИ",
   "gui.pjmbasemod.faction.selection.title": "Выбор фракции и роли",
   "gui.pjmbasemod.faction.selection.required": "Обязательный выбор",
