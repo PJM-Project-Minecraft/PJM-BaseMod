@@ -170,6 +170,7 @@ public final class PjmCommands {
         if (all || section.equalsIgnoreCase("warehouse")) {
             int items = ru.liko.pjmbasemod.common.warehouse.WarehouseItemRegistry.get().reload();
             int crates = ru.liko.pjmbasemod.common.warehouse.CrateRegistry.get().reload();
+            ru.liko.pjmbasemod.common.inventory.EquipmentRoleIndex.get().rebuild();
             report.append("склад: предметы ").append(items).append(", ящики ").append(crates).append("; ");
             sections++;
         }

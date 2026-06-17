@@ -90,6 +90,7 @@
   "gui.pjmbasemod.warehouse.not_depositable": "Цей предмет склад не приймає",
   "gui.pjmbasemod.warehouse.crate_unknown": "Цей ящик не налаштований",
   "gui.pjmbasemod.warehouse.delivery_accepted": "Постачання прийнято. Склад поповнено (+%s оч.)",
+  "gui.pjmbasemod.equipment.wrong_role": "§cЦе спорядження доступне лише своїй ролі.",
   "gui.pjmbasemod.faction.commander.badge": "КМД · КОМАНДИР ФРАКЦІЇ",
   "gui.pjmbasemod.faction.selection.title": "Вибір фракції та ролі",
   "gui.pjmbasemod.faction.selection.required": "Обов'язковий вибір",
