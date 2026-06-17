@@ -17,8 +17,10 @@ import java.util.UUID;
  */
 public final class EquipmentLockService {
 
-    /** Последний последний слот основного инвентаря (хотбар + 3 ряда). */
+    /** Последний слот основного инвентаря (хотбар + 3 ряда). */
     private static final int MAIN_INVENTORY_END = 35;
+    /** Слот второй руки (offhand) в ванильном Inventory. */
+    private static final int OFFHAND_SLOT = 40;
     /** Минимальный интервал между предупреждениями игроку, тики. */
     private static final long WARN_INTERVAL_TICKS = 40L;
 
@@ -35,23 +37,31 @@ public final class EquipmentLockService {
         return role == null || !info.allowedRoles().contains(role.id());
     }
 
-    /** Выталкивает из основной руки запрещённое HOLD-оружие (нельзя держать → нельзя выстрелить). */
+    /** Выталкивает из обеих рук запрещённое HOLD-оружие (нельзя держать → нельзя выстрелить). */
     public static void enforceHeld(ServerPlayer player) {
         if (player == null || player.isCreative()) return;
-        ItemStack held = player.getMainHandItem();
-        if (held.isEmpty()) return;
-
-        EquipmentRoleIndex.LockInfo info = EquipmentRoleIndex.get().lookup(held);
-        if (info == null || info.mode() != EquipmentRoleIndex.LockMode.HOLD) return;
-        if (!isForbidden(player, held)) return;
-
         Inventory inv = player.getInventory();
-        int handSlot = inv.selected;
-        if (handSlot < 0 || handSlot > 8) return; // активна не основная рука хотбара
-        if (!moveToBackpack(inv, handSlot)) return; // некуда убрать — оставляем как есть
+        boolean moved = false;
 
-        player.inventoryMenu.broadcastChanges();
-        warn(player);
+        int handSlot = inv.selected;
+        if (handSlot >= 0 && handSlot <= 8) {
+            moved |= enforceSlot(player, inv, handSlot, player.getMainHandItem());
+        }
+        moved |= enforceSlot(player, inv, OFFHAND_SLOT, player.getOffhandItem());
+
+        if (moved) {
+            player.inventoryMenu.broadcastChanges();
+            warn(player);
+        }
+    }
+
+    /** Если в слоте запрещённое HOLD-оружие — перекладывает его в рюкзак. Возвращает true, если переместил. */
+    private static boolean enforceSlot(ServerPlayer player, Inventory inv, int slot, ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        EquipmentRoleIndex.LockInfo info = EquipmentRoleIndex.get().lookup(stack);
+        if (info == null || info.mode() != EquipmentRoleIndex.LockMode.HOLD) return false;
+        if (!isForbidden(player, stack)) return false;
+        return moveToBackpack(inv, slot);
     }
 
     /** Для обработчиков событий применения: запрещён ли предмет; при запрете шлёт троттленное сообщение. */
