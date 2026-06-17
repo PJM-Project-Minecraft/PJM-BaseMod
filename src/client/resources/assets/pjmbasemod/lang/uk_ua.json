@@ -149,6 +149,7 @@
   "gui.pjmbasemod.radial.role_none": "Роль не призначено",
   "gui.pjmbasemod.radial.current_role": "Роль: %s",
   "gui.pjmbasemod.role.required": "Потрібна роль: %s",
+  "gui.pjmbasemod.role.not_unlocked": "§cРоль %s ще не розблокована (доступна за донат).",
   "gui.pjmbasemod.role.locked_short": "Роль",
   "gui.pjmbasemod.rank.required": "Потрібне звання: %s",
   "gui.pjmbasemod.rank.locked_short": "Звання",

@@ -6,9 +6,11 @@ import net.minecraft.server.level.ServerPlayer;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
 import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
+import ru.liko.pjmbasemod.common.network.packet.RoleAccessSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RoleSyncPacket;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -73,7 +75,11 @@ public final class RoleService {
             return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.target_no_team"));
         }
 
-        if (actor != null && !RolePermissions.can(actor, RolePermissions.ADMIN)) {
+        boolean selfAssignPaid = actor != null && actor == target && role != null
+                && RoleAccessRegistry.get().isPaid(role)
+                && RolePermissions.canUseRole(target, role);
+
+        if (actor != null && !selfAssignPaid && !RolePermissions.can(actor, RolePermissions.ADMIN)) {
             String commanderTeam = FactionCommanderService.activeCommanderTeam(actor);
             if (commanderTeam == null) {
                 return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.no_assign_permission"));
@@ -92,6 +98,11 @@ public final class RoleService {
             }
             return AssignmentResult.success(Component.translatable("gui.pjmbasemod.role.cleared",
                     target.getName().getString()));
+        }
+
+        if (!RolePermissions.canUseRole(target, role)) {
+            return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.not_unlocked",
+                    Component.translatable(role.translationKey())));
         }
 
         AssignmentResult capResult = validateRoleCap(target.getServer(), target.getUUID(), targetTeam, role);
@@ -151,6 +162,18 @@ public final class RoleService {
         if (player == null || player.getServer() == null) return;
         PjmNetworking.sendToPlayer(player, new RoleSyncPacket(player.getUUID(),
                 currentRoleId(player), canAssignAny(player)));
+        PjmNetworking.sendToPlayer(player, new RoleAccessSyncPacket(selfAssignableRoleIds(player)));
+    }
+
+    /** id донат-ролей, которыми игрок владеет (может назначить себе сам). */
+    private static List<String> selfAssignableRoleIds(ServerPlayer player) {
+        List<String> ids = new ArrayList<>();
+        for (CombatRole role : CombatRole.values()) {
+            if (RoleAccessRegistry.get().isPaid(role) && RolePermissions.canUseRole(player, role)) {
+                ids.add(role.id());
+            }
+        }
+        return ids;
     }
 
     public static void syncAll(MinecraftServer server) {

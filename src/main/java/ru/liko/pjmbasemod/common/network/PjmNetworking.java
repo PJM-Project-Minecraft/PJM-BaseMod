@@ -13,7 +13,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "16";
+    public static final String VERSION = "17";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -58,6 +58,7 @@ public final class PjmNetworking {
         r.playToClient(RankSyncPacket.TYPE,     RankSyncPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> CLIENT.rankSync(p)));
         r.playToClient(RankXpPacket.TYPE,       RankXpPacket.STREAM_CODEC,       (p, ctx) -> ctx.enqueueWork(() -> CLIENT.rankXp(p)));
         r.playToClient(RoleSyncPacket.TYPE,     RoleSyncPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> CLIENT.roleSync(p)));
+        r.playToClient(RoleAccessSyncPacket.TYPE, RoleAccessSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.roleAccessSync(p)));
         r.playToClient(FactionCommanderSyncPacket.TYPE, FactionCommanderSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.factionCommanderSync(p)));
         r.playToClient(OpenWarehousePacket.TYPE, OpenWarehousePacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openWarehouse(p)));
         r.playToClient(WarehouseSyncPacket.TYPE, WarehouseSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.warehouseSync(p)));
@@ -69,7 +70,7 @@ public final class PjmNetworking {
         r.playToClient(SkinSelectionSyncPacket.TYPE, SkinSelectionSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.skinSelectionSync(p)));
         r.playToClient(HudConfigPacket.TYPE, HudConfigPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.hudConfig(p)));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 33);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 34);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {

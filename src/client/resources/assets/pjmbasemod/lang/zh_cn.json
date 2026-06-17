@@ -149,6 +149,7 @@
   "gui.pjmbasemod.radial.role_none": "未分配角色",
   "gui.pjmbasemod.radial.current_role": "角色：%s",
   "gui.pjmbasemod.role.required": "需要角色：%s",
+  "gui.pjmbasemod.role.not_unlocked": "§c职业 %s 尚未解锁（可通过捐赠获得）。",
   "gui.pjmbasemod.role.locked_short": "角色",
   "gui.pjmbasemod.rank.required": "需要军衔：%s",
   "gui.pjmbasemod.rank.locked_short": "军衔",

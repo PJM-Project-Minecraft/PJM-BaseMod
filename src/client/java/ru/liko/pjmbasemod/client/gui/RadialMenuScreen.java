@@ -164,8 +164,22 @@ public class RadialMenuScreen extends Screen {
         hoveredProgress = 0f;
         actions = new ArrayList<>();
 
-        boolean canAssign = ClientRoleState.canAssignRoles() && roleTargetId != null;
+        boolean commanderMode = ClientRoleState.canAssignRoles() && roleTargetId != null;
+        UUID selfId = Minecraft.getInstance().player != null
+                ? Minecraft.getInstance().player.getUUID()
+                : null;
+
         for (CombatRole role : CombatRole.values()) {
+            boolean enabled;
+            UUID assignTarget;
+            if (commanderMode) {
+                enabled = true;
+                assignTarget = roleTargetId;
+            } else {
+                enabled = ClientRoleState.isSelfAssignable(role);
+                assignTarget = selfId;
+            }
+            final UUID target = assignTarget;
             actions.add(new RadialAction(
                     Component.translatable(role.translationKey()),
                     0xFF000000 | role.color(),
@@ -173,15 +187,15 @@ public class RadialMenuScreen extends Screen {
                     null,
                     null,
                     role.id(),
-                    canAssign,
+                    enabled,
                     p -> {
-                        if (roleTargetId != null) {
-                            PjmNetworking.sendToServer(new SelectRolePacket(roleTargetId, role.id()));
+                        if (target != null) {
+                            PjmNetworking.sendToServer(new SelectRolePacket(target, role.id()));
                         }
                     }));
         }
 
-        if (ClientRoleState.canAssignRoles() && roleTargetId != null) {
+        if (commanderMode) {
             actions.add(new RadialAction(
                     Component.translatable("gui.pjmbasemod.radial.role_clear"),
                     0xFFB05050,

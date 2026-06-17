@@ -181,8 +181,9 @@ public final class PjmCommands {
         }
         if (all || section.equalsIgnoreCase("roles")) {
             int count = ru.liko.pjmbasemod.common.role.RoleLimitRegistry.get().reload();
+            int access = ru.liko.pjmbasemod.common.role.RoleAccessRegistry.get().reload();
             RoleService.syncAll(server);
-            report.append("лимиты ролей ").append(count).append("; ");
+            report.append("лимиты ролей ").append(count).append(", донат-ролей ").append(access).append("; ");
             sections++;
         }
         if (all || section.equalsIgnoreCase("inventory")) {
