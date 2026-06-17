@@ -81,6 +81,10 @@ public final class WarehouseItemDefinition {
      * Предпочтительный способ задавать TACZ-оружие — читаемо и не требует ручного NBT.
      */
     private TaczGunConfig tacz;
+    /** Запрещать ли применение/удержание этого предмета игроку не той роли (allowedRoles). По умолчанию false. */
+    private boolean roleLocked;
+    /** Режим блокировки: "auto" (TACZ-оружие → hold, иначе use), "use", "hold". По умолчанию "auto". */
+    private String lockMode;
 
     /** Конфиг TACZ-ствола из JSON-секции {@code "tacz"}. Поля парсятся Gson по именам. */
     public static final class TaczGunConfig {
@@ -190,6 +194,14 @@ public final class WarehouseItemDefinition {
 
     public boolean roleRestricted() {
         return allowedRoles != null && !allowedRoles.isEmpty();
+    }
+
+    /** Включён ли роль-лок применения/удержания для этого предмета. */
+    public boolean roleLocked() { return roleLocked; }
+
+    /** Режим блокировки: "auto" | "use" | "hold". */
+    public String lockMode() {
+        return lockMode == null || lockMode.isBlank() ? "auto" : lockMode;
     }
 
     public boolean hasInvalidAllowedRoles() {
@@ -376,6 +388,18 @@ public final class WarehouseItemDefinition {
         parsedComponents = null;
         templateParsed = false;
         templateStack = null;
+        if (lockMode != null) {
+            String lm = lockMode.trim().toLowerCase(java.util.Locale.ROOT);
+            if (lm.equals("auto") || lm.equals("use") || lm.equals("hold")) {
+                lockMode = lm;
+            } else {
+                ru.liko.pjmbasemod.Pjmbasemod.LOGGER.warn(
+                        "Warehouse: предмет '{}' имеет неизвестный lockMode '{}', использую auto.", id(), lockMode);
+                lockMode = "auto";
+            }
+        } else {
+            lockMode = "auto";
+        }
         if (displayCategory == null || displayCategory.isBlank()) displayCategory = pool().id();
         if (allowedRoles != null && !allowedRoles.isEmpty()) {
             List<String> normalized = CombatRole.normalizeList(allowedRoles);
