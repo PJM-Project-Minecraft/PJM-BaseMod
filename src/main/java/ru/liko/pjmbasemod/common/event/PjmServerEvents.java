@@ -172,6 +172,7 @@ public final class PjmServerEvents {
         ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.reload(event.getServer());
         VehicleRegistry.get().reload();
         WarehouseItemRegistry.get().reload();
+        ru.liko.pjmbasemod.common.inventory.EquipmentRoleIndex.get().rebuild();
         CrateRegistry.get().reload();
         RoleLimitRegistry.get().reload();
         RoleAccessRegistry.get().reload();
