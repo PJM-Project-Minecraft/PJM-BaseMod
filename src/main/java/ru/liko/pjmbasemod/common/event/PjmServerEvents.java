@@ -105,6 +105,7 @@ public final class PjmServerEvents {
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer sp) {
             ServerPacketHandlers.onPlayerLogout(sp);
+            ru.liko.pjmbasemod.common.inventory.EquipmentLockService.onPlayerLogout(sp.getUUID());
         }
     }
 

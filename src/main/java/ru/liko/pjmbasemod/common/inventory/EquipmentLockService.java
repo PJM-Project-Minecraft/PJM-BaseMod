@@ -86,4 +86,9 @@ public final class EquipmentLockService {
         player.displayClientMessage(
                 Component.translatable("gui.pjmbasemod.equipment.wrong_role"), true);
     }
+
+    /** Очистка состояния троттлинга при выходе игрока. */
+    public static void onPlayerLogout(UUID uuid) {
+        lastWarnTick.remove(uuid);
+    }
 }
