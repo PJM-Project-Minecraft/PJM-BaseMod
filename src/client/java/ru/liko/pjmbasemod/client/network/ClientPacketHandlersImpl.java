@@ -158,6 +158,7 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
 
     @Override
     public void roleAccessSync(RoleAccessSyncPacket payload) {
+        // UUID-фильтр не нужен: пакет без playerId, шлётся только владельцу (sendToPlayer) и описывает его собственные роли.
         ClientRoleState.updateAccess(payload);
     }
 
