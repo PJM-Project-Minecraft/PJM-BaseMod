@@ -11,30 +11,36 @@ import java.util.function.Predicate;
 
 public final class ClientRegionState {
 
-    private static long mapRevision;
-    private static List<RegionMapSyncPacket.RegionEntry> regions = List.of();
-    private static final Map<String, List<RegionMapSyncPacket.RegionEntry>> regionsByDimension = new LinkedHashMap<>();
-    private static final Map<String, Map<Long, String>> regionBorderNamesByDimension = new LinkedHashMap<>();
+    private static volatile long mapRevision;
+    private static volatile List<RegionMapSyncPacket.RegionEntry> regions = List.of();
+    // Атомарная подмена ссылок (volatile) — читатели (в т.ч. поток JourneyMap) всегда
+    // видят либо старую, либо полностью готовую структуру.
+    private static volatile Map<String, List<RegionMapSyncPacket.RegionEntry>> regionsByDimension = Map.of();
+    private static volatile Map<String, Map<Long, String>> regionBorderNamesByDimension = Map.of();
 
     private ClientRegionState() {}
 
     public static void updateMap(RegionMapSyncPacket packet) {
-        regions = List.copyOf(packet.regions());
-        regionsByDimension.clear();
-        regionBorderNamesByDimension.clear();
+        List<RegionMapSyncPacket.RegionEntry> newRegions = List.copyOf(packet.regions());
+        Map<String, List<RegionMapSyncPacket.RegionEntry>> newByDim = new LinkedHashMap<>();
+        Map<String, Map<Long, String>> newBorders = new LinkedHashMap<>();
 
-        for (RegionMapSyncPacket.RegionEntry region : regions) {
+        for (RegionMapSyncPacket.RegionEntry region : newRegions) {
             String dimension = normalizeDimensionId(region.dimension());
-            regionsByDimension.computeIfAbsent(dimension, ignored -> new ArrayList<>()).add(region);
+            newByDim.computeIfAbsent(dimension, ignored -> new ArrayList<>()).add(region);
         }
 
-        for (Map.Entry<String, List<RegionMapSyncPacket.RegionEntry>> entry : regionsByDimension.entrySet()) {
+        for (Map.Entry<String, List<RegionMapSyncPacket.RegionEntry>> entry : newByDim.entrySet()) {
             Map<Long, String> borders = new LinkedHashMap<>();
             for (RegionMapSyncPacket.RegionEntry region : entry.getValue()) {
                 addRegionBorder(borders, region);
             }
-            regionBorderNamesByDimension.put(entry.getKey(), borders);
+            newBorders.put(entry.getKey(), borders);
         }
+
+        regions = newRegions;
+        regionsByDimension = newByDim;
+        regionBorderNamesByDimension = newBorders;
 
         mapRevision++;
     }
@@ -100,8 +106,8 @@ public final class ClientRegionState {
 
     public static void reset() {
         regions = List.of();
-        regionsByDimension.clear();
-        regionBorderNamesByDimension.clear();
+        regionsByDimension = Map.of();
+        regionBorderNamesByDimension = Map.of();
         mapRevision++;
     }
 

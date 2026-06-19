@@ -13,6 +13,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -52,6 +53,9 @@ public class RadialMenuScreen extends Screen {
     private float openProgress = 0f;
     private float hoveredProgress = 0f;
     private boolean closing = false;
+
+    // Для FPS-независимых анимаций: время предыдущего кадра.
+    private long lastFrameNanos;
 
     private final Player targetPlayer;
     private Page page = Page.MAIN;
@@ -404,14 +408,23 @@ public class RadialMenuScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
 
+        // FPS-независимые коэффициенты сглаживания: зависят от реального времени кадра.
+        long now = System.nanoTime();
+        float dt = lastFrameNanos == 0L ? 1f / 60f : (now - lastFrameNanos) / 1_000_000_000f;
+        lastFrameNanos = now;
+        dt = Mth.clamp(dt, 0f, 0.1f);
+        float closeStep = 1f - (float) Math.exp(-dt * 9.7f);   // ≈ 0.15 при 60 FPS
+        float openStep  = 1f - (float) Math.exp(-dt * 30.6f);  // ≈ 0.4  при 60 FPS (partialTick≈0.5..1)
+        float hoverStep = 1f - (float) Math.exp(-dt * 40.5f);  // ≈ 0.5  при 60 FPS
+
         if (closing) {
-            openProgress = lerp(openProgress, 0f, 0.15f);
+            openProgress = lerp(openProgress, 0f, closeStep);
             if (openProgress < 0.03f) {
                 this.onClose();
                 return;
             }
         } else {
-            openProgress = lerp(openProgress, 1.0f, partialTick * 0.4f);
+            openProgress = lerp(openProgress, 1.0f, openStep);
         }
 
         float scale = 0.8f + (openProgress * 0.2f);
@@ -448,7 +461,7 @@ public class RadialMenuScreen extends Screen {
             }
             lastHoveredIndex = hoveredIndex;
         }
-        hoveredProgress = lerp(hoveredProgress, 1.0f, partialTick * 0.5f);
+        hoveredProgress = lerp(hoveredProgress, 1.0f, hoverStep);
 
         graphics.pose().pushPose();
         graphics.pose().translate(centerX, centerY, 0);

@@ -99,6 +99,26 @@ public final class PjmCommands {
                                 .executes(ctx -> debugOpenManagement(ctx.getSource(), requirePlayer(ctx.getSource())))
                                 .then(Commands.argument("target", EntityArgument.player())
                                         .executes(ctx -> debugOpenManagement(ctx.getSource(),
+                                                EntityArgument.getPlayer(ctx, "target")))))
+                        .then(Commands.literal("garage")
+                                .executes(ctx -> debugOpenGarage(ctx.getSource(), requirePlayer(ctx.getSource()), null))
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .executes(ctx -> debugOpenGarage(ctx.getSource(),
+                                                EntityArgument.getPlayer(ctx, "target"), null)))
+                                .then(Commands.literal("ground")
+                                        .executes(ctx -> debugOpenGarage(ctx.getSource(), requirePlayer(ctx.getSource()), "ground"))
+                                        .then(Commands.argument("target", EntityArgument.player())
+                                                .executes(ctx -> debugOpenGarage(ctx.getSource(),
+                                                        EntityArgument.getPlayer(ctx, "target"), "ground"))))
+                                .then(Commands.literal("aviation")
+                                        .executes(ctx -> debugOpenGarage(ctx.getSource(), requirePlayer(ctx.getSource()), "aviation"))
+                                        .then(Commands.argument("target", EntityArgument.player())
+                                                .executes(ctx -> debugOpenGarage(ctx.getSource(),
+                                                        EntityArgument.getPlayer(ctx, "target"), "aviation")))))
+                        .then(Commands.literal("warehouse")
+                                .executes(ctx -> debugOpenWarehouse(ctx.getSource(), requirePlayer(ctx.getSource())))
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .executes(ctx -> debugOpenWarehouse(ctx.getSource(),
                                                 EntityArgument.getPlayer(ctx, "target"))))));
     }
 
@@ -119,6 +139,28 @@ public final class PjmCommands {
         }
         source.sendSuccess(() -> Component.literal(
                 "Открыт экран управления фракцией у игрока " + target.getName().getString()), false);
+        return 1;
+    }
+
+    private static int debugOpenGarage(CommandSourceStack source, @Nullable ServerPlayer target, @Nullable String type) {
+        if (target == null) return 0;
+        if (type == null) {
+            GarageManager.openGarageAtPlayer(target);
+        } else {
+            GarageManager.openGarageAtPlayer(target,
+                    ru.liko.pjmbasemod.common.garage.GarageType.fromString(type));
+        }
+        String typeSuffix = type == null ? "" : " (" + type + ")";
+        source.sendSuccess(() -> Component.literal(
+                "Открыт гараж" + typeSuffix + " у игрока " + target.getName().getString()), false);
+        return 1;
+    }
+
+    private static int debugOpenWarehouse(CommandSourceStack source, @Nullable ServerPlayer target) {
+        if (target == null) return 0;
+        ru.liko.pjmbasemod.common.warehouse.WarehouseManager.openWarehouseDebug(target);
+        source.sendSuccess(() -> Component.literal(
+                "Открыт склад (debug) у игрока " + target.getName().getString()), false);
         return 1;
     }
 

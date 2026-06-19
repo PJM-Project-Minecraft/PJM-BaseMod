@@ -2,9 +2,9 @@ package ru.liko.pjmbasemod.client.gui.screen;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
 import ru.liko.pjmbasemod.common.faction.FactionManagementSnapshot;
 import ru.liko.pjmbasemod.common.faction.FactionSelectionSnapshot;
@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.UUID;
 
-public class FactionManagementScreen extends Screen {
+public class FactionManagementScreen extends PjmBaseScreen {
 
     private static final int GUI_WIDTH = 520;
     private static final int GUI_HEIGHT = 300;
@@ -30,7 +30,7 @@ public class FactionManagementScreen extends Screen {
     private float appear;
 
     public FactionManagementScreen(FactionManagementSnapshot snapshot) {
-        super(Component.translatable("gui.pjmbasemod.faction.manage.title"));
+        super(Component.translatable("gui.pjmbasemod.faction.manage.title"), GUI_WIDTH, GUI_HEIGHT);
         this.snapshot = snapshot;
     }
 
@@ -53,13 +53,6 @@ public class FactionManagementScreen extends Screen {
         clampScroll();
     }
 
-    private int guiLeft() {
-        return (width - GUI_WIDTH) / 2;
-    }
-
-    private int guiTop() {
-        return (height - GUI_HEIGHT) / 2;
-    }
 
     private int rowsVisible() {
         return Math.max(1, (GUI_HEIGHT - HEADER_HEIGHT - 20) / MEMBER_ROW_HEIGHT);
@@ -79,23 +72,17 @@ public class FactionManagementScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+    protected boolean mouseScrolledScaled(int mouseX, int mouseY, double scrollX, double scrollY) {
         if (scrollY != 0) {
             scroll -= (int) Math.signum(scrollY);
             clampScroll();
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        return super.mouseScrolledScaled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
-    }
-
-    @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
+    protected void renderScaled(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
 
         float eased = easeOut(appear);
         int left = guiLeft();
@@ -187,8 +174,8 @@ public class FactionManagementScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+    protected boolean mouseClickedScaled(int mouseX, int mouseY, int button) {
+        if (button != 0) return super.mouseClickedScaled(mouseX, mouseY, button);
         int left = guiLeft();
         int top = guiTop() + Math.round((1.0F - easeOut(appear)) * 14.0F);
 
@@ -212,7 +199,7 @@ public class FactionManagementScreen extends Screen {
         }
 
         FactionManagementSnapshot.MemberEntry member = selectedMemberEntry();
-        if (member == null) return super.mouseClicked(mouseX, mouseY, button);
+        if (member == null) return super.mouseClickedScaled(mouseX, mouseY, button);
 
         int roleX = left + SIDEBAR_WIDTH + 12;
         int roleY = top + HEADER_HEIGHT + 40;
@@ -237,7 +224,7 @@ public class FactionManagementScreen extends Screen {
             return true;
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClickedScaled(mouseX, mouseY, button);
     }
 
     @Nullable
@@ -261,15 +248,11 @@ public class FactionManagementScreen extends Screen {
     }
 
     private String ellipsize(String text, int maxWidth) {
-        if (font.width(text) <= maxWidth) return text;
-        return font.plainSubstrByWidth(text, Math.max(0, maxWidth - font.width("..."))) + "...";
+        return PjmGuiUtils.ellipsize(font, text, maxWidth);
     }
 
     private void drawBorder(GuiGraphics graphics, int x, int y, int w, int h, int color) {
-        graphics.fill(x - 1, y - 1, x + w + 1, y, color);
-        graphics.fill(x - 1, y + h, x + w + 1, y + h + 1, color);
-        graphics.fill(x - 1, y, x, y + h, color);
-        graphics.fill(x + w, y, x + w + 1, y + h, color);
+        PjmGuiUtils.drawBorder(graphics, x, y, w, h, color);
     }
 
     private static float easeOut(float value) {
