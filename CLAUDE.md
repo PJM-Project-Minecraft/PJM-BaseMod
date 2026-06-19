@@ -143,6 +143,7 @@ HUD: `client/gui/overlay/FrontlineHudOverlay`.
 
 **Экраны** (`client/gui/screen/`): `FactionSelectionScreen`, `FactionManagementScreen`, `GarageScreen`, `WarehouseScreen`, `TacticalMainMenuScreen`, `RadialMenuScreen` (радиальное меню выбора).
 GUI — кастомные `Screen` **без `AbstractContainerMenu`**.
+Полноэкранные меню наследуют **`PjmBaseScreen`** (`client/gui/screen/`): автоматическое масштабирование панели через `PoseStack`, чтобы не вылезала за края при любом разрешении. Рисуй в `renderScaled()`, мышь — в `*Scaled`-методах. Подробности и шаблон — [`docs/GUI_SCREENS.md`](./docs/GUI_SCREENS.md).
 
 **Оверлеи** (`client/gui/overlay/`): `FrontlineHudOverlay`, `RankHudOverlay`, `HudOverlay`, `NotificationOverlay`, `VoiceChatOverlay`, `CustomHotbarOverlay`, `CancelVanillaHotbar`.
 
