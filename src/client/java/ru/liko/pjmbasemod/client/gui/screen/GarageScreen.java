@@ -26,15 +26,16 @@ import ru.liko.pjmbasemod.common.network.packet.RecycleVehiclePacket;
 import ru.liko.pjmbasemod.common.network.packet.SpawnVehiclePacket;
 import ru.liko.pjmbasemod.common.network.packet.StoreVehiclePacket;
 
-import net.minecraft.client.gui.screens.Screen;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 
+import net.minecraft.client.gui.screens.Screen;
 import javax.annotation.Nullable;
 
 /**
  * GUI виртуального гаража: вкладка «Сборка» (каталог техники со стоимостью) и
  * вкладка «Гараж» (сохранённые экземпляры для спавна).
  */
-public class GarageScreen extends Screen {
+public class GarageScreen extends PjmBaseScreen {
 
     private static final int GUI_WIDTH = 480;
     private static final int GUI_HEIGHT = 280;
@@ -108,7 +109,7 @@ public class GarageScreen extends Screen {
     }
 
     public GarageScreen(GarageSnapshot snapshot) {
-        super(Component.translatable("gui.pjmbasemod.garage.title"));
+        super(Component.translatable("gui.pjmbasemod.garage.title"), GUI_WIDTH, GUI_HEIGHT);
         this.snapshot = snapshot;
     }
 
@@ -132,9 +133,6 @@ public class GarageScreen extends Screen {
         super.init();
         clampScroll();
     }
-
-    private int guiLeft() { return (width - GUI_WIDTH) / 2; }
-    private int guiTop() { return (height - GUI_HEIGHT) / 2; }
 
     private int rowsVisible() {
         int listHeight = GUI_HEIGHT - HEADER_HEIGHT - 20;
@@ -160,6 +158,11 @@ public class GarageScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        return mouseScrolledScaled(vMouseX(mouseX), vMouseY(mouseY), scrollX, scrollY);
+    }
+
+    @Override
+    protected boolean mouseScrolledScaled(int mouseX, int mouseY, double scrollX, double scrollY) {
         if (spawnMenuOpen()) {
             if (scrollY != 0) {
                 int max = Math.max(0, spawnOptions.size() - spawnMenuRows());
@@ -179,7 +182,7 @@ public class GarageScreen extends Screen {
             clampScroll();
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        return super.mouseScrolledScaled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
@@ -200,7 +203,12 @@ public class GarageScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+        return mouseClickedScaled(vMouseX(mouseX), vMouseY(mouseY), button);
+    }
+
+    @Override
+    protected boolean mouseClickedScaled(int mouseX, int mouseY, int button) {
+        if (button != 0) return super.mouseClickedScaled(mouseX, mouseY, button);
 
         if (spawnMenuOpen()) {
             return handleSpawnMenuClick(mouseX, mouseY);
@@ -304,19 +312,17 @@ public class GarageScreen extends Screen {
             }
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClickedScaled(mouseX, mouseY, button);
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
-
+    protected void renderScaled(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int left = guiLeft();
         int top = guiTop();
 
         // Основной фон окна
         graphics.fill(left, top, left + GUI_WIDTH, top + GUI_HEIGHT, 0xF216161A);
-        
+
         // Обводка окна
         graphics.fill(left - 1, top - 1, left + GUI_WIDTH + 1, top, 0xFF353540);
         graphics.fill(left - 1, top + GUI_HEIGHT, left + GUI_WIDTH + 1, top + GUI_HEIGHT + 1, 0xFF353540);
@@ -328,14 +334,6 @@ public class GarageScreen extends Screen {
 
         // Сайдбар
         graphics.fill(left, top + HEADER_HEIGHT, left + SIDEBAR_WIDTH, top + GUI_HEIGHT, 0xFF1A1A20);
-    }
-
-    @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
-
-        int left = guiLeft();
-        int top = guiTop();
 
         // Меню выбора (модальный оверлей): рисуем только его, контент гаража пропускаем,
         // чтобы 3D-превью техники не просвечивало поверх меню через depth-буфер.

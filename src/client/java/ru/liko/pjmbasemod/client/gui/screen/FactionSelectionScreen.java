@@ -3,11 +3,11 @@ package ru.liko.pjmbasemod.client.gui.screen;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
 import ru.liko.pjmbasemod.common.faction.FactionSelectionSnapshot;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
@@ -23,7 +23,7 @@ import java.util.Map;
  * меню мода (Warehouse / TacticalMainMenu): ванильный блюр-фон, карточки с hover-анимацией и левой
  * акцент-линией, сглаженные иконки, оверлей-замок для недоступных ролей.
  */
-public class FactionSelectionScreen extends Screen {
+public class FactionSelectionScreen extends PjmBaseScreen {
 
     private static final int GUI_WIDTH = 520;
     private static final int GUI_HEIGHT = 320;
@@ -72,7 +72,7 @@ public class FactionSelectionScreen extends Screen {
     private float confirmAnim;
 
     public FactionSelectionScreen(FactionSelectionSnapshot snapshot) {
-        super(Component.translatable("gui.pjmbasemod.faction.selection.title"));
+        super(Component.translatable("gui.pjmbasemod.faction.selection.title"), GUI_WIDTH, GUI_HEIGHT);
         this.snapshot = snapshot;
         initSelection();
     }
@@ -105,13 +105,6 @@ public class FactionSelectionScreen extends Screen {
         selectDefaultRole();
     }
 
-    private int guiLeft() {
-        return (width - GUI_WIDTH) / 2;
-    }
-
-    private int guiTop() {
-        return (height - GUI_HEIGHT) / 2;
-    }
 
     private int contentLeft(int left) {
         return left + SIDEBAR_WIDTH + 14;
@@ -140,15 +133,9 @@ public class FactionSelectionScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        // Ванильный блюр + затемнение, как в остальных внутриигровых меню.
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
-        graphics.fill(0, 0, width, height, COLOR_SCRIM);
-    }
-
-    @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
+    protected void renderScaled(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        // Затемнение поверх блюра
+        graphics.fill(0, 0, vWidth(), vHeight(), COLOR_SCRIM);
 
         float eased = easeOut(appear);
         int alpha = Math.round(255 * eased);
@@ -294,28 +281,22 @@ public class FactionSelectionScreen extends Screen {
     }
 
     private void drawScrollbar(GuiGraphics graphics, int x, int y, int height, int total, int visible) {
-        if (total <= visible) return;
-        int trackW = 3;
-        graphics.fill(x, y, x + trackW, y + height, 0xFF15151A);
-        int thumbH = Math.max(12, height * visible / total);
-        int maxScroll = total - visible;
-        int thumbY = y + (height - thumbH) * roleScroll / Math.max(1, maxScroll);
-        graphics.fill(x, thumbY, x + trackW, thumbY + thumbH, 0xFF454552);
+        PjmGuiUtils.drawScrollbar(graphics, x, y, height, total, visible, roleScroll);
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+    protected boolean mouseScrolledScaled(int mouseX, int mouseY, double scrollX, double scrollY) {
         if (scrollY != 0) {
             roleScroll -= (int) Math.signum(scrollY);
             clampScroll();
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        return super.mouseScrolledScaled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+    protected boolean mouseClickedScaled(int mouseX, int mouseY, int button) {
+        if (button != 0) return super.mouseClickedScaled(mouseX, mouseY, button);
 
         int left = guiLeft();
         int top = guiTop() + Math.round((1.0F - easeOut(appear)) * 18.0F);
@@ -326,7 +307,7 @@ public class FactionSelectionScreen extends Screen {
         int teamW = SIDEBAR_WIDTH - 20;
         for (int i = 0; i < snapshot.teams().size(); i++) {
             int y = teamY + i * TEAM_ROW_HEIGHT;
-            if (inside(mouseX, mouseY, teamX, y, teamW, TEAM_ROW_HEIGHT - 4)) {
+            if (inside((double)mouseX, (double)mouseY, teamX, y, teamW, TEAM_ROW_HEIGHT - 4)) {
                 if (selectedTeam != i) {
                     selectedTeam = i;
                     selectDefaultRole();
@@ -349,7 +330,7 @@ public class FactionSelectionScreen extends Screen {
             for (int i = roleScroll; i < roles.size() && i < roleScroll + rows; i++) {
                 FactionSelectionSnapshot.RoleEntry role = roles.get(i);
                 boolean current = team.id().equals(snapshot.currentTeam()) && role.id().equals(snapshot.currentRole());
-                if (inside(mouseX, mouseY, roleX, y, roleW, ROLE_ROW_HEIGHT - 4)) {
+                if (inside((double)mouseX, (double)mouseY, roleX, y, roleW, ROLE_ROW_HEIGHT - 4)) {
                     if (role.available() || current) {
                         selectedRole = role.id();
                         PjmUiSounds.playClick();
@@ -364,12 +345,12 @@ public class FactionSelectionScreen extends Screen {
         int confirmX = contentLeft(left);
         int confirmW = contentWidth();
         int confirmY = top + GUI_HEIGHT - CONFIRM_HEIGHT - 10;
-        if (confirmEnabled() && inside(mouseX, mouseY, confirmX, confirmY, confirmW, CONFIRM_HEIGHT)) {
+        if (confirmEnabled() && inside((double)mouseX, (double)mouseY, confirmX, confirmY, confirmW, CONFIRM_HEIGHT)) {
             submitSelection();
             return true;
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClickedScaled(mouseX, mouseY, button);
     }
 
     private void submitSelection() {
@@ -448,19 +429,11 @@ public class FactionSelectionScreen extends Screen {
     }
 
     private String ellipsize(String text, int maxWidth) {
-        if (font.width(text) <= maxWidth) return text;
-        return font.plainSubstrByWidth(text, Math.max(0, maxWidth - font.width("..."))) + "...";
+        return PjmGuiUtils.ellipsize(font, text, maxWidth);
     }
 
     private void drawSmoothIcon(GuiGraphics graphics, ResourceLocation icon, int x, int y, int w, int h, float alpha) {
-        RenderSystem.enableBlend();
-        RenderSystem.setShaderTexture(0, icon);
-        RenderSystem.texParameter(3553, 10241, 9729); // GL_TEXTURE_MIN_FILTER, GL_LINEAR
-        RenderSystem.texParameter(3553, 10240, 9729); // GL_TEXTURE_MAG_FILTER, GL_LINEAR
-        graphics.setColor(1.0F, 1.0F, 1.0F, alpha);
-        graphics.blit(icon, x, y, 0, 0, w, h, w, h);
-        graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
-        RenderSystem.disableBlend();
+        PjmGuiUtils.drawSmoothIcon(graphics, icon, x, y, w, h, alpha);
     }
 
     private static boolean inside(double mouseX, double mouseY, int x, int y, int w, int h) {
@@ -468,14 +441,11 @@ public class FactionSelectionScreen extends Screen {
     }
 
     private void drawBorder(GuiGraphics graphics, int x, int y, int w, int h, int color) {
-        graphics.fill(x - 1, y - 1, x + w + 1, y, color);
-        graphics.fill(x - 1, y + h, x + w + 1, y + h + 1, color);
-        graphics.fill(x - 1, y, x, y + h, color);
-        graphics.fill(x + w, y, x + w + 1, y + h, color);
+        PjmGuiUtils.drawBorder(graphics, x, y, w, h, color);
     }
 
     private static int withAlpha(int color, int alpha) {
-        return (Mth.clamp(alpha, 0, 255) << 24) | (color & 0x00FFFFFF);
+        return PjmGuiUtils.withAlpha(color, alpha);
     }
 
     private static float lerp(float current, float target) {
@@ -484,17 +454,7 @@ public class FactionSelectionScreen extends Screen {
     }
 
     private static int lerpColor(int from, int to, float t) {
-        int a = lerpChannel(from, to, t, 24);
-        int r = lerpChannel(from, to, t, 16);
-        int g = lerpChannel(from, to, t, 8);
-        int b = lerpChannel(from, to, t, 0);
-        return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-
-    private static int lerpChannel(int from, int to, float t, int shift) {
-        int f = (from >> shift) & 0xFF;
-        int v = (to >> shift) & 0xFF;
-        return Mth.clamp(Math.round(f + (v - f) * t), 0, 255);
+        return PjmGuiUtils.lerpColor(from, to, t);
     }
 
     private static float easeOut(float value) {
