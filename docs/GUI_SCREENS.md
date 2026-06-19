@@ -183,9 +183,33 @@ if (closeRect().contains(mouseX, mouseY)) { onClose(); return true; }
 - Затемняй фон под оверлеем: `g.fill(0, 0, vWidth(), vHeight(), 0xB0000000)`.
 - Клики оверлея обрабатывай в начале `mouseClickedScaled()` с ранним `return`.
 
+## Анимации (FPS-независимость)
+
+Анимации, обновляемые из `renderScaled()`/`render()`, выполняются **раз в кадр**, поэтому фиксированный шаг привязывает скорость к FPS: `x += (target - x) * 0.3f` на 30 и 240 FPS бежит по-разному. Так же неверно использовать `partialTick` как коэффициент сглаживания — это доля игрового тика, а не дельта времени кадра.
+
+Правильно — экспоненциальное сглаживание по реальному времени кадра:
+
+```java
+private long lastFrameNanos;
+private float animStep = 0.3f;
+
+// в начале renderScaled():
+long now = System.nanoTime();
+float dt = lastFrameNanos == 0L ? 1f / 60f : (now - lastFrameNanos) / 1_000_000_000f;
+lastFrameNanos = now;
+dt = Mth.clamp(dt, 0f, 0.1f);            // защита от скачков (лаг/пауза)
+animStep = 1f - (float) Math.exp(-dt * 21.3f); // 21.3 ≈ соответствует шагу 0.3 при 60 FPS
+
+// далее: x += (target - x) * animStep;
+```
+
+Коэффициент `k` в `exp(-dt * k)` подбирается так, чтобы при 60 FPS совпасть со старым шагом: `k ≈ step_60fps * 60`. Примеры — `FactionSelectionScreen` (hover-лерпы) и `RadialMenuScreen` (open/hover).
+
+**Исключение:** анимации, обновляемые в `tick()` (ваниль зовёт его фиксированно 20 раз/с, например `appear`), уже FPS-независимы — их трогать не нужно.
+
 ## Эталонные примеры
 
 - **`GarageScreen`** — вкладки, список, скроллбар, 3D-превью сущности, модальные оверлеи.
 - **`WarehouseScreen`** — сайдбар категорий, список с двумя кнопками на строку, панель очков.
-- **`FactionSelectionScreen`** — две колонки (фракции/роли), hover-анимации, затемняющий скрим.
+- **`FactionSelectionScreen`** — две колонки (фракции/роли), hover-анимации (FPS-независимые), затемняющий скрим.
 - **`FactionManagementScreen`** — список участников + панель ролей.
