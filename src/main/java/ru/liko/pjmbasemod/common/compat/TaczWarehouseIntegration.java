@@ -1,5 +1,6 @@
 package ru.liko.pjmbasemod.common.compat;
 
+import com.tacz.guns.api.DefaultAssets;
 import com.tacz.guns.api.TimelessAPI;
 import com.tacz.guns.api.item.IAmmo;
 import com.tacz.guns.api.item.IAttachment;
@@ -17,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import ru.liko.pjmbasemod.Pjmbasemod;
 
 import javax.annotation.Nullable;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -95,6 +97,35 @@ final class TaczWarehouseIntegration {
             }
         }
         return builder.build(lookup);
+    }
+
+    /**
+     * Считывает данные TACZ-ствола из стека в декларативную форму (для записи в конфиг командой additem).
+     * Возвращает {@code null}, если стек — не ствол или GunId пустой/неизвестный.
+     * Зеркально {@link #createGun}: читает gunId, патроны, режим огня, патрон в стволе и обвесы по слотам.
+     */
+    @Nullable
+    static TaczWarehouseCompat.CapturedGun captureGun(ItemStack stack) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof IGun iGun)) return null;
+        ResourceLocation gunId = iGun.getGunId(stack);
+        if (gunId == null || gunId.equals(DefaultAssets.EMPTY_GUN_ID) || gunId.getPath().isBlank()) {
+            return null;
+        }
+
+        int ammo = Math.max(0, iGun.getCurrentAmmoCount(stack));
+        FireMode fm = iGun.getFireMode(stack);
+        String fireMode = (fm == null || fm == FireMode.UNKNOWN) ? "" : fm.name();
+        boolean ammoInBarrel = iGun.hasBulletInBarrel(stack);
+
+        Map<String, String> attachments = new LinkedHashMap<>();
+        for (AttachmentType type : AttachmentType.values()) {
+            if (type == AttachmentType.NONE) continue;
+            ResourceLocation attId = iGun.getAttachmentId(stack, type);
+            if (attId == null || DefaultAssets.isEmptyAttachmentId(attId) || attId.getPath().isBlank()) continue;
+            attachments.put(type.name().toLowerCase(Locale.ROOT), attId.toString());
+        }
+
+        return new TaczWarehouseCompat.CapturedGun(gunId.toString(), ammo, fireMode, ammoInBarrel, attachments);
     }
 
     @Nullable

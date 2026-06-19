@@ -26,16 +26,22 @@ import java.util.Set;
  */
 public class WarehouseScreen extends PjmBaseScreen {
 
-    private static final int GUI_WIDTH = 460;
-    private static final int GUI_HEIGHT = 280;
-    private static final int SIDEBAR_WIDTH = 120;
-    private static final int HEADER_HEIGHT = 22;
-    private static final int POOL_BAR_HEIGHT = 32;
-    private static final int ROW_HEIGHT = 30;
-    private static final int BUTTON_WIDTH = 76;
-    private static final int BUTTON_HEIGHT = 18;
+    private static final int GUI_WIDTH = 600;
+    private static final int GUI_HEIGHT = 360;
+    private static final int SIDEBAR_WIDTH = 150;
+    private static final int HEADER_HEIGHT = 24;
+    private static final int POOL_BAR_HEIGHT = 34;
+    private static final int ROW_HEIGHT = 34;
+    private static final int BUTTON_WIDTH = 88;
+    private static final int BUTTON_HEIGHT = 20;
     private static final int BUTTON_GAP = 4;
-    private static final String EQUIPMENT_CATEGORY = "equipment";
+    private static final int CATEGORY_ROW_HEIGHT = 22;
+    private static final int CATEGORY_ROW_STEP = 26;
+    /** Категории, которые показываются всегда (даже если предметов нет): постоянные разделы магазина. */
+    private static final List<String> ALWAYS_SHOWN_CATEGORIES = List.of("attachment", "grenade", "equipment");
+    /** Канонический порядок вкладок-категорий в сайдбаре; неизвестные — в конец по алфавиту. */
+    private static final List<String> CATEGORY_ORDER = List.of(
+            "weapon", "ammo", "attachment", "grenade", "equipment", "medicine", "food", "raw", "vehicle", "special");
     private static final ResourceLocation LOCK_TEXTURE = ResourceLocation.fromNamespaceAndPath(
             Pjmbasemod.MODID, "textures/icon/lock.png");
     private static final ResourceLocation CLOSE_ICON = ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/icon/close.png");
@@ -83,9 +89,17 @@ public class WarehouseScreen extends PjmBaseScreen {
         for (WarehouseSnapshot.ItemEntry item : snapshot.items()) {
             distinct.add(item.displayCategory());
         }
-        distinct.add(EQUIPMENT_CATEGORY);
+        distinct.addAll(ALWAYS_SHOWN_CATEGORIES);
+        List<String> ordered = new ArrayList<>(distinct);
+        ordered.sort((a, b) -> {
+            int ia = CATEGORY_ORDER.indexOf(a);
+            int ib = CATEGORY_ORDER.indexOf(b);
+            if (ia < 0) ia = Integer.MAX_VALUE;
+            if (ib < 0) ib = Integer.MAX_VALUE;
+            return ia != ib ? Integer.compare(ia, ib) : a.compareTo(b);
+        });
         categories.clear();
-        categories.addAll(distinct);
+        categories.addAll(ordered);
         selectedCategory = previous == null ? 0 : Math.max(0, categories.indexOf(previous));
         if (selectedCategory >= categories.size()) selectedCategory = 0;
     }
@@ -115,6 +129,13 @@ public class WarehouseScreen extends PjmBaseScreen {
         boolean contains(double mx, double my) {
             return mx >= x && mx <= x + w && my >= y && my <= y + h;
         }
+    }
+
+    /** Зона вкладки категории в сайдбаре — единый источник для рендера и клика. */
+    private Rect categoryRect(int index) {
+        int x = guiLeft() + 6;
+        int y = guiTop() + HEADER_HEIGHT + 6 + index * CATEGORY_ROW_STEP;
+        return new Rect(x, y, SIDEBAR_WIDTH - 12, CATEGORY_ROW_HEIGHT);
     }
 
     private Rect withdrawRect(int rowY) {
@@ -181,10 +202,8 @@ public class WarehouseScreen extends PjmBaseScreen {
         }
 
         // Вкладки категорий
-        int catTop = top + HEADER_HEIGHT + 6;
         for (int i = 0; i < categories.size(); i++) {
-            int y = catTop + i * 24;
-            if (mouseX >= left + 6 && mouseX <= left + SIDEBAR_WIDTH - 6 && mouseY >= y && mouseY <= y + 20) {
+            if (categoryRect(i).contains(mouseX, mouseY)) {
                 if (selectedCategory != i) {
                     PjmUiSounds.playClick();
                     selectedCategory = i;
@@ -238,21 +257,31 @@ public class WarehouseScreen extends PjmBaseScreen {
         graphics.drawString(this.font, getTitle(), left + 8, top + 7, 0xFFE8E8E8, false);
         drawSmoothIcon(graphics, CLOSE_ICON, left + GUI_WIDTH - 19, top + 4, 14, 14);
 
+        // Личный лимит (анти-«пылесос»): остаток/потолок справа в хедере. max=0 — лимит выключен.
+        if (snapshot.personalBudgetMax() > 0) {
+            String budgetText = Component.translatable("gui.pjmbasemod.warehouse.budget",
+                    snapshot.personalBudget(), snapshot.personalBudgetMax()).getString();
+            boolean low = snapshot.personalBudget() <= 0;
+            int budgetW = this.font.width(budgetText);
+            graphics.drawString(this.font, budgetText, left + GUI_WIDTH - 30 - budgetW, top + 7,
+                    low ? 0xFFD16C6C : 0xFF6FC36F, false);
+        }
+
         // Сайдбар
         graphics.fill(left, top + HEADER_HEIGHT, left + SIDEBAR_WIDTH, top + GUI_HEIGHT, 0xFF1A1A20);
-        int catTop = top + HEADER_HEIGHT + 6;
         for (int i = 0; i < categories.size(); i++) {
-            int y = catTop + i * 24;
+            Rect r = categoryRect(i);
             boolean selected = i == selectedCategory;
-            graphics.fill(left + 6, y, left + SIDEBAR_WIDTH - 6, y + 20, selected ? 0xFF35506E : 0xFF26262E);
-            
+            graphics.fill(r.x(), r.y(), r.x() + r.w(), r.y() + r.h(), selected ? 0xFF35506E : 0xFF26262E);
+
             ResourceLocation icon = getCategoryIcon(categories.get(i));
             String label = Component.translatable("gui.pjmbasemod.warehouse.category." + categories.get(i)).getString();
+            int textY = r.y() + (r.h() - 8) / 2;
             if (icon != null) {
-                drawSmoothIcon(graphics, icon, left + 10, y + 3, 14, 14);
-                graphics.drawString(this.font, label, left + 28, y + 6, selected ? 0xFFFFFFFF : 0xFFB8B8B8, false);
+                drawSmoothIcon(graphics, icon, r.x() + 5, r.y() + (r.h() - 14) / 2, 14, 14);
+                graphics.drawString(this.font, label, r.x() + 24, textY, selected ? 0xFFFFFFFF : 0xFFB8B8B8, false);
             } else {
-                graphics.drawString(this.font, label, left + 12, y + 6, selected ? 0xFFFFFFFF : 0xFFB8B8B8, false);
+                graphics.drawString(this.font, label, r.x() + 8, textY, selected ? 0xFFFFFFFF : 0xFFB8B8B8, false);
             }
         }
 

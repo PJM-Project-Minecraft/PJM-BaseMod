@@ -118,6 +118,9 @@ public final class Config {
     public static int getFrontlineJourneyMapRegionBorderColorRgb() { return data().frontline.journeymap.regionBorderColorRgb; }
     public static List<? extends String> getStartupCommands() { return data().commands.startup; }
     public static boolean isGarageEnabled() { return data().garage.enabled; }
+    public static boolean isWarehousePersonalBudgetEnabled() { return data().warehouse.personalBudgetEnabled; }
+    public static int     getWarehousePersonalBudgetMax()    { return data().warehouse.personalBudgetMax; }
+    public static int     getWarehousePersonalBudgetRegenPerHour() { return data().warehouse.personalBudgetRegenPerHour; }
 
     public static List<ConfiguredTeam> getTeams() {
         return parseTeams(data().teams.definitions);
@@ -249,6 +252,7 @@ public final class Config {
         Region region = new Region();
         Frontline frontline = new Frontline();
         Garage garage = new Garage();
+        Warehouse warehouse = new Warehouse();
         Commands commands = new Commands();
 
         /** Заменяет null-секции дефолтами и зажимает числовые значения в допустимые диапазоны. */
@@ -259,6 +263,7 @@ public final class Config {
             if (region == null) region = new Region();
             if (frontline == null) frontline = new Frontline();
             if (garage == null) garage = new Garage();
+            if (warehouse == null) warehouse = new Warehouse();
             if (commands == null) commands = new Commands();
 
             if (teams.definitions == null) teams.definitions = new ArrayList<>();
@@ -267,6 +272,8 @@ public final class Config {
 
             hud.itemSwitchDisplayMs = clamp(hud.itemSwitchDisplayMs, 0L, 60_000L);
             region.maxChunks = clamp(region.maxChunks, 1, 1_000_000);
+            warehouse.personalBudgetMax = clamp(warehouse.personalBudgetMax, 0, 1_000_000);
+            warehouse.personalBudgetRegenPerHour = clamp(warehouse.personalBudgetRegenPerHour, 0, 1_000_000);
 
             frontline.normalize();
         }
@@ -364,6 +371,15 @@ public final class Config {
 
     static final class Garage {
         boolean enabled = true;
+    }
+
+    static final class Warehouse {
+        /** Личный лимит очков на игрока (анти-«пылесос»): не даёт одному выкачать весь склад. */
+        boolean personalBudgetEnabled = true;
+        /** Потолок личного бюджета очков. */
+        int personalBudgetMax = 100;
+        /** Скорость восстановления личного бюджета, очков в час. */
+        int personalBudgetRegenPerHour = 100;
     }
 
     static final class Commands {

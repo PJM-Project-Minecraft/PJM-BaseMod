@@ -95,6 +95,10 @@ public final class WarehouseCommands {
                                                                 IntegerArgumentType.getInteger(ctx, "cost"),
                                                                 IntegerArgumentType.getInteger(ctx, "quantity"),
                                                                 StringArgumentType.getString(ctx, "category"))))))))
+                .then(Commands.literal("removeitem")
+                        .then(Commands.argument("id", StringArgumentType.word())
+                                .suggests((ctx, b) -> suggestItems(b))
+                                .executes(ctx -> removeItem(ctx.getSource(), StringArgumentType.getString(ctx, "id")))))
                 .then(Commands.literal("npc")
                         .then(Commands.literal("spawn")
                                 .then(Commands.argument("warehouseId", StringArgumentType.word())
@@ -238,6 +242,22 @@ public final class WarehouseCommands {
         return 1;
     }
 
+    /** Удаляет предмет из каталога склада по id (только записи из items.json). */
+    private static int removeItem(CommandSourceStack source, String rawId) {
+        WarehouseItemRegistry registry = WarehouseItemRegistry.get();
+        String id = WarehouseItemRegistry.sanitizeId(rawId);
+        boolean removed = registry.removeAndSave(id);
+        if (!removed) {
+            source.sendFailure(Component.literal("Предмет '" + id
+                    + "' не найден в items.json (legacy-файлы items/ удаляются вручную)."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Предмет '" + id
+                + "' удалён из каталога. Осталось предметов: " + registry.size()), true);
+        source.sendSuccess(() -> Component.literal("Файл: " + registry.configPath()), false);
+        return 1;
+    }
+
     // ---------------------------------------------------------------- NPC
 
     private static int spawnNpc(CommandSourceStack source, String warehouseId) {
@@ -361,6 +381,13 @@ public final class WarehouseCommands {
     private static CompletableFuture<Suggestions> suggestWarehouses(CommandSourceStack source, SuggestionsBuilder builder) {
         for (String id : WarehouseSavedData.get(source.getServer()).ids()) {
             builder.suggest(id);
+        }
+        return builder.buildFuture();
+    }
+
+    private static CompletableFuture<Suggestions> suggestItems(SuggestionsBuilder builder) {
+        for (var def : WarehouseItemRegistry.get().all()) {
+            builder.suggest(def.id());
         }
         return builder.buildFuture();
     }

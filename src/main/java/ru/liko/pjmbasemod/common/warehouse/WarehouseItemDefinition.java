@@ -42,7 +42,8 @@ public final class WarehouseItemDefinition {
     /** Максимум за одну выдачу (0 — без ограничения уровня предмета). */
     private int maxPerWithdraw;
     /**
-     * Сколько очков возвращается при сдаче одной штуки на склад.
+     * Сколько очков возвращается при сдаче одной выдачи — пачки из {@link #quantity} штук
+     * (симметрично {@link #pointCost}). Сдача принимается только целыми пачнами, иначе возможен дюп очков.
      * {@code null} (поле отсутствует в JSON) — равно стоимости выдачи; {@code 0} — предмет не принимается.
      * Для предметов с прочностью фактическое начисление масштабируется по остатку прочности.
      */
@@ -143,6 +144,16 @@ public final class WarehouseItemDefinition {
 
     public String itemIdString() { return itemId == null ? "" : itemId; }
 
+    /**
+     * Эффективный id для иконки и имени в GUI. Для декларативного TACZ-ствола возвращает его {@code gunId}
+     * (напр. "tacz:ak47"), чтобы клиент собрал ствол с выставленным GunId — тогда отрисуется правильная
+     * модель и подтянется имя ствола. Для прочих предметов — обычный {@link #itemIdString()}.
+     */
+    public String iconId() {
+        if (hasTaczGun()) return tacz.gunId();
+        return itemIdString();
+    }
+
     public WarehousePoolCategory pool() {
         return WarehousePoolCategory.byIdOrDefault(pool, WarehousePoolCategory.SPECIAL);
     }
@@ -178,7 +189,22 @@ public final class WarehouseItemDefinition {
     @Nullable
     public TaczGunConfig taczGun() { return tacz; }
 
-    /** Базовый возврат очков за сдачу одной штуки; {@code null} → равен стоимости выдачи. */
+    /**
+     * Заполняет декларативный блок {@code tacz} считанными из стека данными ствола
+     * (используется командой {@code additem} для надёжного захвата GunId без сырого NBT).
+     */
+    public void setTaczGun(String gunId, int ammo, @Nullable String fireMode,
+                           @Nullable Boolean ammoInBarrel, @Nullable Map<String, String> attachments) {
+        TaczGunConfig cfg = new TaczGunConfig();
+        cfg.gunId = gunId;
+        cfg.ammo = Math.max(0, ammo);
+        cfg.fireMode = (fireMode == null || fireMode.isBlank()) ? null : fireMode;
+        cfg.ammoInBarrel = ammoInBarrel;
+        cfg.attachments = (attachments == null || attachments.isEmpty()) ? null : new java.util.LinkedHashMap<>(attachments);
+        this.tacz = cfg;
+    }
+
+    /** Базовый возврат очков за сдачу одной пачки ({@link #quantity} штук); {@code null} → равен стоимости выдачи. */
     public int refundValue() {
         return refundValue == null ? pointCost() : Math.max(0, refundValue);
     }
@@ -350,18 +376,45 @@ public final class WarehouseItemDefinition {
         return parsedComponents;
     }
 
-    /** Проверяет, что стек соответствует этой записи склада. */
+    /** Проверка соответствия по типу/gunId (без сверки полного NBT — для роль-лока инвентаря). */
     public boolean matchesStack(ItemStack stack) {
+        return matchesStack(stack, null);
+    }
+
+    /**
+     * Соответствует ли стек этой записи склада. Для TACZ-ствола сверяется реальный {@code gunId}
+     * (иначе можно сдать любой ствол того же базового предмета). Для предметов, захваченных через
+     * {@code additem} (поле {@link #itemNbt}), при наличии {@code lookup} дополнительно сверяются
+     * компоненты (NBT) с шаблоном — чтобы нельзя было сдать «пустой» предмет того же типа.
+     */
+    public boolean matchesStack(ItemStack stack, @Nullable net.minecraft.core.HolderLookup.Provider lookup) {
         if (stack.isEmpty()) return false;
+
+        // TACZ-ствол: строго по gunId.
+        if (hasTaczGun()) {
+            ResourceLocation gunId = ResourceLocation.tryParse(tacz.gunId());
+            return gunId != null && TaczWarehouseCompat.matches(stack, gunId);
+        }
+
         ResourceLocation loc = itemLocation();
         if (loc == null) return false;
 
         Item item = resolveItem();
         if (item != null) {
-            return stack.getItem() == item;
+            if (stack.getItem() != item) return false;
+        } else if (!TaczWarehouseCompat.matches(stack, loc)) {
+            return false;
         }
 
-        return TaczWarehouseCompat.matches(stack, loc);
+        // Сверка компонентов с захваченным шаблоном. Повреждаемые пропускаем: их ценность уже
+        // масштабируется по прочности при сдаче, а компонент durability у изношенного отличается.
+        if (hasItemNbt() && lookup != null && !stack.isDamageableItem()) {
+            ItemStack template = templateStack(lookup);
+            if (template != null && !template.isEmpty()) {
+                return ItemStack.isSameItemSameComponents(stack, template);
+            }
+        }
+        return true;
     }
 
     /** Проверка минимальной валидности определения. */

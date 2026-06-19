@@ -33,6 +33,21 @@ public final class TaczWarehouseCompat {
         return isLoaded() && TaczWarehouseIntegration.isGun(stack);
     }
 
+    /**
+     * Считанные из стека данные TACZ-ствола в декларативной форме (для записи в конфиг склада).
+     * Plain-record без ссылок на классы TACZ — безопасен для сборок без мода.
+     */
+    public record CapturedGun(String gunId, int ammo, String fireMode, boolean ammoInBarrel,
+                              Map<String, String> attachments) {}
+
+    /**
+     * Считывает данные TACZ-ствола из стека (gunId, патроны, режим огня, патрон в стволе, обвесы).
+     * Возвращает {@code null}, если TACZ не загружен или стек — не ствол.
+     */
+    public static CapturedGun captureGun(ItemStack stack) {
+        return isLoaded() ? TaczWarehouseIntegration.captureGun(stack) : null;
+    }
+
     /** Собирает декларативно описанный TACZ-ствол (id, патроны, режим огня, обвесы по слотам). */
     public static ItemStack createGun(HolderLookup.Provider lookup, String gunId, int ammo, String fireMode,
                                       Boolean ammoInBarrel, Map<String, String> attachments, int count) {

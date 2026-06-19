@@ -12,7 +12,8 @@ import java.util.Map;
  * Содержит баланс очков по пулам и список доступных через NPC предметов.
  */
 public record WarehouseSnapshot(String warehouseId, Map<WarehousePoolCategory, Integer> points,
-                                List<ItemEntry> items, boolean canWithdraw) {
+                                List<ItemEntry> items, boolean canWithdraw,
+                                int personalBudget, int personalBudgetMax, int personalBudgetRegenPerHour) {
 
     /** Выдаваемый предмет + рассчитанная для текущего склада доступность. */
     public record ItemEntry(String defId, String displayName, String itemId, String displayCategory,
@@ -29,6 +30,9 @@ public record WarehouseSnapshot(String warehouseId, Map<WarehousePoolCategory, I
     public static void write(FriendlyByteBuf buf, WarehouseSnapshot snapshot) {
         buf.writeUtf(snapshot.warehouseId());
         buf.writeBoolean(snapshot.canWithdraw());
+        buf.writeVarInt(snapshot.personalBudget());
+        buf.writeVarInt(snapshot.personalBudgetMax());
+        buf.writeVarInt(snapshot.personalBudgetRegenPerHour());
 
         for (WarehousePoolCategory pool : WarehousePoolCategory.values()) {
             buf.writeVarInt(snapshot.points().getOrDefault(pool, 0));
@@ -61,6 +65,9 @@ public record WarehouseSnapshot(String warehouseId, Map<WarehousePoolCategory, I
     public static WarehouseSnapshot read(FriendlyByteBuf buf) {
         String warehouseId = buf.readUtf();
         boolean canWithdraw = buf.readBoolean();
+        int personalBudget = buf.readVarInt();
+        int personalBudgetMax = buf.readVarInt();
+        int personalBudgetRegenPerHour = buf.readVarInt();
 
         EnumMap<WarehousePoolCategory, Integer> points = new EnumMap<>(WarehousePoolCategory.class);
         for (WarehousePoolCategory pool : WarehousePoolCategory.values()) {
@@ -95,6 +102,7 @@ public record WarehouseSnapshot(String warehouseId, Map<WarehousePoolCategory, I
                     roleAllowed, List.copyOf(allowedRoles), rankAllowed, requiredRankName));
         }
 
-        return new WarehouseSnapshot(warehouseId, points, List.copyOf(items), canWithdraw);
+        return new WarehouseSnapshot(warehouseId, points, List.copyOf(items), canWithdraw,
+                personalBudget, personalBudgetMax, personalBudgetRegenPerHour);
     }
 }

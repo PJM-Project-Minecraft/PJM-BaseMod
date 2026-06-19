@@ -202,22 +202,32 @@ public final class WarehouseItemRegistry {
             id = base + "_" + n;
         }
 
-        String snbt;
-        try {
-            // Полный SNBT предмета: {components:{...},count:..,id:"..."}.
-            snbt = stack.save(server.registryAccess()).toString();
-        } catch (Exception e) {
-            Pjmbasemod.LOGGER.error("Warehouse: не удалось сохранить NBT предмета '{}'", itemKey, e);
-            return null;
-        }
-
         // Имя не сохраняем: GUI сам подтянет локализованное имя предмета по itemId.
         String cat = (category == null || category.isBlank()) ? pool.id() : category.trim();
         int qty = Math.max(1, quantity);
         WarehouseItemDefinition def = new WarehouseItemDefinition(id, "", itemKey.toString(),
                 pool, cat, Math.max(1, cost), qty);
         def.setQuantity(qty);
-        def.setItemNbt(snbt);
+
+        // TACZ-ствол захватываем через родной API (gunId, патроны, режим огня, обвесы) — надёжнее
+        // сырого NBT: декларативный блок tacz гарантированно восстанавливает GunId при выдаче.
+        ru.liko.pjmbasemod.common.compat.TaczWarehouseCompat.CapturedGun gun =
+                ru.liko.pjmbasemod.common.compat.TaczWarehouseCompat.captureGun(stack);
+        if (gun != null) {
+            def.setTaczGun(gun.gunId(), gun.ammo(), gun.fireMode(), gun.ammoInBarrel(), gun.attachments());
+            Pjmbasemod.LOGGER.info("Warehouse: захвачен TACZ-ствол '{}' (gunId={}, патроны={}, обвесов={}).",
+                    id, gun.gunId(), gun.ammo(), gun.attachments().size());
+        } else {
+            String snbt;
+            try {
+                // Полный SNBT предмета: {components:{...},count:..,id:"..."}.
+                snbt = stack.save(server.registryAccess()).toString();
+            } catch (Exception e) {
+                Pjmbasemod.LOGGER.error("Warehouse: не удалось сохранить NBT предмета '{}'", itemKey, e);
+                return null;
+            }
+            def.setItemNbt(snbt);
+        }
         def.normalize();
         if (!def.isValid()) {
             Pjmbasemod.LOGGER.warn("Warehouse: захваченный предмет '{}' не прошёл валидацию.", itemKey);
@@ -228,6 +238,21 @@ public final class WarehouseItemRegistry {
         Pjmbasemod.LOGGER.info("Warehouse: предмет '{}' дозаписан в {} (всего предметов в каталоге: {})",
                 id, configFile().toAbsolutePath(), definitions.size());
         return id;
+    }
+
+    /**
+     * Удаляет определение предмета по id из {@code items.json} и перезагружает каталог.
+     * Возвращает {@code true}, если запись была найдена и удалена.
+     * Предметы из legacy-каталога {@code items/} этой командой не удаляются.
+     */
+    public synchronized boolean removeAndSave(String rawId) {
+        String id = sanitizeId(rawId);
+        if (id.isBlank()) return false;
+        if (!removeFromConfig(id)) return false;
+        reload();
+        Pjmbasemod.LOGGER.info("Warehouse: предмет '{}' удалён из {} (осталось предметов: {})",
+                id, configFile().toAbsolutePath(), definitions.size());
+        return true;
     }
 
     /** Абсолютный путь к items.json — для диагностики из команд. */
@@ -268,6 +293,56 @@ public final class WarehouseItemRegistry {
             return true;
         } catch (Exception e) {
             Pjmbasemod.LOGGER.error("Warehouse: не удалось дозаписать предмет в конфиг {}", file, e);
+            return false;
+        }
+    }
+
+    /** Удаляет из items.json запись с заданным id. Возвращает true, если запись найдена и файл переписан. */
+    private boolean removeFromConfig(String id) {
+        Path file = configFile();
+        if (!Files.isRegularFile(file)) return false;
+        try {
+            JsonObject root;
+            JsonArray items;
+            try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                JsonElement existing = GSON.fromJson(reader, JsonElement.class);
+                if (existing != null && existing.isJsonObject()) {
+                    root = existing.getAsJsonObject();
+                    items = root.has("items") && root.get("items").isJsonArray()
+                            ? root.getAsJsonArray("items") : new JsonArray();
+                } else if (existing != null && existing.isJsonArray()) {
+                    root = new JsonObject();
+                    root.addProperty("schemaVersion", 1);
+                    items = existing.getAsJsonArray();
+                } else {
+                    return false;
+                }
+            }
+
+            JsonArray filtered = new JsonArray();
+            boolean found = false;
+            for (JsonElement element : items) {
+                if (element.isJsonObject()) {
+                    JsonElement idEl = element.getAsJsonObject().get("id");
+                    String entryId = idEl != null && idEl.isJsonPrimitive()
+                            ? sanitizeId(idEl.getAsString()) : "";
+                    if (entryId.equals(id)) {
+                        found = true;
+                        continue;
+                    }
+                }
+                filtered.add(element);
+            }
+            if (!found) return false;
+
+            if (!root.has("schemaVersion")) root.addProperty("schemaVersion", 1);
+            root.add("items", filtered);
+            try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+                GSON.toJson(root, writer);
+            }
+            return true;
+        } catch (Exception e) {
+            Pjmbasemod.LOGGER.error("Warehouse: не удалось удалить предмет '{}' из конфига {}", id, file, e);
             return false;
         }
     }

@@ -9,6 +9,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.common.entity.QuartermasterEntity;
 import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.item.SupplyCrateItem;
@@ -121,8 +122,20 @@ public final class WarehouseManager {
         // Одна выдача = ровно quantity штук за pointCost очков (фиксированная пачка, без массовой выдачи).
         int amount = def.quantity();
         int cost = def.pointCost();
+
+        // Личный лимит (анти-«пылесос»): списываем до склада, чтобы при нехватке очков склада вернуть его.
+        boolean budgetEnabled = Config.isWarehousePersonalBudgetEnabled();
+        WarehousePersonalBudgetSavedData budget = budgetEnabled
+                ? WarehousePersonalBudgetSavedData.get(player.server) : null;
+        if (budgetEnabled && !budget.trySpend(player.server, player.getUUID(), cost)) {
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.budget_exhausted"), true);
+            resync(player);
+            return;
+        }
+
         WarehouseSavedData stock = WarehouseSavedData.get(player.server);
         if (!stock.trySpend(session.warehouseId(), def.pool(), cost)) {
+            if (budgetEnabled) budget.refund(player.server, player.getUUID(), cost); // откат личного бюджета
             player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.not_enough_points"), true);
             resync(player);
             return;
@@ -167,23 +180,47 @@ public final class WarehouseManager {
         }
 
         int want = Math.max(1, count);
-        int deposited = 0;
-        int pointsGained = 0;
+        int quantity = Math.max(1, def.quantity());
+        int batchRefund = def.refundValue();    // возврат очков за одну выдачу (пачку из quantity штук)
+
+        // Сколько годных к сдаче штук есть в инвентаре (убитые «в ноль» не считаем — они дают 0 очков).
+        int available = 0;
         var inventory = player.getInventory();
-        for (int slot = 0; slot < inventory.getContainerSize() && deposited < want; slot++) {
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             ItemStack stack = inventory.getItem(slot);
-            if (!def.matchesStack(stack)) continue;
-            while (!stack.isEmpty() && deposited < want) {
-                pointsGained += pointsForDeposit(stack, def.refundValue());
+            if (def.matchesStack(stack, player.registryAccess()) && durabilityFactor(stack) > 0.0) {
+                available += stack.getCount();
+            }
+        }
+
+        // Сдаём ТОЛЬКО целыми пачнами по quantity штук (симметрично выдаче). Это закрывает дюп:
+        // нельзя получить quantity штук за pointCost, а затем вернуть по одной за полный refund.
+        int depositItems = Math.min(want, available);
+        int batches = depositItems / quantity;
+        if (batches <= 0) {
+            player.displayClientMessage(quantity > 1
+                    ? Component.translatable("gui.pjmbasemod.warehouse.deposit_need_batch", quantity)
+                    : Component.translatable("gui.pjmbasemod.warehouse.nothing_to_deposit"), true);
+            return;
+        }
+        int toConsume = batches * quantity;
+
+        int deposited = 0;
+        double weightSum = 0.0;     // суммарная доля прочности по списанным штукам (для повреждаемых)
+        for (int slot = 0; slot < inventory.getContainerSize() && deposited < toConsume; slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (!def.matchesStack(stack, player.registryAccess())) continue;
+            double factor = durabilityFactor(stack);
+            if (factor <= 0.0) continue;        // убитые предметы не списываем за 0 очков
+            while (!stack.isEmpty() && deposited < toConsume) {
+                weightSum += factor;
                 stack.shrink(1);
                 deposited++;
             }
         }
 
-        if (deposited <= 0) {
-            player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.nothing_to_deposit"), true);
-            return;
-        }
+        // Возврат: пропорционально числу пачек и средней прочности, округление вниз (без переплат).
+        int pointsGained = (int) Math.floor(batchRefund * weightSum / quantity);
 
         WarehouseSavedData stock = WarehouseSavedData.get(player.server);
         stock.createWarehouse(session.warehouseId());
@@ -196,16 +233,15 @@ public final class WarehouseManager {
         resync(player);
     }
 
-    /** Очки за сдачу одной штуки с учётом прочности: для повреждаемых — пропорционально остатку. */
-    private static int pointsForDeposit(ItemStack stack, int baseRefund) {
-        if (baseRefund <= 0) return 0;
+    /** Доля «целости» предмета в диапазоне [0..1]: для повреждаемых — остаток прочности, иначе 1. */
+    private static double durabilityFactor(ItemStack stack) {
+        if (stack.isEmpty()) return 0.0;
         if (stack.isDamageableItem() && stack.getMaxDamage() > 0) {
             int max = stack.getMaxDamage();
             int remaining = max - stack.getDamageValue();
-            if (remaining <= 0) return 0;
-            return Math.max(0, Math.round(baseRefund * (remaining / (float) max)));
+            return remaining <= 0 ? 0.0 : remaining / (double) max;
         }
-        return baseRefund;
+        return 1.0;
     }
 
     /** Сколько таких предметов сейчас в инвентаре игрока. */
@@ -214,7 +250,7 @@ public final class WarehouseManager {
         var inventory = player.getInventory();
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             ItemStack stack = inventory.getItem(slot);
-            if (def.matchesStack(stack)) total += stack.getCount();
+            if (def.matchesStack(stack, player.registryAccess())) total += stack.getCount();
         }
         return total;
     }
@@ -365,14 +401,26 @@ public final class WarehouseManager {
             boolean roleAllowed = RoleService.hasAllowedRole(player, def.allowedRoles());
             boolean rankAllowed = RankService.meetsMinRank(player, def.minRank());
             String requiredRankName = RankService.rankDisplayName(def.minRank());
-            items.add(new WarehouseSnapshot.ItemEntry(def.id(), def.rawDisplayName(), def.itemIdString(),
+            items.add(new WarehouseSnapshot.ItemEntry(def.id(), def.rawDisplayName(), def.iconId(),
                     def.displayCategory(), def.pool(), def.pointCost(), def.maxPerWithdraw(), def.quantity(),
                     def.refundValue(), inInventory, available, affordable,
                     roleAllowed, def.allowedRoles(), rankAllowed, requiredRankName));
         }
 
         boolean canWithdraw = WarehousePermissions.can(player, WarehousePermissions.WITHDRAW);
-        return new WarehouseSnapshot(session.warehouseId(), points, List.copyOf(items), canWithdraw);
+
+        // Личный бюджет (анти-«пылесос») для отображения в меню; при выключенном лимите max=0 → не показывать.
+        int budget = 0;
+        int budgetMax = 0;
+        int budgetRegen = 0;
+        if (Config.isWarehousePersonalBudgetEnabled()) {
+            budgetMax = Config.getWarehousePersonalBudgetMax();
+            budgetRegen = Config.getWarehousePersonalBudgetRegenPerHour();
+            budget = WarehousePersonalBudgetSavedData.get(player.server).getBudget(player.server, player.getUUID());
+        }
+
+        return new WarehouseSnapshot(session.warehouseId(), points, List.copyOf(items), canWithdraw,
+                budget, budgetMax, budgetRegen);
     }
 
     // ---------------------------------------------------------------- утилиты

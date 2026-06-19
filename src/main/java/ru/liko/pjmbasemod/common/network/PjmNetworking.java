@@ -13,7 +13,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "17";
+    public static final String VERSION = "18";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
