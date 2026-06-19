@@ -11,12 +11,15 @@ import java.util.Map;
 
 public final class ClientFrontlineState {
 
-    private static FrontlineHudPacket hud;
-    private static long hudUpdatedAt;
-    private static long mapRevision;
-    private static List<FrontlineMapSyncPacket.SectorEntry> sectors = List.of();
-    private static final Map<String, Map<Long, FrontlineMapSyncPacket.ChunkEntry>> chunksByDimension = new LinkedHashMap<>();
-    private static final Map<String, List<FrontlineMapSyncPacket.SectorEntry>> sectorsByDimension = new LinkedHashMap<>();
+    private static volatile FrontlineHudPacket hud;
+    private static volatile long hudUpdatedAt;
+    private static volatile long mapRevision;
+    private static volatile List<FrontlineMapSyncPacket.SectorEntry> sectors = List.of();
+    // Карты пересобираются целиком и атомарно подменяются по ссылке (volatile), поэтому
+    // читатели (в т.ч. с потока JourneyMap) всегда видят либо старую, либо полностью
+    // готовую структуру — без «полуочищенного» состояния и ConcurrentModificationException.
+    private static volatile Map<String, Map<Long, FrontlineMapSyncPacket.ChunkEntry>> chunksByDimension = Map.of();
+    private static volatile Map<String, List<FrontlineMapSyncPacket.SectorEntry>> sectorsByDimension = Map.of();
 
     private ClientFrontlineState() {}
 
@@ -33,21 +36,27 @@ public final class ClientFrontlineState {
     }
 
     public static void updateMap(FrontlineMapSyncPacket packet) {
-        sectors = List.copyOf(packet.sectors());
-        chunksByDimension.clear();
-        sectorsByDimension.clear();
+        List<FrontlineMapSyncPacket.SectorEntry> newSectors = List.copyOf(packet.sectors());
+
+        // Собираем во временные структуры, затем атомарно подменяем ссылки.
+        Map<String, Map<Long, FrontlineMapSyncPacket.ChunkEntry>> newChunks = new LinkedHashMap<>();
+        Map<String, List<FrontlineMapSyncPacket.SectorEntry>> newSectorsByDim = new LinkedHashMap<>();
 
         for (FrontlineMapSyncPacket.ChunkEntry chunk : packet.chunks()) {
             String dimension = normalizeDimensionId(chunk.dimension());
-            chunksByDimension
+            newChunks
                     .computeIfAbsent(dimension, ignored -> new LinkedHashMap<>())
                     .put(pack(chunk.x(), chunk.z()), chunk);
         }
 
-        for (FrontlineMapSyncPacket.SectorEntry sector : sectors) {
+        for (FrontlineMapSyncPacket.SectorEntry sector : newSectors) {
             String dimension = normalizeDimensionId(sector.dimension());
-            sectorsByDimension.computeIfAbsent(dimension, ignored -> new ArrayList<>()).add(sector);
+            newSectorsByDim.computeIfAbsent(dimension, ignored -> new ArrayList<>()).add(sector);
         }
+
+        sectors = newSectors;
+        chunksByDimension = newChunks;
+        sectorsByDimension = newSectorsByDim;
 
         mapRevision++;
     }
@@ -102,8 +111,8 @@ public final class ClientFrontlineState {
         hud = null;
         hudUpdatedAt = 0L;
         sectors = List.of();
-        chunksByDimension.clear();
-        sectorsByDimension.clear();
+        chunksByDimension = Map.of();
+        sectorsByDimension = Map.of();
         mapRevision++;
     }
 

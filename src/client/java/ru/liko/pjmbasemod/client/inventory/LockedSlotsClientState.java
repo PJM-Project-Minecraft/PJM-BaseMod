@@ -11,9 +11,9 @@ import java.util.Set;
  */
 public final class LockedSlotsClientState {
 
-    private static boolean enabled = false;
-    private static boolean cancelClicks = true;
-    private static Set<Integer> lockedSlots = new HashSet<>();
+    private static volatile boolean enabled = false;
+    private static volatile boolean cancelClicks = true;
+    private static volatile Set<Integer> lockedSlots = new HashSet<>();
 
     private LockedSlotsClientState() {
     }

@@ -105,7 +105,7 @@ repositories {
     }
 }
 
-def taczReferenceJar = file('/home/liko/Разработка/NeoForge/!libs and references/TACZ-1.21.1/build/libs/tacz-neoforge-1.21.1-1.1.7-hotfix-r1.jar')
+def taczReferenceJar = file("${projectDir}/libs/tacz-neoforge-1.21.1-1.1.7-hotfix-r1.jar")
 
 dependencies {
     // GeckoLib (required) — common+client side

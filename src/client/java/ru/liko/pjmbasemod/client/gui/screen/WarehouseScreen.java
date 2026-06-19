@@ -2,12 +2,12 @@ package ru.liko.pjmbasemod.client.gui.screen;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.gui.GuiItemIcons;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.DepositItemPacket;
@@ -24,7 +24,7 @@ import java.util.Set;
  * GUI склада (NPC-кладовщик): слева — вкладки display-категорий, сверху — баланс очков
  * по пулам, в центре — список выдаваемых предметов со стоимостью и кнопкой получения.
  */
-public class WarehouseScreen extends Screen {
+public class WarehouseScreen extends PjmBaseScreen {
 
     private static final int GUI_WIDTH = 460;
     private static final int GUI_HEIGHT = 280;
@@ -44,10 +44,7 @@ public class WarehouseScreen extends Screen {
     private static final ResourceLocation UNLOAD_ICON = ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/icon/unload.png");
 
     private void drawSmoothIcon(GuiGraphics graphics, ResourceLocation icon, int x, int y, int width, int height) {
-        com.mojang.blaze3d.systems.RenderSystem.setShaderTexture(0, icon);
-        com.mojang.blaze3d.systems.RenderSystem.texParameter(3553, 10241, 9729); // GL_TEXTURE_MIN_FILTER, GL_LINEAR
-        com.mojang.blaze3d.systems.RenderSystem.texParameter(3553, 10240, 9729); // GL_TEXTURE_MAG_FILTER, GL_LINEAR
-        graphics.blit(icon, x, y, 0, 0, width, height, width, height);
+        PjmGuiUtils.drawSmoothIcon(graphics, icon, x, y, width, height);
     }
 
     private ResourceLocation getCategoryIcon(String category) {
@@ -64,7 +61,7 @@ public class WarehouseScreen extends Screen {
     private int scroll;
 
     public WarehouseScreen(WarehouseSnapshot snapshot) {
-        super(Component.translatable("gui.pjmbasemod.warehouse.title"));
+        super(Component.translatable("gui.pjmbasemod.warehouse.title"), GUI_WIDTH, GUI_HEIGHT);
         this.snapshot = snapshot;
         rebuildCategories();
     }
@@ -103,14 +100,33 @@ public class WarehouseScreen extends Screen {
         return result;
     }
 
-    private int guiLeft() { return (width - GUI_WIDTH) / 2; }
-    private int guiTop() { return (height - GUI_HEIGHT) / 2; }
-
     private int listTop() { return guiTop() + HEADER_HEIGHT + POOL_BAR_HEIGHT + 6; }
 
     private int rowsVisible() {
         int listHeight = guiTop() + GUI_HEIGHT - 8 - listTop();
         return Math.max(1, listHeight / ROW_HEIGHT);
+    }
+
+    // Единый источник зон кнопок строки — используется и в рендере, и в обработке клика.
+    private int contentLeft()  { return guiLeft() + SIDEBAR_WIDTH + 8; }
+    private int contentWidth() { return GUI_WIDTH - SIDEBAR_WIDTH - 16; }
+
+    private record Rect(int x, int y, int w, int h) {
+        boolean contains(double mx, double my) {
+            return mx >= x && mx <= x + w && my >= y && my <= y + h;
+        }
+    }
+
+    private Rect withdrawRect(int rowY) {
+        int buttonY = rowY + (ROW_HEIGHT - BUTTON_HEIGHT) / 2;
+        int x = contentLeft() + contentWidth() - BUTTON_WIDTH - 4;
+        return new Rect(x, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT);
+    }
+
+    private Rect depositRect(int rowY) {
+        int buttonY = rowY + (ROW_HEIGHT - BUTTON_HEIGHT) / 2;
+        int x = contentLeft() + contentWidth() - BUTTON_WIDTH - 4 - BUTTON_GAP - BUTTON_WIDTH;
+        return new Rect(x, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT);
     }
 
     private void clampScroll() {
@@ -132,17 +148,27 @@ public class WarehouseScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        return mouseScrolledScaled(vMouseX(mouseX), vMouseY(mouseY), scrollX, scrollY);
+    }
+
+    @Override
+    protected boolean mouseScrolledScaled(int mouseX, int mouseY, double scrollX, double scrollY) {
         if (scrollY != 0) {
             scroll -= (int) Math.signum(scrollY);
             clampScroll();
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        return super.mouseScrolledScaled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+        return mouseClickedScaled(vMouseX(mouseX), vMouseY(mouseY), button);
+    }
+
+    @Override
+    protected boolean mouseClickedScaled(int mouseX, int mouseY, int button) {
+        if (button != 0) return super.mouseClickedScaled(mouseX, mouseY, button);
 
         int left = guiLeft();
         int top = guiTop();
@@ -170,31 +196,20 @@ public class WarehouseScreen extends Screen {
         }
 
         // Кнопки получения
-        int contentLeft = left + SIDEBAR_WIDTH + 8;
-        int contentWidth = GUI_WIDTH - SIDEBAR_WIDTH - 16;
         int rows = rowsVisible();
         List<WarehouseSnapshot.ItemEntry> items = currentItems();
         int y = listTop();
         for (int i = scroll; i < items.size() && i < scroll + rows; i++) {
             WarehouseSnapshot.ItemEntry item = items.get(i);
-            int buttonY = y + (ROW_HEIGHT - BUTTON_HEIGHT) / 2;
 
-            int withdrawX = contentLeft + contentWidth - BUTTON_WIDTH - 4;
-            int depositX = withdrawX - BUTTON_GAP - BUTTON_WIDTH;
-
-            boolean withdrawHovered = mouseX >= withdrawX && mouseX <= withdrawX + BUTTON_WIDTH
-                    && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
-            if (withdrawHovered && snapshot.canWithdraw() && item.affordable()
+            if (withdrawRect(y).contains(mouseX, mouseY) && snapshot.canWithdraw() && item.affordable()
                     && item.roleAllowed() && item.rankAllowed()) {
-                // Одна выдача = фиксированная пачка (quantity штук), задаётся в конфиге; count здесь не нужен.
                 PjmUiSounds.playClick();
                 PjmNetworking.sendToServer(new WithdrawItemPacket(item.defId(), 1));
                 return true;
             }
 
-            boolean depositHovered = mouseX >= depositX && mouseX <= depositX + BUTTON_WIDTH
-                    && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
-            if (depositHovered && item.depositable() && item.inventoryCount() > 0) {
+            if (depositRect(y).contains(mouseX, mouseY) && item.depositable() && item.inventoryCount() > 0) {
                 int amount = hasShiftDown() ? Math.min(64, item.inventoryCount()) : 1;
                 PjmUiSounds.playClick();
                 PjmNetworking.sendToServer(new DepositItemPacket(item.defId(), amount));
@@ -203,14 +218,11 @@ public class WarehouseScreen extends Screen {
             y += ROW_HEIGHT;
         }
 
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClickedScaled(mouseX, mouseY, button);
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        // super.render рисует фон + блюр; должен идти первым, иначе перекрывает наш GUI
-        super.render(graphics, mouseX, mouseY, partialTick);
-
+    protected void renderScaled(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int left = guiLeft();
         int top = guiTop();
 
@@ -307,8 +319,10 @@ public class WarehouseScreen extends Screen {
             }
 
             int buttonY = y + (ROW_HEIGHT - BUTTON_HEIGHT) / 2;
-            int withdrawX = contentLeft + contentWidth - BUTTON_WIDTH - 4;
-            int depositX = withdrawX - BUTTON_GAP - BUTTON_WIDTH;
+            Rect withdraw = withdrawRect(y);
+            Rect deposit = depositRect(y);
+            int withdrawX = withdraw.x();
+            int depositX = deposit.x();
             if (roleLocked) {
                 cost = Component.translatable("gui.pjmbasemod.role.required",
                         roleNames(item.allowedRoles())).getString();
@@ -322,8 +336,7 @@ public class WarehouseScreen extends Screen {
             // Кнопка «Получить»
             boolean withdrawEnabled = snapshot.canWithdraw() && item.affordable()
                     && item.roleAllowed() && item.rankAllowed();
-            boolean withdrawHovered = mouseX >= withdrawX && mouseX <= withdrawX + BUTTON_WIDTH
-                    && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
+            boolean withdrawHovered = withdraw.contains(mouseX, mouseY);
             int withdrawColor = !withdrawEnabled ? 0xFF33333A : withdrawHovered ? 0xFF3E7A46 : 0xFF2E5A34;
             graphics.fill(withdrawX, buttonY, withdrawX + BUTTON_WIDTH, buttonY + BUTTON_HEIGHT, withdrawColor);
             Component withdrawText = !item.roleAllowed()
@@ -345,8 +358,7 @@ public class WarehouseScreen extends Screen {
             // Кнопка «Сдать» (если предмет принимается складом)
             if (item.depositable()) {
                 boolean depositEnabled = item.inventoryCount() > 0;
-                boolean depositHovered = mouseX >= depositX && mouseX <= depositX + BUTTON_WIDTH
-                        && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
+                boolean depositHovered = deposit.contains(mouseX, mouseY);
                 int depositColor = !depositEnabled ? 0xFF33333A : depositHovered ? 0xFF456694 : 0xFF35506E;
                 graphics.fill(depositX, buttonY, depositX + BUTTON_WIDTH, buttonY + BUTTON_HEIGHT, depositColor);
                 Component depositText = depositEnabled
@@ -380,13 +392,6 @@ public class WarehouseScreen extends Screen {
     }
 
     private String ellipsize(String text, int maxWidth) {
-        if (this.font.width(text) <= maxWidth) return text;
-        String suffix = "...";
-        int suffixWidth = this.font.width(suffix);
-        String result = text;
-        while (!result.isEmpty() && this.font.width(result) + suffixWidth > maxWidth) {
-            result = result.substring(0, result.length() - 1);
-        }
-        return result.isEmpty() ? suffix : result + suffix;
+        return PjmGuiUtils.ellipsize(this.font, text, maxWidth);
     }
 }
