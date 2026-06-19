@@ -135,7 +135,7 @@ public class ExampleScreen extends PjmBaseScreen {
 
 - **Все размеры в `renderScaled()`** считай от `guiLeft()`/`guiTop()` + констант `GUI_WIDTH`/`GUI_HEIGHT`. Не используй `width`/`height` напрямую внутри `renderScaled()` для позиционирования панели.
 - **Для фона на весь виртуальный экран** (затемнение под панелью) используй `vWidth()`/`vHeight()`, а не `width`/`height`.
-- **Зоны клика** вычисляй теми же формулами, что и отрисовку. Если позиция кнопки сложная — вынеси её в общий приватный метод, чтобы `renderScaled` и `mouseClickedScaled` не разъезжались.
+- **Зоны клика вычисляй ОДНИМ источником.** Не дублируй формулы координат кнопок в `renderScaled()` и `mouseClickedScaled()` — они разъедутся, и кнопка перестанет нажиматься там, где нарисована. Вынеси зону в общий метод, возвращающий `Rect` (см. ниже).
 - **`isPauseScreen()` → `false`** для внутриигровых меню.
 
 ### ❌ Не делай
@@ -146,12 +146,40 @@ public class ExampleScreen extends PjmBaseScreen {
 - **Не хардкодь цвета** вроде `0xF216161A` — бери из `PjmGuiUtils`.
 - **Не используй `width`/`height`** для центрирования панели внутри `renderScaled()` — там это уже виртуальный масштаб, нужны `vWidth()`/`vHeight()` (или просто `guiLeft()`/`guiTop()`).
 
+## Единый источник хит-зон (паттерн `Rect`)
+
+Главная причина «кнопка не нажимается там, где нарисована» — координаты кнопки посчитаны **дважды**: отдельно в рендере и отдельно в обработчике клика. При любой правке отступа они разъезжаются.
+
+Решение — один метод на зону, возвращающий прямоугольник, который используют **и** рендер, **и** клик:
+
+```java
+/** Прямоугольник в виртуальных координатах с проверкой попадания мыши. */
+private record Rect(int x, int y, int w, int h) {
+    boolean contains(double mx, double my) {
+        return mx >= x && mx <= x + w && my >= y && my <= y + h;
+    }
+}
+
+private Rect closeRect() {
+    return new Rect(guiLeft() + GUI_WIDTH - 30, guiTop(), 30, HEADER_HEIGHT);
+}
+```
+
+```java
+// в renderScaled():
+boolean hoverClose = closeRect().contains(mouseX, mouseY);
+// в mouseClickedScaled():
+if (closeRect().contains(mouseX, mouseY)) { onClose(); return true; }
+```
+
+Для зон, зависящих от строки списка, передавай y строки параметром: `craftButtonRect(int rowY)`, `withdrawRect(int rowY)` и т.п. Примеры — `GarageScreen` (`tabRect`, `storeButtonRect`, `craftButtonRect`, `spawnButtonRect`, `recycleButtonRect`) и `WarehouseScreen` (`withdrawRect`, `depositRect`).
+
 ## Модальные оверлеи внутри экрана
 
 Если поверх экрана нужно нарисовать модальное меню (как меню выбора точки спавна в `GarageScreen`):
 
 - Рисуй его в конце `renderScaled()` (после основного контента) или вместо контента (`return` после отрисовки оверлея).
-- Координаты — те же виртуальные. Центрируй через `vWidth()`/`vHeight()`.
+- **Координаты — строго виртуальные.** Центрируй через `vWidth()`/`vHeight()`, НЕ через `width`/`height`. Это была реальная бага: оверлеи Garage центрировались по `width`/`height`, и при масштабе ≠ 1.0 рисовались в одном месте, а кликались в другом.
 - Затемняй фон под оверлеем: `g.fill(0, 0, vWidth(), vHeight(), 0xB0000000)`.
 - Клики оверлея обрабатывай в начале `mouseClickedScaled()` с ранним `return`.
 
