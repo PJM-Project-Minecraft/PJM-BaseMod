@@ -54,6 +54,16 @@ public final class WarehouseManager {
         PjmNetworking.sendToPlayer(player, new OpenWarehousePacket(buildSnapshot(player, npc)));
     }
 
+    /**
+     * Debug-версия открытия склада: без NPC, все категории, склад "debug",
+     * без лимитов и кулдауна. Используется командой {@code /pjm debug open warehouse}.
+     */
+    public static void openWarehouseDebug(ServerPlayer player) {
+        Session session = new Session("debug", List.of(), 0, 0);
+        SESSIONS.put(player.getUUID(), session);
+        PjmNetworking.sendToPlayer(player, new OpenWarehousePacket(buildSnapshot(player, session)));
+    }
+
     private static void resync(ServerPlayer player) {
         Session session = SESSIONS.get(player.getUUID());
         if (session == null) return;
