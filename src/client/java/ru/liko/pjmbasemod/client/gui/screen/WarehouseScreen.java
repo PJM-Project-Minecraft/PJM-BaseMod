@@ -107,6 +107,28 @@ public class WarehouseScreen extends PjmBaseScreen {
         return Math.max(1, listHeight / ROW_HEIGHT);
     }
 
+    // Единый источник зон кнопок строки — используется и в рендере, и в обработке клика.
+    private int contentLeft()  { return guiLeft() + SIDEBAR_WIDTH + 8; }
+    private int contentWidth() { return GUI_WIDTH - SIDEBAR_WIDTH - 16; }
+
+    private record Rect(int x, int y, int w, int h) {
+        boolean contains(double mx, double my) {
+            return mx >= x && mx <= x + w && my >= y && my <= y + h;
+        }
+    }
+
+    private Rect withdrawRect(int rowY) {
+        int buttonY = rowY + (ROW_HEIGHT - BUTTON_HEIGHT) / 2;
+        int x = contentLeft() + contentWidth() - BUTTON_WIDTH - 4;
+        return new Rect(x, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT);
+    }
+
+    private Rect depositRect(int rowY) {
+        int buttonY = rowY + (ROW_HEIGHT - BUTTON_HEIGHT) / 2;
+        int x = contentLeft() + contentWidth() - BUTTON_WIDTH - 4 - BUTTON_GAP - BUTTON_WIDTH;
+        return new Rect(x, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT);
+    }
+
     private void clampScroll() {
         int max = Math.max(0, currentItems().size() - rowsVisible());
         if (scroll > max) scroll = max;
@@ -174,30 +196,20 @@ public class WarehouseScreen extends PjmBaseScreen {
         }
 
         // Кнопки получения
-        int contentLeft = left + SIDEBAR_WIDTH + 8;
-        int contentWidth = GUI_WIDTH - SIDEBAR_WIDTH - 16;
         int rows = rowsVisible();
         List<WarehouseSnapshot.ItemEntry> items = currentItems();
         int y = listTop();
         for (int i = scroll; i < items.size() && i < scroll + rows; i++) {
             WarehouseSnapshot.ItemEntry item = items.get(i);
-            int buttonY = y + (ROW_HEIGHT - BUTTON_HEIGHT) / 2;
 
-            int withdrawX = contentLeft + contentWidth - BUTTON_WIDTH - 4;
-            int depositX = withdrawX - BUTTON_GAP - BUTTON_WIDTH;
-
-            boolean withdrawHovered = mouseX >= withdrawX && mouseX <= withdrawX + BUTTON_WIDTH
-                    && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
-            if (withdrawHovered && snapshot.canWithdraw() && item.affordable()
+            if (withdrawRect(y).contains(mouseX, mouseY) && snapshot.canWithdraw() && item.affordable()
                     && item.roleAllowed() && item.rankAllowed()) {
                 PjmUiSounds.playClick();
                 PjmNetworking.sendToServer(new WithdrawItemPacket(item.defId(), 1));
                 return true;
             }
 
-            boolean depositHovered = mouseX >= depositX && mouseX <= depositX + BUTTON_WIDTH
-                    && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
-            if (depositHovered && item.depositable() && item.inventoryCount() > 0) {
+            if (depositRect(y).contains(mouseX, mouseY) && item.depositable() && item.inventoryCount() > 0) {
                 int amount = hasShiftDown() ? Math.min(64, item.inventoryCount()) : 1;
                 PjmUiSounds.playClick();
                 PjmNetworking.sendToServer(new DepositItemPacket(item.defId(), amount));
@@ -307,8 +319,10 @@ public class WarehouseScreen extends PjmBaseScreen {
             }
 
             int buttonY = y + (ROW_HEIGHT - BUTTON_HEIGHT) / 2;
-            int withdrawX = contentLeft + contentWidth - BUTTON_WIDTH - 4;
-            int depositX = withdrawX - BUTTON_GAP - BUTTON_WIDTH;
+            Rect withdraw = withdrawRect(y);
+            Rect deposit = depositRect(y);
+            int withdrawX = withdraw.x();
+            int depositX = deposit.x();
             if (roleLocked) {
                 cost = Component.translatable("gui.pjmbasemod.role.required",
                         roleNames(item.allowedRoles())).getString();
@@ -322,8 +336,7 @@ public class WarehouseScreen extends PjmBaseScreen {
             // Кнопка «Получить»
             boolean withdrawEnabled = snapshot.canWithdraw() && item.affordable()
                     && item.roleAllowed() && item.rankAllowed();
-            boolean withdrawHovered = mouseX >= withdrawX && mouseX <= withdrawX + BUTTON_WIDTH
-                    && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
+            boolean withdrawHovered = withdraw.contains(mouseX, mouseY);
             int withdrawColor = !withdrawEnabled ? 0xFF33333A : withdrawHovered ? 0xFF3E7A46 : 0xFF2E5A34;
             graphics.fill(withdrawX, buttonY, withdrawX + BUTTON_WIDTH, buttonY + BUTTON_HEIGHT, withdrawColor);
             Component withdrawText = !item.roleAllowed()
@@ -345,8 +358,7 @@ public class WarehouseScreen extends PjmBaseScreen {
             // Кнопка «Сдать» (если предмет принимается складом)
             if (item.depositable()) {
                 boolean depositEnabled = item.inventoryCount() > 0;
-                boolean depositHovered = mouseX >= depositX && mouseX <= depositX + BUTTON_WIDTH
-                        && mouseY >= buttonY && mouseY <= buttonY + BUTTON_HEIGHT;
+                boolean depositHovered = deposit.contains(mouseX, mouseY);
                 int depositColor = !depositEnabled ? 0xFF33333A : depositHovered ? 0xFF456694 : 0xFF35506E;
                 graphics.fill(depositX, buttonY, depositX + BUTTON_WIDTH, buttonY + BUTTON_HEIGHT, depositColor);
                 Component depositText = depositEnabled
