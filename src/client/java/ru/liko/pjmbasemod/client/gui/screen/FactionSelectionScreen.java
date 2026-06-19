@@ -71,6 +71,10 @@ public class FactionSelectionScreen extends PjmBaseScreen {
     private final Map<String, Float> roleAnim = new HashMap<>();
     private float confirmAnim;
 
+    // Для FPS-независимых hover-анимаций: время предыдущего кадра и текущий шаг сглаживания.
+    private long lastFrameNanos;
+    private float animStep = 0.3F;
+
     public FactionSelectionScreen(FactionSelectionSnapshot snapshot) {
         super(Component.translatable("gui.pjmbasemod.faction.selection.title"), GUI_WIDTH, GUI_HEIGHT);
         this.snapshot = snapshot;
@@ -134,6 +138,14 @@ public class FactionSelectionScreen extends PjmBaseScreen {
 
     @Override
     protected void renderScaled(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        // FPS-независимый шаг hover-анимаций: коэффициент сглаживания зависит от реального
+        // времени кадра, а не от частоты кадров. При ~60 FPS поведение совпадает со старым 0.3.
+        long now = System.nanoTime();
+        float dt = lastFrameNanos == 0L ? 1f / 60f : (now - lastFrameNanos) / 1_000_000_000f;
+        lastFrameNanos = now;
+        dt = Mth.clamp(dt, 0f, 0.1f); // защита от скачков (лаг/пауза)
+        animStep = 1f - (float) Math.exp(-dt * 21.3f); // 21.3 ≈ соответствует 0.3 при 60 FPS
+
         // Затемнение поверх блюра
         graphics.fill(0, 0, vWidth(), vHeight(), COLOR_SCRIM);
 
@@ -448,8 +460,8 @@ public class FactionSelectionScreen extends PjmBaseScreen {
         return PjmGuiUtils.withAlpha(color, alpha);
     }
 
-    private static float lerp(float current, float target) {
-        float next = current + (target - current) * 0.3F;
+    private float lerp(float current, float target) {
+        float next = current + (target - current) * animStep;
         return Math.abs(target - next) < 0.001F ? target : next;
     }
 
