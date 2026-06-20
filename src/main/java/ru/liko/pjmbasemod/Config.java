@@ -111,6 +111,8 @@ public final class Config {
     public static int getFrontlineBlueMapFillAlpha() { return data().frontline.bluemap.fillAlpha; }
     public static int getFrontlineBlueMapLineAlpha() { return data().frontline.bluemap.lineAlpha; }
     public static int getFrontlineBlueMapLineWidth() { return data().frontline.bluemap.lineWidth; }
+    public static int getFrontlineBlueMapMarkerHeight() { return data().frontline.bluemap.markerHeight; }
+    public static boolean isFrontlineBlueMapDepthTest() { return data().frontline.bluemap.depthTest; }
     public static boolean isFrontlineJourneyMapEnabled() { return data().frontline.journeymap.enabled; }
     public static int getFrontlineJourneyMapFillAlpha() { return data().frontline.journeymap.fillAlpha; }
     public static int getFrontlineJourneyMapBorderAlpha() { return data().frontline.journeymap.borderAlpha; }
@@ -118,9 +120,10 @@ public final class Config {
     public static int getFrontlineJourneyMapRegionBorderColorRgb() { return data().frontline.journeymap.regionBorderColorRgb; }
     public static List<? extends String> getStartupCommands() { return data().commands.startup; }
     public static boolean isGarageEnabled() { return data().garage.enabled; }
-    public static boolean isWarehousePersonalBudgetEnabled() { return data().warehouse.personalBudgetEnabled; }
-    public static int     getWarehousePersonalBudgetMax()    { return data().warehouse.personalBudgetMax; }
-    public static int     getWarehousePersonalBudgetRegenPerHour() { return data().warehouse.personalBudgetRegenPerHour; }
+    public static int getFactionMaxDeputies()            { return data().faction.maxDeputies; }
+    public static int getFactionOrderMaxLength()         { return data().faction.orderMaxLength; }
+    public static int getFactionOrderDefaultTtlMinutes() { return data().faction.orderDefaultTtlMinutes; }
+    public static int getFactionOrderMaxTtlMinutes()     { return data().faction.orderMaxTtlMinutes; }
 
     public static List<ConfiguredTeam> getTeams() {
         return parseTeams(data().teams.definitions);
@@ -252,7 +255,7 @@ public final class Config {
         Region region = new Region();
         Frontline frontline = new Frontline();
         Garage garage = new Garage();
-        Warehouse warehouse = new Warehouse();
+        Faction faction = new Faction();
         Commands commands = new Commands();
 
         /** Заменяет null-секции дефолтами и зажимает числовые значения в допустимые диапазоны. */
@@ -263,7 +266,11 @@ public final class Config {
             if (region == null) region = new Region();
             if (frontline == null) frontline = new Frontline();
             if (garage == null) garage = new Garage();
-            if (warehouse == null) warehouse = new Warehouse();
+            if (faction == null) faction = new Faction();
+            faction.maxDeputies = clamp(faction.maxDeputies, 0, 64);
+            faction.orderMaxLength = clamp(faction.orderMaxLength, 1, 256);
+            faction.orderMaxTtlMinutes = clamp(faction.orderMaxTtlMinutes, 0, 10_080);
+            faction.orderDefaultTtlMinutes = clamp(faction.orderDefaultTtlMinutes, 0, faction.orderMaxTtlMinutes);
             if (commands == null) commands = new Commands();
 
             if (teams.definitions == null) teams.definitions = new ArrayList<>();
@@ -272,8 +279,6 @@ public final class Config {
 
             hud.itemSwitchDisplayMs = clamp(hud.itemSwitchDisplayMs, 0L, 60_000L);
             region.maxChunks = clamp(region.maxChunks, 1, 1_000_000);
-            warehouse.personalBudgetMax = clamp(warehouse.personalBudgetMax, 0, 1_000_000);
-            warehouse.personalBudgetRegenPerHour = clamp(warehouse.personalBudgetRegenPerHour, 0, 1_000_000);
 
             frontline.normalize();
         }
@@ -323,6 +328,7 @@ public final class Config {
             bluemap.fillAlpha = clamp(bluemap.fillAlpha, 0, 255);
             bluemap.lineAlpha = clamp(bluemap.lineAlpha, 0, 255);
             bluemap.lineWidth = clamp(bluemap.lineWidth, 1, 16);
+            bluemap.markerHeight = clamp(bluemap.markerHeight, -64, 512);
             if (bluemap.dimensionWorldOverrides == null) bluemap.dimensionWorldOverrides = new ArrayList<>();
 
             journeymap.fillAlpha = clamp(journeymap.fillAlpha, 0, 255);
@@ -359,6 +365,8 @@ public final class Config {
         int fillAlpha = 96;
         int lineAlpha = 220;
         int lineWidth = 2;
+        int markerHeight = 80;
+        boolean depthTest = false;
     }
 
     static final class JourneyMap {
@@ -373,13 +381,11 @@ public final class Config {
         boolean enabled = true;
     }
 
-    static final class Warehouse {
-        /** Личный лимит очков на игрока (анти-«пылесос»): не даёт одному выкачать весь склад. */
-        boolean personalBudgetEnabled = true;
-        /** Потолок личного бюджета очков. */
-        int personalBudgetMax = 100;
-        /** Скорость восстановления личного бюджета, очков в час. */
-        int personalBudgetRegenPerHour = 100;
+    static final class Faction {
+        int maxDeputies = 3;
+        int orderMaxLength = 120;
+        int orderDefaultTtlMinutes = 30;
+        int orderMaxTtlMinutes = 240;
     }
 
     static final class Commands {
