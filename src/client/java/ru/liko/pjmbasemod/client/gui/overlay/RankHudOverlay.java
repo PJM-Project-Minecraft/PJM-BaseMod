@@ -14,6 +14,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState;
+import ru.liko.pjmbasemod.client.faction.FactionRankIcons;
 import ru.liko.pjmbasemod.client.rank.ClientRankState;
 
 import java.util.ArrayDeque;
@@ -114,10 +115,13 @@ public final class RankHudOverlay {
         graphics.fill(x + 3, y, x + width, y + 1, 0x22FFFFFF);
         graphics.fill(x + 3, y + height - 1, x + width, y + height, 0x22FFFFFF);
 
-        // Icon
-        ResourceLocation icon = icon(state.icon());
+        // Icon: командиру — погоны, иначе иконка ранга.
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
-        graphics.blit(icon, x + 8, y + 6, 0, 0, 16, 16, 16, 16);
+        if (commander.active()) {
+            graphics.blit(FactionRankIcons.COMMANDER, x + 8, y + 6, 0, 0, 16, 16, 16, 16);
+        } else {
+            graphics.blit(icon(state.icon()), x + 8, y + 6, 0, 0, 16, 16, 16, 16);
+        }
 
         if (showRank) {
             // Title & XP

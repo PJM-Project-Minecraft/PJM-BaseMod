@@ -10,6 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
+import ru.liko.pjmbasemod.client.faction.FactionRankIcons;
 import ru.liko.pjmbasemod.common.rank.RankDefinition;
 import ru.liko.pjmbasemod.common.rank.RankRegistry;
 
@@ -81,10 +82,13 @@ public class TacticalTabOverlay {
 
             int currentX = left + padding;
 
-            // Check for Commander
+            // Иконка командира (погоны) или зама (звёзды).
             if (rawText.contains("[КМД]")) {
-                graphics.drawString(font, "КМД", currentX, currentY, 0xF0B43A, false);
-                currentX += font.width("КМД ");
+                FactionRankIcons.draw(graphics, FactionRankIcons.COMMANDER, currentX, currentY + 1, 10);
+                currentX += 14;
+            } else if (rawText.contains("[ЗАМ]")) {
+                FactionRankIcons.draw(graphics, FactionRankIcons.DEPUTY, currentX, currentY + 1, 10);
+                currentX += 14;
             }
 
             // Check for Rank

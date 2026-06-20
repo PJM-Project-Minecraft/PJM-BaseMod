@@ -210,6 +210,7 @@ public final class FactionMenuService {
             actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.manage.deputy.removed",
                     target.getName().getString()), true);
         }
+        FactionCommanderService.refreshTabName(target);
         resync(actor);
     }
 

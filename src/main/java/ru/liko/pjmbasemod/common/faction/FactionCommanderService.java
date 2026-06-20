@@ -23,6 +23,7 @@ public final class FactionCommanderService {
     public static final String ROLE_SHORT_NAME = "КМД";
     public static final String ROLE_DISPLAY_NAME = "КОМАНДИР ФРАКЦИИ";
     public static final int ROLE_COLOR = 0xF0B43A;
+    public static final String DEPUTY_SHORT_NAME = "ЗАМ";
 
     private FactionCommanderService() {
     }
@@ -100,13 +101,20 @@ public final class FactionCommanderService {
     public static Component tabListName(ServerPlayer player) {
         String commanderTeam = activeCommanderTeam(player);
         boolean commander = commanderTeam != null;
+        String playerTeam = FrontlineTeams.resolvePlayerTeamId(player);
+        boolean deputy = !commander && playerTeam != null && player.getServer() != null
+                && FactionDeputySavedData.get(player.getServer()).isDeputy(playerTeam, player.getUUID());
         boolean rank = RankService.shouldShowTabPrefix();
-        if (!commander && !rank) return null;
+        if (!commander && !deputy && !rank) return null;
 
         MutableComponent name = Component.empty();
         if (commander) {
             int color = FrontlineTeams.color(player.getServer(), commanderTeam);
             name.append(Component.literal("[" + ROLE_SHORT_NAME + "] ")
+                    .withStyle(style -> style.withColor(TextColor.fromRgb(color))));
+        } else if (deputy) {
+            int color = FrontlineTeams.color(player.getServer(), playerTeam);
+            name.append(Component.literal("[" + DEPUTY_SHORT_NAME + "] ")
                     .withStyle(style -> style.withColor(TextColor.fromRgb(color))));
         }
         if (rank) {

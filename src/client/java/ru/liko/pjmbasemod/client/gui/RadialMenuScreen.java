@@ -25,6 +25,7 @@ import ru.liko.pjmbasemod.client.chat.ClientChatModeState;
 import ru.liko.pjmbasemod.client.customization.ClientSkinState;
 import ru.liko.pjmbasemod.client.input.ModKeyBindings;
 import ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState;
+import ru.liko.pjmbasemod.client.faction.FactionRankIcons;
 import ru.liko.pjmbasemod.client.role.ClientRoleState;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
 import ru.liko.pjmbasemod.common.customization.CustomizationType;
@@ -123,8 +124,8 @@ public class RadialMenuScreen extends Screen {
             actions.add(new RadialAction(
                     Component.translatable("gui.pjmbasemod.radial.faction_management"),
                     0xFFF0B43A,
-                    new ItemStack(Items.WHITE_BANNER),
-                    null,
+                    ItemStack.EMPTY,
+                    FactionRankIcons.COMMANDER,
                     null,
                     null,
                     true,

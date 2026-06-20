@@ -6,6 +6,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
+import ru.liko.pjmbasemod.client.faction.FactionRankIcons;
 import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
 import ru.liko.pjmbasemod.common.faction.DeputyPermission;
@@ -209,10 +210,18 @@ public class FactionManagementScreen extends PjmBaseScreen {
                     && mouseY >= y && mouseY <= y + MEMBER_ROW_HEIGHT - 4;
             int bg = selected ? 0xFF35506E : hovered ? 0xFF2A2A33 : 0xFF222229;
             graphics.fill(x, y, left + SIDEBAR_WIDTH - 8, y + MEMBER_ROW_HEIGHT - 4, bg);
-            String prefix = member.commander() ? "[КМД] " : member.deputy() ? "[ЗАМ] " : "";
-            graphics.drawString(font, ellipsize(prefix + member.name(), SIDEBAR_WIDTH - 34),
-                    x + 8, y + 5, selected ? 0xFFFFFFFF : 0xFFE0E0E0, false);
-            graphics.drawString(font, roleName(member.roleId()), x + 8, y + 16,
+            int textX = x + 8;
+            if (member.commander()) {
+                FactionRankIcons.draw(graphics, FactionRankIcons.COMMANDER, x + 6, y + 4, 16);
+                textX = x + 26;
+            } else if (member.deputy()) {
+                FactionRankIcons.draw(graphics, FactionRankIcons.DEPUTY, x + 6, y + 4, 16);
+                textX = x + 26;
+            }
+            int avail = (left + SIDEBAR_WIDTH - 8) - textX - 4;
+            graphics.drawString(font, ellipsize(member.name(), avail),
+                    textX, y + 5, selected ? 0xFFFFFFFF : 0xFFE0E0E0, false);
+            graphics.drawString(font, roleName(member.roleId()), textX, y + 16,
                     member.roleId().isBlank() ? 0xFF777777 : 0xFFD8B15F, false);
             y += MEMBER_ROW_HEIGHT;
         }
