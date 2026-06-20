@@ -12,10 +12,19 @@ public record FactionManagementSnapshot(
         int teamColor,
         boolean canManage,
         List<MemberEntry> members,
-        List<FactionSelectionSnapshot.RoleEntry> roles
+        List<FactionSelectionSnapshot.RoleEntry> roles,
+        boolean viewerCanAssignRoles,
+        boolean viewerCanManageDeputies,
+        boolean viewerCanSetOrder,
+        int maxDeputies,
+        int deputyCount,
+        String orderText,
+        String orderAuthor,
+        int orderSecondsRemaining
 ) {
 
-    public record MemberEntry(UUID playerId, String name, String roleId, boolean commander) {
+    public record MemberEntry(UUID playerId, String name, String roleId, boolean commander,
+                              boolean deputy, int deputyPerms) {
     }
 
     public static void write(FriendlyByteBuf buf, FactionManagementSnapshot snapshot) {
@@ -30,6 +39,8 @@ public record FactionManagementSnapshot(
             buf.writeUtf(member.name());
             buf.writeUtf(member.roleId());
             buf.writeBoolean(member.commander());
+            buf.writeBoolean(member.deputy());
+            buf.writeVarInt(member.deputyPerms());
         }
 
         buf.writeVarInt(snapshot.roles().size());
@@ -40,6 +51,15 @@ public record FactionManagementSnapshot(
             buf.writeInt(role.limit());
             buf.writeVarInt(role.current());
         }
+
+        buf.writeBoolean(snapshot.viewerCanAssignRoles());
+        buf.writeBoolean(snapshot.viewerCanManageDeputies());
+        buf.writeBoolean(snapshot.viewerCanSetOrder());
+        buf.writeVarInt(snapshot.maxDeputies());
+        buf.writeVarInt(snapshot.deputyCount());
+        buf.writeUtf(snapshot.orderText());
+        buf.writeUtf(snapshot.orderAuthor());
+        buf.writeInt(snapshot.orderSecondsRemaining());
     }
 
     public static FactionManagementSnapshot read(FriendlyByteBuf buf) {
@@ -51,7 +71,8 @@ public record FactionManagementSnapshot(
         int memberCount = buf.readVarInt();
         List<MemberEntry> members = new ArrayList<>(memberCount);
         for (int i = 0; i < memberCount; i++) {
-            members.add(new MemberEntry(buf.readUUID(), buf.readUtf(), buf.readUtf(), buf.readBoolean()));
+            members.add(new MemberEntry(buf.readUUID(), buf.readUtf(), buf.readUtf(),
+                    buf.readBoolean(), buf.readBoolean(), buf.readVarInt()));
         }
 
         int roleCount = buf.readVarInt();
@@ -61,7 +82,18 @@ public record FactionManagementSnapshot(
                     buf.readUtf(), buf.readUtf(), buf.readVarInt(), buf.readInt(), buf.readVarInt()));
         }
 
+        boolean viewerCanAssignRoles = buf.readBoolean();
+        boolean viewerCanManageDeputies = buf.readBoolean();
+        boolean viewerCanSetOrder = buf.readBoolean();
+        int maxDeputies = buf.readVarInt();
+        int deputyCount = buf.readVarInt();
+        String orderText = buf.readUtf();
+        String orderAuthor = buf.readUtf();
+        int orderSecondsRemaining = buf.readInt();
+
         return new FactionManagementSnapshot(teamId, teamName, teamColor, canManage,
-                List.copyOf(members), List.copyOf(roles));
+                List.copyOf(members), List.copyOf(roles),
+                viewerCanAssignRoles, viewerCanManageDeputies, viewerCanSetOrder,
+                maxDeputies, deputyCount, orderText, orderAuthor, orderSecondsRemaining);
     }
 }
