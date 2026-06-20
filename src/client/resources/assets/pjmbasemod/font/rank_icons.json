@@ -1,0 +1,12 @@
+{
+  "providers": [
+    { "type": "bitmap", "file": "pjmbasemod:textures/rangs/private.png",    "ascent": 7, "height": 8, "chars": [""] },
+    { "type": "bitmap", "file": "pjmbasemod:textures/rangs/corporal.png",   "ascent": 7, "height": 8, "chars": [""] },
+    { "type": "bitmap", "file": "pjmbasemod:textures/rangs/sergeant.png",   "ascent": 7, "height": 8, "chars": [""] },
+    { "type": "bitmap", "file": "pjmbasemod:textures/rangs/lieutenant.png", "ascent": 7, "height": 8, "chars": [""] },
+    { "type": "bitmap", "file": "pjmbasemod:textures/rangs/captain.png",    "ascent": 7, "height": 8, "chars": [""] },
+    { "type": "bitmap", "file": "pjmbasemod:textures/rangs/major.png",      "ascent": 7, "height": 8, "chars": [""] },
+    { "type": "bitmap", "file": "pjmbasemod:textures/rangs/colonel.png",    "ascent": 7, "height": 8, "chars": [""] },
+    { "type": "bitmap", "file": "pjmbasemod:textures/rangs/general.png",    "ascent": 7, "height": 8, "chars": [""] }
+  ]
+}
