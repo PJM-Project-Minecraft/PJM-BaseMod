@@ -27,6 +27,7 @@ import ru.liko.pjmbasemod.common.customization.SkinRegistry;
 import ru.liko.pjmbasemod.common.customization.SkinService;
 import ru.liko.pjmbasemod.common.dimension.LobbyService;
 import ru.liko.pjmbasemod.common.faction.FactionMenuService;
+import ru.liko.pjmbasemod.common.faction.FactionOrderManager;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
 import ru.liko.pjmbasemod.common.frontline.FrontlineManager;
 import ru.liko.pjmbasemod.common.frontline.bluemap.FrontlineBlueMapService;
@@ -68,6 +69,7 @@ public final class PjmServerEvents {
         FactionCommanderService.onPlayerLogin(sp);
         RoleService.onPlayerLogin(sp);
         FactionMenuService.onPlayerLogin(sp);
+        FactionOrderManager.syncTo(sp);
         InventoryLimitService.sync(sp);
         SkinService.onPlayerLogin(sp);
     }
@@ -195,6 +197,7 @@ public final class PjmServerEvents {
     public static void onServerTick(ServerTickEvent.Post event) {
         FrontlineManager.onServerTick(event.getServer());
         FrontlineBlueMapService.onServerTick(event.getServer());
+        FactionOrderManager.onServerTick(event.getServer());
 
         if (++warehouseScanCounter >= 20) {
             warehouseScanCounter = 0;

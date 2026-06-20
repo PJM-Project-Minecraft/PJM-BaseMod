@@ -6,6 +6,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
 import ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers;
 import ru.liko.pjmbasemod.common.network.packet.*;
@@ -13,7 +14,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "18";
+    public static final String VERSION = "19";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -43,6 +44,8 @@ public final class PjmNetworking {
         r.playToServer(SelectRolePacket.TYPE,          SelectRolePacket.STREAM_CODEC,          (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleSelectRole(p, (ServerPlayer) ctx.player())));
         r.playToServer(SubmitFactionSelectionPacket.TYPE, SubmitFactionSelectionPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleSubmitFactionSelection(p, (ServerPlayer) ctx.player())));
         r.playToServer(ManageFactionRolePacket.TYPE,   ManageFactionRolePacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleManageFactionRole(p, (ServerPlayer) ctx.player())));
+        r.playToServer(ManageFactionDeputyPacket.TYPE, ManageFactionDeputyPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleManageFactionDeputy(p, (ServerPlayer) ctx.player())));
+        r.playToServer(SetFactionOrderPacket.TYPE,     SetFactionOrderPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleSetFactionOrder(p, (ServerPlayer) ctx.player())));
 
         // ===== Server → Client =====
         r.playToClient(SyncPjmDataPacket.TYPE,  SyncPjmDataPacket.STREAM_CODEC,  (p, ctx) -> ctx.enqueueWork(() -> CLIENT.syncPlayerData(p)));
@@ -65,12 +68,13 @@ public final class PjmNetworking {
         r.playToClient(OpenFactionSelectionPacket.TYPE, OpenFactionSelectionPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openFactionSelection(p)));
         r.playToClient(OpenFactionManagementPacket.TYPE, OpenFactionManagementPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openFactionManagement(p)));
         r.playToClient(FactionManagementSyncPacket.TYPE, FactionManagementSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.factionManagementSync(p)));
+        r.playToClient(FactionOrderSyncPacket.TYPE, FactionOrderSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.factionOrderSync(p)));
         r.playToClient(LockedSlotsPacket.TYPE, LockedSlotsPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.lockedSlots(p)));
         r.playToClient(PlayerSkinSyncPacket.TYPE, PlayerSkinSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.playerSkinSync(p)));
         r.playToClient(SkinSelectionSyncPacket.TYPE, SkinSelectionSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.skinSelectionSync(p)));
         r.playToClient(HudConfigPacket.TYPE, HudConfigPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.hudConfig(p)));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 34);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 37);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {
@@ -85,6 +89,15 @@ public final class PjmNetworking {
         if (server == null) return;
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             PacketDistributor.sendToPlayer(p, payload);
+        }
+    }
+
+    public static void sendToTeam(net.minecraft.server.MinecraftServer server, String teamId, CustomPacketPayload payload) {
+        if (server == null || teamId == null || teamId.isBlank()) return;
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            if (teamId.equals(FrontlineTeams.resolvePlayerTeamId(p))) {
+                PacketDistributor.sendToPlayer(p, payload);
+            }
         }
     }
 }

@@ -9,13 +9,16 @@ import ru.liko.pjmbasemod.common.chat.ChatMode;
 import ru.liko.pjmbasemod.common.customization.CustomizationType;
 import ru.liko.pjmbasemod.common.customization.SkinService;
 import ru.liko.pjmbasemod.common.faction.FactionMenuService;
+import ru.liko.pjmbasemod.common.faction.FactionOrderManager;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
 import ru.liko.pjmbasemod.common.network.packet.HudConfigPacket;
+import ru.liko.pjmbasemod.common.network.packet.ManageFactionDeputyPacket;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionRolePacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioSwitchPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectRolePacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectCustomizationPacket;
+import ru.liko.pjmbasemod.common.network.packet.SetFactionOrderPacket;
 import ru.liko.pjmbasemod.common.network.packet.SubmitFactionSelectionPacket;
 import ru.liko.pjmbasemod.common.network.packet.SyncPjmDataPacket;
 import ru.liko.pjmbasemod.common.role.RoleService;
@@ -80,6 +83,16 @@ public final class ServerPacketHandlers {
     public static void handleManageFactionRole(ManageFactionRolePacket p, ServerPlayer player) {
         if (player == null) return;
         FactionMenuService.handleManageRole(player, p.targetId(), p.roleId());
+    }
+
+    public static void handleManageFactionDeputy(ManageFactionDeputyPacket p, ServerPlayer player) {
+        if (player == null) return;
+        FactionMenuService.handleManageDeputy(player, p.targetId(), p.deputy(), p.perms());
+    }
+
+    public static void handleSetFactionOrder(SetFactionOrderPacket p, ServerPlayer player) {
+        if (player == null) return;
+        FactionOrderManager.setOrder(player, p.text(), p.ttlMinutes());
     }
 
     public static void handleRadioSwitch(RadioSwitchPacket p, ServerPlayer player) {
