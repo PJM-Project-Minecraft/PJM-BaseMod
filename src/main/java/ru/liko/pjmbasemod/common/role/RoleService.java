@@ -176,6 +176,22 @@ public final class RoleService {
         return ids;
     }
 
+    /**
+     * id ролей, которые можно назначить указанной цели: бесплатные (всегда) + платные, которыми цель владеет.
+     * Зеркалит серверный гейт {@link RolePermissions#canUseRole} в {@link #assignRole}, чтобы клиент-командир
+     * мог погасить недоступные роли в меню.
+     */
+    public static List<String> assignableRoleIdsFor(ServerPlayer target) {
+        List<String> ids = new ArrayList<>();
+        if (target == null) return ids;
+        for (CombatRole role : CombatRole.values()) {
+            if (RolePermissions.canUseRole(target, role)) {
+                ids.add(role.id());
+            }
+        }
+        return ids;
+    }
+
     public static void syncAll(MinecraftServer server) {
         if (server == null) return;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {

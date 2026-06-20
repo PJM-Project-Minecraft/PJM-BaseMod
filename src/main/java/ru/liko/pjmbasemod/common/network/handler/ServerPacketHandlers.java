@@ -16,7 +16,10 @@ import ru.liko.pjmbasemod.common.network.packet.HudConfigPacket;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionDeputyPacket;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionRolePacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioSwitchPacket;
+import ru.liko.pjmbasemod.common.network.packet.RequestFactionManagementPacket;
+import ru.liko.pjmbasemod.common.network.packet.RequestTargetRoleAccessPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectRolePacket;
+import ru.liko.pjmbasemod.common.network.packet.TargetRoleAccessPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectCustomizationPacket;
 import ru.liko.pjmbasemod.common.network.packet.SetFactionOrderPacket;
 import ru.liko.pjmbasemod.common.network.packet.SubmitFactionSelectionPacket;
@@ -73,6 +76,22 @@ public final class ServerPacketHandlers {
         if (player == null) return;
         RoleService.AssignmentResult result = RoleService.assignRoleById(player, p.targetId(), p.roleId());
         player.displayClientMessage(result.message(), true);
+    }
+
+    public static void handleRequestFactionManagement(RequestFactionManagementPacket p, ServerPlayer player) {
+        if (player == null) return;
+        // Права (командир/зам) проверяет сам сервис; при отказе шлёт игроку сообщение.
+        FactionMenuService.openManagement(player);
+    }
+
+    public static void handleRequestTargetRoleAccess(RequestTargetRoleAccessPacket p, ServerPlayer player) {
+        if (player == null || player.getServer() == null || p.targetId() == null) return;
+        ServerPlayer target = player.getServer().getPlayerList().getPlayer(p.targetId());
+        if (target == null) return;
+        // Отвечаем только если запрашивающий вправе назначать роли этой цели (командир той же фракции / админ).
+        if (!RoleService.canAssign(player, target)) return;
+        PjmNetworking.sendToPlayer(player,
+                new TargetRoleAccessPacket(p.targetId(), RoleService.assignableRoleIdsFor(target)));
     }
 
     public static void handleSubmitFactionSelection(SubmitFactionSelectionPacket p, ServerPlayer player) {

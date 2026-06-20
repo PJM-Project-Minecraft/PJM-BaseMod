@@ -178,6 +178,7 @@
   "gui.pjmbasemod.garage.no_vehicle_to_store": "存储区内没有可存入的载具",
   "gui.pjmbasemod.garage.no_storage_terminal": "附近没有用于存储载具的车库终端",
   "gui.pjmbasemod.garage.outside_storage_zone": "请将载具移动到车库存储区",
+  "gui.pjmbasemod.radial.faction_management": "派系管理",
   "gui.pjmbasemod.radial.role": "角色",
   "gui.pjmbasemod.radial.role_clear": "清除角色",
   "gui.pjmbasemod.radial.back": "返回",

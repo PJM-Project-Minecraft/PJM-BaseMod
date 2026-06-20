@@ -22,6 +22,7 @@ import ru.liko.pjmbasemod.common.network.packet.RankSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankXpPacket;
 import ru.liko.pjmbasemod.common.network.packet.RoleAccessSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RoleSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.TargetRoleAccessPacket;
 import ru.liko.pjmbasemod.common.network.packet.SpawnPointOptionsPacket;
 import ru.liko.pjmbasemod.common.network.packet.StoreOptionsPacket;
 import ru.liko.pjmbasemod.common.network.packet.SyncPjmDataPacket;
@@ -44,6 +45,7 @@ public interface ClientPacketProxy {
     default void rankXp(RankXpPacket payload) {}
     default void roleSync(RoleSyncPacket payload) {}
     default void roleAccessSync(RoleAccessSyncPacket payload) {}
+    default void targetRoleAccess(TargetRoleAccessPacket payload) {}
     default void factionCommanderSync(FactionCommanderSyncPacket payload) {}
     default void openWarehouse(OpenWarehousePacket payload) {}
     default void warehouseSync(WarehouseSyncPacket payload) {}

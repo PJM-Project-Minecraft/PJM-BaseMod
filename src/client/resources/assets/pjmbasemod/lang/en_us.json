@@ -178,6 +178,7 @@
   "gui.pjmbasemod.garage.no_vehicle_to_store": "No vehicle is available in the storage zone",
   "gui.pjmbasemod.garage.no_storage_terminal": "No garage terminal nearby for vehicle storage",
   "gui.pjmbasemod.garage.outside_storage_zone": "Move the vehicle into a garage storage zone",
+  "gui.pjmbasemod.radial.faction_management": "Faction Management",
   "gui.pjmbasemod.radial.role": "Role",
   "gui.pjmbasemod.radial.role_clear": "Clear role",
   "gui.pjmbasemod.radial.back": "Back",

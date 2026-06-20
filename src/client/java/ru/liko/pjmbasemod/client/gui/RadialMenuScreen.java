@@ -24,11 +24,14 @@ import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.chat.ClientChatModeState;
 import ru.liko.pjmbasemod.client.customization.ClientSkinState;
 import ru.liko.pjmbasemod.client.input.ModKeyBindings;
+import ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState;
 import ru.liko.pjmbasemod.client.role.ClientRoleState;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
 import ru.liko.pjmbasemod.common.customization.CustomizationType;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
+import ru.liko.pjmbasemod.common.network.packet.RequestFactionManagementPacket;
+import ru.liko.pjmbasemod.common.network.packet.RequestTargetRoleAccessPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectCustomizationPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectRolePacket;
 import ru.liko.pjmbasemod.common.role.CombatRole;
@@ -115,6 +118,19 @@ public class RadialMenuScreen extends Screen {
                 true,
                 (SubmenuAction) p -> openCharacterSubmenu()));
 
+        // Командир фракции: открыть экран управления фракцией (роли/замы/приказ).
+        if (ClientFactionCommanderState.state().active()) {
+            actions.add(new RadialAction(
+                    Component.translatable("gui.pjmbasemod.radial.faction_management"),
+                    0xFFF0B43A,
+                    new ItemStack(Items.WHITE_BANNER),
+                    null,
+                    null,
+                    null,
+                    true,
+                    p -> PjmNetworking.sendToServer(RequestFactionManagementPacket.INSTANCE)));
+        }
+
         if (actions.isEmpty()) {
             actions.add(new RadialAction(
                     Component.translatable("gui.pjmbasemod.radial.no_actions"),
@@ -177,7 +193,8 @@ public class RadialMenuScreen extends Screen {
             boolean enabled;
             UUID assignTarget;
             if (commanderMode) {
-                enabled = true;
+                // Платные роли, которыми цель не владеет, гасим (сервер всё равно отклонит назначение).
+                enabled = ClientRoleState.isTargetAssignable(roleTargetId, role);
                 assignTarget = roleTargetId;
             } else {
                 enabled = ClientRoleState.isSelfAssignable(role);
@@ -589,6 +606,18 @@ public class RadialMenuScreen extends Screen {
                 roleTargetId = player.getUUID();
                 roleTargetName = player.getName().getString();
             }
+        }
+        // Командир: запросить у сервера, какие роли можно назначить этой цели (для гашения недоступных).
+        ClientRoleState.clearTargetAccess();
+        if (roleTargetId != null && ClientRoleState.canAssignRoles()) {
+            PjmNetworking.sendToServer(new RequestTargetRoleAccessPacket(roleTargetId));
+        }
+    }
+
+    /** Вызывается из сетевого обработчика при получении владения цели — перестраивает меню ролей, если оно открыто. */
+    public void onTargetRoleAccessUpdated() {
+        if (page == Page.ROLE) {
+            openRoleSubmenu();
         }
     }
 

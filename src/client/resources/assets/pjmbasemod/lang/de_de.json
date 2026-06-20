@@ -178,6 +178,7 @@
   "gui.pjmbasemod.garage.no_vehicle_to_store": "Kein Fahrzeug in der Lagerzone verfügbar",
   "gui.pjmbasemod.garage.no_storage_terminal": "Kein Garagenterminal zur Fahrzeugeinlagerung in der Nähe",
   "gui.pjmbasemod.garage.outside_storage_zone": "Bringe das Fahrzeug in eine Garagen-Lagerzone",
+  "gui.pjmbasemod.radial.faction_management": "Fraktionsverwaltung",
   "gui.pjmbasemod.radial.role": "Rolle",
   "gui.pjmbasemod.radial.role_clear": "Rolle entfernen",
   "gui.pjmbasemod.radial.back": "Zurück",

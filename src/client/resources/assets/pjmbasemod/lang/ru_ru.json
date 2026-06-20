@@ -178,6 +178,7 @@
   "gui.pjmbasemod.garage.no_vehicle_to_store": "В зоне хранения нет техники для загрузки",
   "gui.pjmbasemod.garage.no_storage_terminal": "Рядом нет терминала гаража для хранения техники",
   "gui.pjmbasemod.garage.outside_storage_zone": "Поставьте технику в зону хранения гаража",
+  "gui.pjmbasemod.radial.faction_management": "Управление фракцией",
   "gui.pjmbasemod.radial.role": "Роль",
   "gui.pjmbasemod.radial.role_clear": "Снять роль",
   "gui.pjmbasemod.radial.back": "Назад",

@@ -14,7 +14,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "19";
+    public static final String VERSION = "21";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -46,6 +46,8 @@ public final class PjmNetworking {
         r.playToServer(ManageFactionRolePacket.TYPE,   ManageFactionRolePacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleManageFactionRole(p, (ServerPlayer) ctx.player())));
         r.playToServer(ManageFactionDeputyPacket.TYPE, ManageFactionDeputyPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleManageFactionDeputy(p, (ServerPlayer) ctx.player())));
         r.playToServer(SetFactionOrderPacket.TYPE,     SetFactionOrderPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleSetFactionOrder(p, (ServerPlayer) ctx.player())));
+        r.playToServer(RequestTargetRoleAccessPacket.TYPE, RequestTargetRoleAccessPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestTargetRoleAccess(p, (ServerPlayer) ctx.player())));
+        r.playToServer(RequestFactionManagementPacket.TYPE, RequestFactionManagementPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestFactionManagement(p, (ServerPlayer) ctx.player())));
 
         // ===== Server → Client =====
         r.playToClient(SyncPjmDataPacket.TYPE,  SyncPjmDataPacket.STREAM_CODEC,  (p, ctx) -> ctx.enqueueWork(() -> CLIENT.syncPlayerData(p)));
@@ -62,6 +64,7 @@ public final class PjmNetworking {
         r.playToClient(RankXpPacket.TYPE,       RankXpPacket.STREAM_CODEC,       (p, ctx) -> ctx.enqueueWork(() -> CLIENT.rankXp(p)));
         r.playToClient(RoleSyncPacket.TYPE,     RoleSyncPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> CLIENT.roleSync(p)));
         r.playToClient(RoleAccessSyncPacket.TYPE, RoleAccessSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.roleAccessSync(p)));
+        r.playToClient(TargetRoleAccessPacket.TYPE, TargetRoleAccessPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.targetRoleAccess(p)));
         r.playToClient(FactionCommanderSyncPacket.TYPE, FactionCommanderSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.factionCommanderSync(p)));
         r.playToClient(OpenWarehousePacket.TYPE, OpenWarehousePacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openWarehouse(p)));
         r.playToClient(WarehouseSyncPacket.TYPE, WarehouseSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.warehouseSync(p)));
@@ -74,7 +77,7 @@ public final class PjmNetworking {
         r.playToClient(SkinSelectionSyncPacket.TYPE, SkinSelectionSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.skinSelectionSync(p)));
         r.playToClient(HudConfigPacket.TYPE, HudConfigPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.hudConfig(p)));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 37);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 40);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {
