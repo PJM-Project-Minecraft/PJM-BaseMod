@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import ru.liko.pjmbasemod.client.chat.ClientChatModeState;
 import ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState;
+import ru.liko.pjmbasemod.client.faction.ClientFactionOrderState;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
 import ru.liko.pjmbasemod.client.gui.overlay.RankHudOverlay;
 import ru.liko.pjmbasemod.client.gui.screen.FactionManagementScreen;
@@ -18,6 +19,7 @@ import ru.liko.pjmbasemod.common.network.packet.HudConfigPacket;
 import ru.liko.pjmbasemod.common.network.packet.PlayerSkinSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.SkinSelectionSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.FactionManagementSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.FactionOrderSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.LockedSlotsPacket;
 import ru.liko.pjmbasemod.common.network.packet.GarageSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionManagementPacket;
@@ -187,6 +189,11 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
         } else {
             FactionManagementScreen.open(payload.snapshot());
         }
+    }
+
+    @Override
+    public void factionOrderSync(FactionOrderSyncPacket payload) {
+        ClientFactionOrderState.update(payload);
     }
 
     @Override
