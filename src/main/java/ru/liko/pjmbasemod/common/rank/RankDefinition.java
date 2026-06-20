@@ -2,6 +2,7 @@ package ru.liko.pjmbasemod.common.rank;
 
 import ru.liko.pjmbasemod.Pjmbasemod;
 
+import javax.annotation.Nullable;
 import java.util.Locale;
 
 public final class RankDefinition {
@@ -12,6 +13,10 @@ public final class RankDefinition {
     private int minXp;
     private String icon;
     private String accentColor;
+    /** Потолок личной квоты склада для ранга. {@code null} (не задано) или {@code -1} → безлимит. */
+    private Integer warehouseBudgetMax;
+    /** Регенерация квоты, очков/час. {@code null} (не задано) → равна потолку {@link #warehouseBudgetMax}. */
+    private Integer warehouseBudgetRegenPerHour;
 
     public RankDefinition() {
     }
@@ -50,6 +55,21 @@ public final class RankDefinition {
         return parseColor(accentColor, 0xD8B15F);
     }
 
+    /** Потолок личной квоты склада. {@code null}/{@code -1} → безлимит (см. {@code WarehouseBudgetLimits}). */
+    @Nullable
+    public Integer warehouseBudgetMax() { return warehouseBudgetMax; }
+
+    /** Регенерация квоты, очков/час. {@code null} → равна потолку. */
+    @Nullable
+    public Integer warehouseBudgetRegenPerHour() { return warehouseBudgetRegenPerHour; }
+
+    /** Флюент-сеттер квоты склада (для дефолтного конфига рангов). */
+    public RankDefinition budget(@Nullable Integer max, @Nullable Integer regenPerHour) {
+        this.warehouseBudgetMax = max;
+        this.warehouseBudgetRegenPerHour = regenPerHour;
+        return this;
+    }
+
     void normalize() {
         id = sanitizeId(id);
         if (id.isBlank()) id = "private";
@@ -58,6 +78,13 @@ public final class RankDefinition {
         minXp = Math.max(0, minXp);
         if (icon == null || icon.isBlank()) icon = "textures/rangs/" + id + ".png";
         if (accentColor == null || accentColor.isBlank()) accentColor = "#d8b15f";
+        // Квота: отрицательный потолок нормализуем к -1 (безлимит); зажимаем в допустимый диапазон.
+        if (warehouseBudgetMax != null) {
+            warehouseBudgetMax = warehouseBudgetMax < 0 ? -1 : Math.min(warehouseBudgetMax, 1_000_000);
+        }
+        if (warehouseBudgetRegenPerHour != null) {
+            warehouseBudgetRegenPerHour = Math.max(0, Math.min(warehouseBudgetRegenPerHour, 1_000_000));
+        }
     }
 
     static String sanitizeId(String raw) {

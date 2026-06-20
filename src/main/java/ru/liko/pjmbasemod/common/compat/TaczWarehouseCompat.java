@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.fml.ModList;
 
+import javax.annotation.Nullable;
 import java.util.Map;
 
 /** Safe optional TACZ bridge for warehouse entries that point to TACZ virtual gunpack ids. */
@@ -31,6 +32,16 @@ public final class TaczWarehouseCompat {
     /** true, если TACZ загружен и предмет — TACZ-ствол (IGun). */
     public static boolean isGun(ItemStack stack) {
         return isLoaded() && TaczWarehouseIntegration.isGun(stack);
+    }
+
+    /**
+     * Считывает реальный TACZ-id «простого» предмета (патрон/обвес) — у которого один базовый Item,
+     * а конкретика в NBT. Возвращает {@code null}, если TACZ не загружен или стек — не патрон/обвес.
+     * Стволы не обрабатывает (для них {@link #captureGun}). Сборка по id — через {@link #createStack}.
+     */
+    @Nullable
+    public static String captureSimpleTaczId(ItemStack stack) {
+        return isLoaded() ? TaczWarehouseIntegration.captureSimpleTaczId(stack) : null;
     }
 
     /**

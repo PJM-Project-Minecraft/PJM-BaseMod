@@ -2,6 +2,7 @@ package ru.liko.pjmbasemod.client.gui.screen;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
@@ -40,8 +41,9 @@ public class FactionManagementScreen extends PjmBaseScreen {
     private float appear;
 
     private Tab activeTab;
-    private String orderInput = "";
-    private boolean orderFocused;
+    private EditBox orderEditBox;
+    private int roleScroll;
+    private int deputyScroll;
     private int ttlIndex = 2; // default 30 мин
 
     public FactionManagementScreen(FactionManagementSnapshot snapshot) {
@@ -73,6 +75,14 @@ public class FactionManagementScreen extends PjmBaseScreen {
     protected void init() {
         super.init();
         ensureTab();
+        
+        String currentOrder = this.orderEditBox != null ? this.orderEditBox.getValue() : "";
+        this.orderEditBox = new EditBox(this.font, 0, 0, 100, 22, Component.empty());
+        this.orderEditBox.setMaxLength(ORDER_MAX_LEN);
+        this.orderEditBox.setBordered(false);
+        this.orderEditBox.setTextColor(0xFFE8E8E8);
+        this.orderEditBox.setValue(currentOrder);
+        this.addWidget(this.orderEditBox);
     }
 
     private List<Tab> availableTabs() {
@@ -103,6 +113,16 @@ public class FactionManagementScreen extends PjmBaseScreen {
         if (scroll > max) scroll = max;
         if (scroll < 0) scroll = 0;
         if (selectedMember >= snapshot.members().size()) selectedMember = Math.max(0, snapshot.members().size() - 1);
+        
+        int roleRowsVisible = Math.max(1, (GUI_HEIGHT - 32 - contentTop(0) - 30) / ROLE_ROW_HEIGHT);
+        int maxRoles = Math.max(0, snapshot.roles().size() - roleRowsVisible);
+        if (roleScroll > maxRoles) roleScroll = maxRoles;
+        if (roleScroll < 0) roleScroll = 0;
+
+        int deputyRowsVisible = Math.max(1, (GUI_HEIGHT - 10 - contentTop(0) - 66) / 24);
+        int maxDeps = Math.max(0, DeputyPermission.values().length - deputyRowsVisible);
+        if (deputyScroll > maxDeps) deputyScroll = maxDeps;
+        if (deputyScroll < 0) deputyScroll = 0;
     }
 
     @Override
@@ -114,7 +134,28 @@ public class FactionManagementScreen extends PjmBaseScreen {
     @Override
     protected boolean mouseScrolledScaled(int mouseX, int mouseY, double scrollX, double scrollY) {
         if (scrollY != 0) {
-            scroll -= (int) Math.signum(scrollY);
+            int dir = -(int) Math.signum(scrollY);
+            if (activeTab == Tab.ROLE) {
+                int x = guiLeft() + SIDEBAR_WIDTH + 12;
+                int w = GUI_WIDTH - SIDEBAR_WIDTH - 24;
+                int y = contentTop(guiTop()) + 30;
+                int h = (GUI_HEIGHT - 32) - 10 - y;
+                if (mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h) {
+                    roleScroll += dir;
+                    clampScroll();
+                    return true;
+                }
+            } else if (activeTab == Tab.DEPUTY) {
+                 int x = guiLeft() + SIDEBAR_WIDTH + 12;
+                 int w = GUI_WIDTH - SIDEBAR_WIDTH - 24;
+                 int y = contentTop(guiTop()) + 66;
+                 if (mouseX >= x && mouseX <= x + w && mouseY >= y) {
+                     deputyScroll += dir;
+                     clampScroll();
+                     return true;
+                 }
+            }
+            scroll += dir;
             clampScroll();
             return true;
         }
@@ -230,7 +271,12 @@ public class FactionManagementScreen extends PjmBaseScreen {
                 roleName(member.roleId())), x, y + 12, 0xFF9AA0A6, false);
         y += 30;
 
-        for (FactionSelectionSnapshot.RoleEntry role : snapshot.roles()) {
+        int listBottom = top + GUI_HEIGHT - 32;
+        int rowsVisible = Math.max(1, (listBottom - y) / ROLE_ROW_HEIGHT);
+        List<FactionSelectionSnapshot.RoleEntry> roles = snapshot.roles();
+        
+        for (int i = roleScroll; i < roles.size() && i < roleScroll + rowsVisible; i++) {
+            FactionSelectionSnapshot.RoleEntry role = roles.get(i);
             boolean selected = role.id().equals(member.roleId());
             boolean available = role.available() || selected;
             boolean hovered = available && mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + ROLE_ROW_HEIGHT - 4;
@@ -282,7 +328,10 @@ public class FactionManagementScreen extends PjmBaseScreen {
 
         // Чекбоксы прав (активны только если зам)
         DeputyPermission[] perms = DeputyPermission.values();
-        for (DeputyPermission perm : perms) {
+        int rowsVisible = Math.max(1, (top + GUI_HEIGHT - 10 - y) / 24);
+        
+        for (int i = deputyScroll; i < perms.length && i < deputyScroll + rowsVisible; i++) {
+            DeputyPermission perm = perms[i];
             boolean checked = DeputyPermission.has(member.deputyPerms(), perm);
             boolean enabled = isDeputy;
             boolean hovered = enabled && mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + 20;
@@ -332,14 +381,18 @@ public class FactionManagementScreen extends PjmBaseScreen {
         graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.order.title"), x, y, 0xFF9AA0A6, false);
         y += 12;
         int boxH = 22;
-        graphics.fill(x, y, x + w, y + boxH, orderFocused ? 0xFF2A3550 : 0xFF222229);
-        drawBorder(graphics, x, y, w, boxH, orderFocused ? 0xFF4A6A9E : 0xFF353540);
-        String shown = orderInput;
-        boolean caret = orderFocused && (System.currentTimeMillis() / 500L) % 2 == 0;
-        String display = ellipsize(shown.isEmpty() && !orderFocused
-                ? Component.translatable("gui.pjmbasemod.faction.order.placeholder").getString() : shown, w - 12);
-        int textColor = shown.isEmpty() && !orderFocused ? 0xFF666666 : 0xFFE8E8E8;
-        graphics.drawString(font, display + (caret ? "_" : ""), x + 6, y + 7, textColor, false);
+        boolean isFocused = orderEditBox.isFocused();
+        graphics.fill(x, y, x + w, y + boxH, isFocused ? 0xFF2A3550 : 0xFF222229);
+        drawBorder(graphics, x, y, w, boxH, isFocused ? 0xFF4A6A9E : 0xFF353540);
+        
+        orderEditBox.setX(x + 6);
+        orderEditBox.setY(y + 3); // Center vertically in 22px box (font is ~9px)
+        orderEditBox.setWidth(w - 12);
+        orderEditBox.render(graphics, mouseX, mouseY, 0);
+        
+        if (!isFocused && orderEditBox.getValue().isEmpty()) {
+            graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.order.placeholder"), x + 6, y + 7, 0xFF666666, false);
+        }
         y += boxH + 8;
 
         // TTL-переключатель
@@ -394,7 +447,6 @@ public class FactionManagementScreen extends PjmBaseScreen {
             if (mouseX >= memberX && mouseX <= left + SIDEBAR_WIDTH - 8
                     && mouseY >= y && mouseY <= y + MEMBER_ROW_HEIGHT - 4) {
                 selectedMember = i;
-                orderFocused = false;
                 PjmUiSounds.playClick();
                 return true;
             }
@@ -411,7 +463,6 @@ public class FactionManagementScreen extends PjmBaseScreen {
                 int tx = tabX + i * tabW;
                 if (mouseX >= tx && mouseX <= tx + tabW - 2 && mouseY >= tabY && mouseY <= tabY + TAB_HEIGHT) {
                     activeTab = tabs.get(i);
-                    orderFocused = false;
                     PjmUiSounds.playClick();
                     return true;
                 }
@@ -420,7 +471,7 @@ public class FactionManagementScreen extends PjmBaseScreen {
 
         if (activeTab == Tab.ROLE) return roleClick(left, top, mouseX, mouseY);
         if (activeTab == Tab.DEPUTY) return deputyClick(left, top, mouseX, mouseY);
-        if (activeTab == Tab.ORDER) return orderClick(left, top, mouseX, mouseY);
+        if (activeTab == Tab.ORDER) return orderClick(left, top, mouseX, mouseY, button);
         return super.mouseClickedScaled(mouseX, mouseY, button);
     }
 
@@ -430,7 +481,12 @@ public class FactionManagementScreen extends PjmBaseScreen {
         int x = left + SIDEBAR_WIDTH + 12;
         int w = GUI_WIDTH - SIDEBAR_WIDTH - 24;
         int y = contentTop(top) + 30;
-        for (FactionSelectionSnapshot.RoleEntry role : snapshot.roles()) {
+        int listBottom = top + GUI_HEIGHT - 32;
+        int rowsVisible = Math.max(1, (listBottom - y) / ROLE_ROW_HEIGHT);
+        List<FactionSelectionSnapshot.RoleEntry> roles = snapshot.roles();
+        
+        for (int i = roleScroll; i < roles.size() && i < roleScroll + rowsVisible; i++) {
+            FactionSelectionSnapshot.RoleEntry role = roles.get(i);
             boolean selected = role.id().equals(member.roleId());
             boolean available = role.available() || selected;
             if (mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + ROLE_ROW_HEIGHT - 4) {
@@ -470,12 +526,15 @@ public class FactionManagementScreen extends PjmBaseScreen {
 
         // Чекбоксы прав
         if (member.deputy()) {
-            for (DeputyPermission perm : DeputyPermission.values()) {
+            DeputyPermission[] perms = DeputyPermission.values();
+            int rowsVisible = Math.max(1, (top + GUI_HEIGHT - 10 - y) / 24);
+            for (int i = deputyScroll; i < perms.length && i < deputyScroll + rowsVisible; i++) {
+                DeputyPermission perm = perms[i];
                 if (mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + 20) {
-                    int perms = member.deputyPerms() ^ perm.bit();
+                    int permsMask = member.deputyPerms() ^ perm.bit();
                     PjmUiSounds.playClick();
                     PjmNetworking.sendToServer(new ManageFactionDeputyPacket(member.playerId(), true,
-                            DeputyPermission.sanitize(perms)));
+                            DeputyPermission.sanitize(permsMask)));
                     return true;
                 }
                 y += 24;
@@ -484,7 +543,7 @@ public class FactionManagementScreen extends PjmBaseScreen {
         return true;
     }
 
-    private boolean orderClick(int left, int top, int mouseX, int mouseY) {
+    private boolean orderClick(int left, int top, int mouseX, int mouseY, int button) {
         int x = left + SIDEBAR_WIDTH + 12;
         int w = GUI_WIDTH - SIDEBAR_WIDTH - 24;
         int y = contentTop(top);
@@ -493,13 +552,11 @@ public class FactionManagementScreen extends PjmBaseScreen {
         // заголовок поля
         y += 12;
         int boxH = 22;
-        // Поле ввода → фокус
+        // Поле ввода обрабатывается самим EditBox через super.mouseClicked
         if (mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + boxH) {
-            orderFocused = true;
-            PjmUiSounds.playClick();
-            return true;
+            return super.mouseClickedScaled(mouseX, mouseY, button);
         }
-        orderFocused = false;
+        
         y += boxH + 8;
 
         int ttlW = w / 2 - 4;
@@ -524,37 +581,27 @@ public class FactionManagementScreen extends PjmBaseScreen {
     }
 
     private void sendOrder() {
-        if (orderInput.isBlank()) return;
+        if (orderEditBox == null || orderEditBox.getValue().isBlank()) return;
         PjmUiSounds.playPress();
-        PjmNetworking.sendToServer(new SetFactionOrderPacket(orderInput.trim(), TTL_PRESETS[ttlIndex]));
-        orderInput = "";
-        orderFocused = false;
+        PjmNetworking.sendToServer(new SetFactionOrderPacket(orderEditBox.getValue().trim(), TTL_PRESETS[ttlIndex]));
+        orderEditBox.setValue("");
+        orderEditBox.setFocused(false);
     }
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
-        if (orderFocused && activeTab == Tab.ORDER) {
-            if (chr >= ' ' && orderInput.length() < ORDER_MAX_LEN) {
-                orderInput += chr;
-            }
-            return true;
-        }
         return super.charTyped(chr, modifiers);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (orderFocused && activeTab == Tab.ORDER) {
-            if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
-                if (!orderInput.isEmpty()) orderInput = orderInput.substring(0, orderInput.length() - 1);
-                return true;
-            }
+        if (activeTab == Tab.ORDER && orderEditBox != null && orderEditBox.isFocused()) {
             if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
                 sendOrder();
                 return true;
             }
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-                orderFocused = false;
+                orderEditBox.setFocused(false);
                 return true;
             }
         }

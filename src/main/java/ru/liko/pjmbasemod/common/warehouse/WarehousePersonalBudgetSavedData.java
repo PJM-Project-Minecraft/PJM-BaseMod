@@ -6,7 +6,6 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
-import ru.liko.pjmbasemod.Config;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -70,32 +69,47 @@ public final class WarehousePersonalBudgetSavedData extends SavedData {
     }
 
     /** Текущий баланс игрока (целое, округление вниз) после ленивого пересчёта регенерации. */
-    public int getBudget(MinecraftServer server, UUID playerId) {
-        return (int) Math.floor(refresh(server, playerId).balance);
+    public int getBudget(MinecraftServer server, UUID playerId, int max, int regenPerHour) {
+        return (int) Math.floor(refresh(server, playerId, max, regenPerHour).balance);
     }
 
     /** Списывает {@code cost} из личного бюджета, если хватает. true — успех. */
-    public boolean trySpend(MinecraftServer server, UUID playerId, int cost) {
+    public boolean trySpend(MinecraftServer server, UUID playerId, int cost, int max, int regenPerHour) {
         if (cost <= 0) return true;
-        Entry e = refresh(server, playerId);
+        Entry e = refresh(server, playerId, max, regenPerHour);
         if (e.balance < cost) return false;
         e.balance -= cost;
         setDirty();
         return true;
     }
 
-    /** Возвращает очки в личный бюджет (откат при неудачном списании со склада), не выше потолка. */
-    public void refund(MinecraftServer server, UUID playerId, int amount) {
+    /**
+     * Возвращает очки в личный бюджет, не выше потолка. Используется и для отката при неудачном
+     * списании со склада, и для восстановления лимита при сдаче снаряжения обратно на склад.
+     */
+    public void refund(MinecraftServer server, UUID playerId, int amount, int max, int regenPerHour) {
         if (amount <= 0) return;
-        Entry e = refresh(server, playerId);
-        e.balance = Math.min(Math.max(0, Config.getWarehousePersonalBudgetMax()), e.balance + amount);
+        Entry e = refresh(server, playerId, max, regenPerHour);
+        e.balance = Math.min(Math.max(0, max), e.balance + amount);
         setDirty();
     }
 
+    /** Жёстко выставляет баланс игрока (зажат в {@code [0..max]}). Для команды квоты. */
+    public void setBalance(MinecraftServer server, UUID playerId, int value, int max, int regenPerHour) {
+        Entry e = refresh(server, playerId, max, regenPerHour);
+        e.balance = Math.max(0, Math.min(Math.max(0, max), value));
+        setDirty();
+    }
+
+    /** Восполняет баланс игрока до потолка. Для команды квоты ({@code full}). */
+    public void fill(MinecraftServer server, UUID playerId, int max, int regenPerHour) {
+        setBalance(server, playerId, max, max, regenPerHour);
+    }
+
     /** Ленивый пересчёт: добавляет накопленную регенерацию до потолка и обновляет метку времени. */
-    private Entry refresh(MinecraftServer server, UUID playerId) {
-        double max = Math.max(0, Config.getWarehousePersonalBudgetMax());
-        double regenPerHour = Math.max(0, Config.getWarehousePersonalBudgetRegenPerHour());
+    private Entry refresh(MinecraftServer server, UUID playerId, int maxPoints, int regenPoints) {
+        double max = Math.max(0, maxPoints);
+        double regenPerHour = Math.max(0, regenPoints);
         long now = server.overworld().getGameTime();
 
         Entry e = entries.get(playerId);

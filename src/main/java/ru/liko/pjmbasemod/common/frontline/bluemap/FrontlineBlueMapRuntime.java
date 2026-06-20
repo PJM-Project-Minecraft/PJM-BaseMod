@@ -185,11 +185,12 @@ final class FrontlineBlueMapRuntime {
         Map<String, List<OwnerArea>> ownersByDimension = new LinkedHashMap<>();
         for (Map.Entry<DimensionOwnerKey, List<ChunkPoint>> entry : chunksByOwner.entrySet()) {
             DimensionOwnerKey key = entry.getKey();
+            int chunkCount = entry.getValue().size();
             List<ChunkRect> rectangles = mergeIntoRectangles(entry.getValue());
             String ownerName = FrontlineTeams.displayName(server, key.ownerId());
             int ownerColor = FrontlineTeams.color(server, key.ownerId());
             ownersByDimension.computeIfAbsent(key.dimension(), ignored -> new ArrayList<>())
-                    .add(new OwnerArea(key.ownerId(), ownerName, ownerColor, rectangles));
+                    .add(new OwnerArea(key.ownerId(), ownerName, ownerColor, chunkCount, rectangles));
         }
 
         boolean brightPulse = ((System.currentTimeMillis() / 750L) & 1L) == 1L;
@@ -199,7 +200,7 @@ final class FrontlineBlueMapRuntime {
                     .add(new SectorArea(
                             sector.regionName(), sector.sectorX(), sector.sectorZ(),
                             sector.minX(), sector.maxX(), sector.minZ(), sector.maxZ(),
-                            activeSectorLabel(sector),
+                            sector.teamName(),
                             sector.contested() ? 0xFFC13D : sector.teamColor(),
                             sector.contested(),
                             sector.progressPercent(),
@@ -285,16 +286,25 @@ final class FrontlineBlueMapRuntime {
         int lineAlpha = Config.getFrontlineBlueMapLineAlpha();
         int fillAlpha = Config.getFrontlineBlueMapFillAlpha();
         int lineWidth = Config.getFrontlineBlueMapLineWidth();
+        boolean depthTest = Config.isFrontlineBlueMapDepthTest();
+        float baseY = Config.getFrontlineBlueMapMarkerHeight();
+        // Слои укладываются снизу вверх: граница региона → территория владельца → активный сектор.
+        // Небольшое смещение по Y задаёт порядок отрисовки без видимого зазора в 3D-виде.
+        float regionY = baseY;
+        float ownerY = baseY + 0.25f;
+        float sectorY = baseY + 0.5f;
 
         int markerIndex = 0;
         for (RegionArea region : snapshot.regions()) {
             Shape shape = chunkRectShape(region.minChunkX(), region.maxChunkX(), region.minChunkZ(), region.maxChunkZ());
             ShapeMarker marker = ShapeMarker.builder()
-                    .label("Граница региона: " + region.displayName())
-                    .shape(shape, 64f)
-                    .lineColor(withAlpha(0xFFFFFF, lineAlpha))
+                    .label("Регион «" + region.displayName() + "»")
+                    .detail(regionDetail(region))
+                    .shape(shape, regionY)
+                    .depthTestEnabled(depthTest)
+                    .lineColor(withAlpha(0xFFFFFF, Math.min(lineAlpha, 170)))
                     .fillColor(withAlpha(0x000000, 0))
-                    .lineWidth(lineWidth)
+                    .lineWidth(Math.max(1, lineWidth))
                     .build();
             markerSet.put("region_" + safeId(snapshot.dimension()) + "_" + safeId(region.name()) + "_" + markerIndex++, marker);
         }
@@ -302,13 +312,17 @@ final class FrontlineBlueMapRuntime {
         for (OwnerArea owner : snapshot.owners()) {
             boolean grayZone = owner.isGrayZone();
             Color lineColor = withAlpha(grayZone ? 0xE6E6E6 : owner.color(), grayZone ? Math.max(lineAlpha, 235) : lineAlpha);
-            Color fillColor = withAlpha(owner.color(), grayZone ? Math.max(fillAlpha, 135) : fillAlpha);
+            Color fillColor = withAlpha(owner.color(), grayZone ? Math.max(fillAlpha, 120) : fillAlpha);
+            String ownerLabel = grayZone ? FrontlineTeams.GRAY_ZONE_NAME : "Территория: " + owner.name();
+            String ownerDetail = ownerDetail(owner);
             int rectIndex = 0;
             for (ChunkRect rect : owner.rectangles()) {
                 Shape shape = chunkRectShape(rect.minChunkX(), rect.maxChunkX(), rect.minChunkZ(), rect.maxChunkZ());
                 ShapeMarker marker = ShapeMarker.builder()
-                        .label(grayZone ? FrontlineTeams.GRAY_ZONE_NAME : "Территория: " + owner.name())
-                        .shape(shape, 63f)
+                        .label(ownerLabel)
+                        .detail(ownerDetail)
+                        .shape(shape, ownerY)
+                        .depthTestEnabled(depthTest)
                         .lineColor(lineColor)
                         .fillColor(fillColor)
                         .lineWidth(grayZone ? lineWidth + 1 : lineWidth)
@@ -319,19 +333,25 @@ final class FrontlineBlueMapRuntime {
         }
 
         for (SectorArea sector : snapshot.sectors()) {
-            int fillAlphaBoosted = sector.brightPulse()
-                    ? Math.min(210, Math.max(fillAlpha + 70, fillAlpha * 2))
-                    : Math.max(45, fillAlpha / 2);
-            int lineAlphaBoosted = sector.brightPulse()
-                    ? 255
-                    : Math.max(95, lineAlpha / 2);
+            int progress = clampPercent(sector.progressPercent());
+            // Заливка тем плотнее, чем ближе захват к завершению; пульс добавляет яркости.
+            int fillBase = 45 + (int) Math.round(progress / 100.0 * 150.0); // 45..195
+            int fillA = sector.brightPulse() ? Math.min(220, fillBase + 30) : fillBase;
+            int lineA = sector.contested()
+                    ? (sector.brightPulse() ? 255 : 180)
+                    : (sector.brightPulse() ? 235 : 150);
+            int lineColorRgb = sector.contested() ? 0xFFC13D : 0xFFFFFF;
+            int width = lineWidth + (sector.brightPulse() ? 2 : 1) + (sector.contested() ? 1 : 0);
+
             Shape shape = chunkRectShape(sector.minChunkX(), sector.maxChunkX(), sector.minChunkZ(), sector.maxChunkZ());
             ShapeMarker marker = ShapeMarker.builder()
-                    .label(sector.label())
-                    .shape(shape, 62f)
-                    .lineColor(withAlpha(sector.contested() ? 0xFFC13D : 0xFFFFFF, lineAlphaBoosted))
-                    .fillColor(withAlpha(sector.color(), fillAlphaBoosted))
-                    .lineWidth(sector.brightPulse() ? lineWidth + 3 : lineWidth + 1)
+                    .label(sectorLabel(sector, progress))
+                    .detail(sectorDetail(sector, progress))
+                    .shape(shape, sectorY)
+                    .depthTestEnabled(depthTest)
+                    .lineColor(withAlpha(lineColorRgb, lineA))
+                    .fillColor(withAlpha(sector.color(), fillA))
+                    .lineWidth(width)
                     .build();
             markerSet.put("sector_" + safeId(snapshot.dimension()) + "_" + safeId(sector.regionName()) + "_" + sector.sectorX() + "_" + sector.sectorZ(), marker);
         }
@@ -339,9 +359,74 @@ final class FrontlineBlueMapRuntime {
         return markerSet;
     }
 
-    private static String activeSectorLabel(FrontlineMapSyncPacket.SectorEntry sector) {
-        if (sector.contested()) return "Оспаривается";
-        return "Захват: " + sector.teamName();
+    private static String sectorLabel(SectorArea sector, int progress) {
+        if (sector.contested()) return "⚔ Оспаривается — " + progress + "%";
+        return "Захват: " + sector.teamName() + " — " + progress + "%";
+    }
+
+    private static String regionDetail(RegionArea region) {
+        int chunksX = region.maxChunkX() - region.minChunkX() + 1;
+        int chunksZ = region.maxChunkZ() - region.minChunkZ() + 1;
+        return card("#FFFFFF", esc(region.displayName()), "Регион линии фронта",
+                row("Размер", chunksX + " × " + chunksZ + " чанк."));
+    }
+
+    private static String ownerDetail(OwnerArea owner) {
+        boolean grayZone = owner.isGrayZone();
+        String accent = colorHex(grayZone ? 0xE6E6E6 : owner.color());
+        String title = grayZone ? esc(FrontlineTeams.GRAY_ZONE_NAME) : esc(owner.name());
+        String subtitle = grayZone ? "Ничейная зона" : "Контролируемая территория";
+        return card(accent, title, subtitle,
+                row("Под контролем", owner.chunkCount() + " чанк."));
+    }
+
+    private static String sectorDetail(SectorArea sector, int progress) {
+        String accent = colorHex(sector.color());
+        String title = sector.contested() ? "Сектор оспаривается" : "Захват сектора";
+        String team = sector.contested() ? "—" : esc(sector.teamName());
+        String body = row("Команда", team)
+                + row("Статус", sector.contested() ? "Оспаривается" : "Идёт захват")
+                + progressBar(progress, accent);
+        return card(accent, title, "Сектор " + sector.sectorX() + ":" + sector.sectorZ(), body);
+    }
+
+    private static String card(String accentHex, String title, String subtitle, String body) {
+        return "<div style=\"font-family:sans-serif;min-width:190px;padding:2px 4px;\">"
+                + "<div style=\"display:flex;align-items:center;gap:6px;margin-bottom:3px;\">"
+                + "<span style=\"display:inline-block;width:10px;height:10px;border-radius:2px;background:" + accentHex + ";\"></span>"
+                + "<span style=\"font-weight:700;font-size:14px;\">" + title + "</span></div>"
+                + "<div style=\"font-size:11px;opacity:0.65;margin-bottom:6px;\">" + subtitle + "</div>"
+                + body + "</div>";
+    }
+
+    private static String row(String key, String value) {
+        return "<div style=\"display:flex;justify-content:space-between;gap:14px;font-size:12px;padding:1px 0;\">"
+                + "<span style=\"opacity:0.7;\">" + esc(key) + "</span>"
+                + "<span style=\"font-weight:600;\">" + value + "</span></div>";
+    }
+
+    private static String progressBar(int progress, String accentHex) {
+        return "<div style=\"margin-top:7px;\">"
+                + "<div style=\"display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;\">"
+                + "<span style=\"opacity:0.7;\">Прогресс</span><span style=\"font-weight:700;\">" + progress + "%</span></div>"
+                + "<div style=\"height:7px;border-radius:4px;background:rgba(128,128,128,0.3);overflow:hidden;\">"
+                + "<div style=\"height:100%;width:" + progress + "%;background:" + accentHex + ";\"></div></div></div>";
+    }
+
+    private static int clampPercent(int value) {
+        return Math.max(0, Math.min(100, value));
+    }
+
+    private static String colorHex(int rgb) {
+        return String.format(Locale.ROOT, "#%06X", rgb & 0xFFFFFF);
+    }
+
+    private static String esc(String raw) {
+        if (raw == null) return "";
+        return raw.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 
     private static Shape chunkRectShape(int minChunkX, int maxChunkX, int minChunkZ, int maxChunkZ) {
@@ -493,14 +578,14 @@ final class FrontlineBlueMapRuntime {
 
     private record RegionArea(String name, String displayName, int minChunkX, int maxChunkX, int minChunkZ, int maxChunkZ) {}
 
-    private record OwnerArea(String ownerId, String name, int color, List<ChunkRect> rectangles) {
+    private record OwnerArea(String ownerId, String name, int color, int chunkCount, List<ChunkRect> rectangles) {
         private boolean isGrayZone() {
             return FrontlineTeams.GRAY_ZONE_ID.equals(ownerId);
         }
     }
 
     private record SectorArea(String regionName, int sectorX, int sectorZ, int minChunkX, int maxChunkX, int minChunkZ, int maxChunkZ,
-                              String label, int color, boolean contested, int progressPercent, boolean brightPulse) {}
+                              String teamName, int color, boolean contested, int progressPercent, boolean brightPulse) {}
 
     private record ChunkRect(int minChunkX, int maxChunkX, int minChunkZ, int maxChunkZ) {}
 

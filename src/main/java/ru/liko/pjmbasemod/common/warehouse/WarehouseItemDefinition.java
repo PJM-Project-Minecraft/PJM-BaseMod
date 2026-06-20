@@ -82,6 +82,13 @@ public final class WarehouseItemDefinition {
      * Предпочтительный способ задавать TACZ-оружие — читаемо и не требует ручного NBT.
      */
     private TaczGunConfig tacz;
+    /**
+     * Реальный TACZ-id «простого» предмета — патрона или обвеса. У таких предметов один базовый Item
+     * ({@code tacz:ammo} / {@code tacz:attachment}) на все варианты, а конкретика хранится в NBT
+     * (как GunId у стволов). Без этого id GUI показывал бы общий ключ {@code item.tacz.ammo}/{@code .attachment}
+     * и missing-иконку. JSON-ключ: {@code "taczId"}.
+     */
+    private String taczId;
     /** Запрещать ли применение/удержание этого предмета игроку не той роли (allowedRoles). По умолчанию false. */
     private boolean roleLocked;
     /** Режим блокировки: "auto" (TACZ-оружие → hold, иначе use), "use", "hold". По умолчанию "auto". */
@@ -142,6 +149,8 @@ public final class WarehouseItemDefinition {
         return displayName == null ? "" : displayName;
     }
 
+    public void setDisplayName(String displayName) { this.displayName = displayName; }
+
     public String itemIdString() { return itemId == null ? "" : itemId; }
 
     /**
@@ -151,6 +160,7 @@ public final class WarehouseItemDefinition {
      */
     public String iconId() {
         if (hasTaczGun()) return tacz.gunId();
+        if (hasTaczSimpleItem()) return taczId;
         return itemIdString();
     }
 
@@ -166,6 +176,8 @@ public final class WarehouseItemDefinition {
     public int pointCost() { return Math.max(1, pointCost); }
 
     public int maxPerWithdraw() { return Math.max(1, maxPerWithdraw); }
+
+    public void setMaxPerWithdraw(int maxPerWithdraw) { this.maxPerWithdraw = maxPerWithdraw; }
 
     /** Сколько штук выдаётся за одну покупку (за {@link #pointCost()} очков). Минимум 1. */
     public int quantity() { return Math.max(1, quantity); }
@@ -188,6 +200,14 @@ public final class WarehouseItemDefinition {
 
     @Nullable
     public TaczGunConfig taczGun() { return tacz; }
+
+    /** Есть ли декларативный id «простого» TACZ-предмета (патрон/обвес). */
+    public boolean hasTaczSimpleItem() { return taczId != null && !taczId.isBlank(); }
+
+    public String taczSimpleId() { return taczId == null ? "" : taczId; }
+
+    /** Заполняет декларативный {@code taczId} (для команды additem): патрон/обвес по реальному id. */
+    public void setTaczSimpleId(String taczId) { this.taczId = taczId; }
 
     /**
      * Заполняет декларативный блок {@code tacz} считанными из стека данными ствола
@@ -218,6 +238,8 @@ public final class WarehouseItemDefinition {
         return allowedRoles == null ? List.of() : List.copyOf(allowedRoles);
     }
 
+    public void setAllowedRoles(List<String> allowedRoles) { this.allowedRoles = allowedRoles; }
+
     public boolean roleRestricted() {
         return allowedRoles != null && !allowedRoles.isEmpty();
     }
@@ -225,10 +247,14 @@ public final class WarehouseItemDefinition {
     /** Включён ли роль-лок применения/удержания для этого предмета. */
     public boolean roleLocked() { return roleLocked; }
 
+    public void setRoleLocked(boolean roleLocked) { this.roleLocked = roleLocked; }
+
     /** Режим блокировки: "auto" | "use" | "hold". */
     public String lockMode() {
         return lockMode == null || lockMode.isBlank() ? "auto" : lockMode;
     }
+
+    public void setLockMode(String lockMode) { this.lockMode = lockMode; }
 
     public boolean hasInvalidAllowedRoles() {
         return invalidAllowedRoles;
@@ -272,6 +298,10 @@ public final class WarehouseItemDefinition {
                 // ниже вернётся попытка по itemIdString()
             }
         }
+        // itemId необязателен и для декларативного патрона/обвеса — id берётся из самого taczId.
+        if ((itemId == null || itemId.isBlank()) && hasTaczSimpleItem()) {
+            return ResourceLocation.tryParse(taczId);
+        }
         return ResourceLocation.tryParse(itemIdString());
     }
 
@@ -305,6 +335,19 @@ public final class WarehouseItemDefinition {
             if (!gun.isEmpty()) {
                 applyComponents(gun, lookup); // дополнительные ванильные компоненты поверх, если заданы
                 return gun;
+            }
+        }
+
+        // Декларативный «простой» TACZ-предмет (патрон/обвес): собираем по реальному id. lookup не требуется,
+        // createStack сам определяет тип (ammo/attachment) по индексам TACZ и выставляет размер стака патронов.
+        if (hasTaczSimpleItem()) {
+            ResourceLocation simpleLoc = ResourceLocation.tryParse(taczId);
+            if (simpleLoc != null) {
+                ItemStack simple = TaczWarehouseCompat.createStack(simpleLoc, Math.max(1, count));
+                if (!simple.isEmpty()) {
+                    applyComponents(simple, lookup);
+                    return simple;
+                }
             }
         }
 
@@ -396,6 +439,12 @@ public final class WarehouseItemDefinition {
             return gunId != null && TaczWarehouseCompat.matches(stack, gunId);
         }
 
+        // TACZ-патрон/обвес: строго по реальному id (иначе можно сдать любой вариант базового предмета).
+        if (hasTaczSimpleItem()) {
+            ResourceLocation simpleId = ResourceLocation.tryParse(taczId);
+            return simpleId != null && TaczWarehouseCompat.matches(stack, simpleId);
+        }
+
         ResourceLocation loc = itemLocation();
         if (loc == null) return false;
 
@@ -436,6 +485,8 @@ public final class WarehouseItemDefinition {
         if (hasTaczGun() && (itemId == null || itemId.isBlank())) {
             itemId = "tacz:modern_kinetic_gun";
         }
+        // Для декларативного патрона/обвеса базовый itemId не обязателен — id берётся из самого taczId
+        // (см. itemLocation()); базовый предмет (tacz:ammo/tacz:attachment) различается, потому не хардкодим.
         // Сброс кешей: при перезагрузке конфига строки могли измениться.
         componentsParsed = false;
         parsedComponents = null;

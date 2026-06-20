@@ -21,13 +21,14 @@ public final class RankConfig {
 
     public static RankConfig defaults() {
         RankConfig config = new RankConfig();
+        // Квота склада растёт с рангом (regen = null → равен потолку, т.е. полное восстановление за час).
         config.ranks = new ArrayList<>(List.of(
-                new RankDefinition("private", "Рядовой", "PVT", 0, "textures/rangs/private.png", "#d8b15f"),
-                new RankDefinition("corporal", "Ефрейтор", "CPL", 500, "textures/rangs/corporal.png", "#d8b15f"),
-                new RankDefinition("sergeant", "Сержант", "SGT", 1500, "textures/rangs/sergeant.png", "#d8b15f"),
-                new RankDefinition("lieutenant", "Лейтенант", "LT", 3500, "textures/rangs/lieutenant.png", "#e8d06a"),
-                new RankDefinition("captain", "Капитан", "CPT", 7000, "textures/rangs/captain.png", "#d7d7d7"),
-                new RankDefinition("major", "Майор", "MAJ", 12000, "textures/rangs/major.png", "#f0b43a")
+                new RankDefinition("private", "Рядовой", "PVT", 0, "textures/rangs/private.png", "#d8b15f").budget(50, null),
+                new RankDefinition("corporal", "Ефрейтор", "CPL", 500, "textures/rangs/corporal.png", "#d8b15f").budget(100, null),
+                new RankDefinition("sergeant", "Сержант", "SGT", 1500, "textures/rangs/sergeant.png", "#d8b15f").budget(200, null),
+                new RankDefinition("lieutenant", "Лейтенант", "LT", 3500, "textures/rangs/lieutenant.png", "#e8d06a").budget(350, null),
+                new RankDefinition("captain", "Капитан", "CPT", 7000, "textures/rangs/captain.png", "#d7d7d7").budget(600, null),
+                new RankDefinition("major", "Майор", "MAJ", 12000, "textures/rangs/major.png", "#f0b43a").budget(1000, null)
         ));
         config.normalize();
         return config;

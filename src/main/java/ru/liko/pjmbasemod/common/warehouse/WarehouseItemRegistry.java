@@ -47,6 +47,30 @@ public final class WarehouseItemRegistry {
         return raw.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]", "_");
     }
 
+    /**
+     * Набор необязательных модификаторов для команды {@code additem}. Все поля опциональны:
+     * {@code null}/пустой список — модификатор не задан, применяется поведение по умолчанию.
+     * Заполняется парсингом {@code key=value}-хвоста в {@link ru.liko.pjmbasemod.common.command.WarehouseCommands}.
+     */
+    public record ItemModifiers(
+            @Nullable String id,
+            @Nullable String displayName,
+            int quantity,
+            @Nullable String category,
+            int maxPerWithdraw,
+            @Nullable Integer refundValue,
+            List<String> roles,
+            List<String> teams,
+            @Nullable String minRank,
+            @Nullable Boolean roleLocked,
+            @Nullable String lockMode) {
+
+        /** Пустой набор — захват предмета без дополнительных модификаторов. */
+        public static ItemModifiers empty() {
+            return new ItemModifiers(null, null, 1, null, 0, null, List.of(), List.of(), null, null, null);
+        }
+    }
+
     private Path warehouseDirectory() {
         return FMLPaths.CONFIGDIR.get().resolve(Pjmbasemod.MODID).resolve("warehouse");
     }
@@ -190,33 +214,49 @@ public final class WarehouseItemRegistry {
      * затем перезагружает каталог. Возвращает id созданного определения или {@code null} при ошибке.
      */
     public synchronized String captureAndAdd(MinecraftServer server, ItemStack stack,
-                                             WarehousePoolCategory pool, int cost, int quantity,
-                                             @Nullable String category) {
+                                             WarehousePoolCategory pool, int cost, ItemModifiers mods) {
         if (stack == null || stack.isEmpty()) return null;
         ResourceLocation itemKey = BuiltInRegistries.ITEM.getKey(stack.getItem());
 
-        String base = sanitizeId(itemKey.getPath());
+        // id: либо явный (mods.id), либо автогенерация из пути предмета; в обоих случаях дедуп.
+        String base = mods.id() != null && !mods.id().isBlank() ? sanitizeId(mods.id()) : sanitizeId(itemKey.getPath());
         if (base.isBlank()) base = "item";
         String id = base;
         for (int n = 2; definitions.containsKey(id); n++) {
             id = base + "_" + n;
         }
 
-        // Имя не сохраняем: GUI сам подтянет локализованное имя предмета по itemId.
-        String cat = (category == null || category.isBlank()) ? pool.id() : category.trim();
-        int qty = Math.max(1, quantity);
-        WarehouseItemDefinition def = new WarehouseItemDefinition(id, "", itemKey.toString(),
-                pool, cat, Math.max(1, cost), qty);
+        // Имя по умолчанию не сохраняем (GUI подтянет локализованное по itemId); пишем только если задано.
+        String displayName = mods.displayName() == null ? "" : mods.displayName();
+        String cat = (mods.category() == null || mods.category().isBlank()) ? pool.id() : mods.category().trim();
+        int qty = Math.max(1, mods.quantity());
+        // maxPerWithdraw: 0 → нормализуется в дефолт (16) в normalize(); иначе явное значение.
+        int maxWithdraw = Math.max(0, mods.maxPerWithdraw());
+        WarehouseItemDefinition def = new WarehouseItemDefinition(id, displayName, itemKey.toString(),
+                pool, cat, Math.max(1, cost), maxWithdraw);
         def.setQuantity(qty);
+        if (mods.refundValue() != null) def.setRefundValue(mods.refundValue());
+        if (!mods.roles().isEmpty()) def.setAllowedRoles(mods.roles());
+        if (!mods.teams().isEmpty()) def.setAllowedTeams(mods.teams());
+        if (mods.minRank() != null && !mods.minRank().isBlank()) def.setMinRank(mods.minRank());
+        if (mods.roleLocked() != null) def.setRoleLocked(mods.roleLocked());
+        if (mods.lockMode() != null && !mods.lockMode().isBlank()) def.setLockMode(mods.lockMode());
 
         // TACZ-ствол захватываем через родной API (gunId, патроны, режим огня, обвесы) — надёжнее
         // сырого NBT: декларативный блок tacz гарантированно восстанавливает GunId при выдаче.
         ru.liko.pjmbasemod.common.compat.TaczWarehouseCompat.CapturedGun gun =
                 ru.liko.pjmbasemod.common.compat.TaczWarehouseCompat.captureGun(stack);
+        // «Простой» TACZ-предмет (патрон/обвес): один базовый Item на все варианты, конкретика — в реальном id.
+        String simpleTaczId = gun == null
+                ? ru.liko.pjmbasemod.common.compat.TaczWarehouseCompat.captureSimpleTaczId(stack) : null;
         if (gun != null) {
             def.setTaczGun(gun.gunId(), gun.ammo(), gun.fireMode(), gun.ammoInBarrel(), gun.attachments());
             Pjmbasemod.LOGGER.info("Warehouse: захвачен TACZ-ствол '{}' (gunId={}, патроны={}, обвесов={}).",
                     id, gun.gunId(), gun.ammo(), gun.attachments().size());
+        } else if (simpleTaczId != null) {
+            // Декларативный id чинит иконку/имя в GUI (иначе общий item.tacz.ammo/.attachment + missing-текстура).
+            def.setTaczSimpleId(simpleTaczId);
+            Pjmbasemod.LOGGER.info("Warehouse: захвачен TACZ-предмет '{}' (taczId={}).", id, simpleTaczId);
         } else {
             String snbt;
             try {

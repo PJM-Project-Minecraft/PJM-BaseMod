@@ -9,7 +9,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
-import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.common.entity.QuartermasterEntity;
 import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.item.SupplyCrateItem;
@@ -123,11 +122,13 @@ public final class WarehouseManager {
         int amount = def.quantity();
         int cost = def.pointCost();
 
-        // Личный лимит (анти-«пылесос»): списываем до склада, чтобы при нехватке очков склада вернуть его.
-        boolean budgetEnabled = Config.isWarehousePersonalBudgetEnabled();
+        // Личный лимит (анти-«пылесос»): потолок зависит от ранга игрока (OP — безлимит).
+        // Списываем до склада, чтобы при нехватке очков склада вернуть его.
+        WarehouseBudgetLimits.Limit limit = WarehouseBudgetLimits.forPlayer(player);
+        boolean budgetEnabled = !limit.unlimited();
         WarehousePersonalBudgetSavedData budget = budgetEnabled
                 ? WarehousePersonalBudgetSavedData.get(player.server) : null;
-        if (budgetEnabled && !budget.trySpend(player.server, player.getUUID(), cost)) {
+        if (budgetEnabled && !budget.trySpend(player.server, player.getUUID(), cost, limit.max(), limit.regenPerHour())) {
             player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.budget_exhausted"), true);
             resync(player);
             return;
@@ -135,7 +136,7 @@ public final class WarehouseManager {
 
         WarehouseSavedData stock = WarehouseSavedData.get(player.server);
         if (!stock.trySpend(session.warehouseId(), def.pool(), cost)) {
-            if (budgetEnabled) budget.refund(player.server, player.getUUID(), cost); // откат личного бюджета
+            if (budgetEnabled) budget.refund(player.server, player.getUUID(), cost, limit.max(), limit.regenPerHour()); // откат
             player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.not_enough_points"), true);
             resync(player);
             return;
@@ -225,6 +226,13 @@ public final class WarehouseManager {
         WarehouseSavedData stock = WarehouseSavedData.get(player.server);
         stock.createWarehouse(session.warehouseId());
         stock.addPoints(session.warehouseId(), def.pool(), pointsGained);
+
+        // Сдача восстанавливает и личный лимит (вернул снаряжение — лимит вырос), но не выше потолка ранга.
+        WarehouseBudgetLimits.Limit depositLimit = WarehouseBudgetLimits.forPlayer(player);
+        if (!depositLimit.unlimited() && pointsGained > 0) {
+            WarehousePersonalBudgetSavedData.get(player.server)
+                    .refund(player.server, player.getUUID(), pointsGained, depositLimit.max(), depositLimit.regenPerHour());
+        }
 
         player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.deposited",
                 deposited, def.displayName(), pointsGained), true);
@@ -409,14 +417,18 @@ public final class WarehouseManager {
 
         boolean canWithdraw = WarehousePermissions.can(player, WarehousePermissions.WITHDRAW);
 
-        // Личный бюджет (анти-«пылесос») для отображения в меню; при выключенном лимите max=0 → не показывать.
+        // Личный бюджет (анти-«пылесос») для отображения в меню. Безлимит (OP/ранг) → budgetMax=-1 (∞ в GUI).
         int budget = 0;
         int budgetMax = 0;
         int budgetRegen = 0;
-        if (Config.isWarehousePersonalBudgetEnabled()) {
-            budgetMax = Config.getWarehousePersonalBudgetMax();
-            budgetRegen = Config.getWarehousePersonalBudgetRegenPerHour();
-            budget = WarehousePersonalBudgetSavedData.get(player.server).getBudget(player.server, player.getUUID());
+        WarehouseBudgetLimits.Limit snapshotLimit = WarehouseBudgetLimits.forPlayer(player);
+        if (snapshotLimit.unlimited()) {
+            budgetMax = -1;
+        } else {
+            budgetMax = snapshotLimit.max();
+            budgetRegen = snapshotLimit.regenPerHour();
+            budget = WarehousePersonalBudgetSavedData.get(player.server)
+                    .getBudget(player.server, player.getUUID(), snapshotLimit.max(), snapshotLimit.regenPerHour());
         }
 
         return new WarehouseSnapshot(session.warehouseId(), points, List.copyOf(items), canWithdraw,

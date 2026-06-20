@@ -18,6 +18,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseSnapshot;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -37,6 +38,10 @@ public class WarehouseScreen extends PjmBaseScreen {
     private static final int BUTTON_GAP = 4;
     private static final int CATEGORY_ROW_HEIGHT = 22;
     private static final int CATEGORY_ROW_STEP = 26;
+    /** Строка поиска + сортировки между панелью очков и списком предметов. */
+    private static final int SEARCH_ROW_HEIGHT = 20;
+    private static final int SORT_BUTTON_WIDTH = 120;
+    private static final int SEARCH_MAX_LEN = 48;
     /** Категории, которые показываются всегда (даже если предметов нет): постоянные разделы магазина. */
     private static final List<String> ALWAYS_SHOWN_CATEGORIES = List.of("attachment", "grenade", "equipment");
     /** Канонический порядок вкладок-категорий в сайдбаре; неизвестные — в конец по алфавиту. */
@@ -65,6 +70,19 @@ public class WarehouseScreen extends PjmBaseScreen {
     private final List<String> categories = new ArrayList<>();
     private int selectedCategory;
     private int scroll;
+
+    /** Текст поиска (глобальный — игнорирует выбранную категорию, когда не пуст). */
+    private String searchQuery = "";
+    private boolean searchFocused;
+    private SortMode sortMode = SortMode.DEFAULT;
+
+    /** Режимы сортировки списка; циклятся кнопкой. DEFAULT — исходный порядок из конфига. */
+    private enum SortMode {
+        DEFAULT("default"), NAME("name"), AVAILABILITY("availability");
+        final String key;
+        SortMode(String key) { this.key = key; }
+        SortMode next() { return values()[(ordinal() + 1) % values().length]; }
+    }
 
     public WarehouseScreen(WarehouseSnapshot snapshot) {
         super(Component.translatable("gui.pjmbasemod.warehouse.title"), GUI_WIDTH, GUI_HEIGHT);
@@ -104,17 +122,55 @@ public class WarehouseScreen extends PjmBaseScreen {
         if (selectedCategory >= categories.size()) selectedCategory = 0;
     }
 
+    private boolean isSearching() { return !searchQuery.trim().isEmpty(); }
+
     private List<WarehouseSnapshot.ItemEntry> currentItems() {
-        if (categories.isEmpty()) return List.of();
-        String category = categories.get(selectedCategory);
         List<WarehouseSnapshot.ItemEntry> result = new ArrayList<>();
-        for (WarehouseSnapshot.ItemEntry item : snapshot.items()) {
-            if (item.displayCategory().equals(category)) result.add(item);
+        if (isSearching()) {
+            // Глобальный поиск по всем категориям — выбранная вкладка игнорируется.
+            String query = searchQuery.trim().toLowerCase(Locale.ROOT);
+            for (WarehouseSnapshot.ItemEntry item : snapshot.items()) {
+                if (itemName(item).toLowerCase(Locale.ROOT).contains(query)) result.add(item);
+            }
+        } else {
+            if (categories.isEmpty()) return List.of();
+            String category = categories.get(selectedCategory);
+            for (WarehouseSnapshot.ItemEntry item : snapshot.items()) {
+                if (item.displayCategory().equals(category)) result.add(item);
+            }
         }
+        sortItems(result);
         return result;
     }
 
-    private int listTop() { return guiTop() + HEADER_HEIGHT + POOL_BAR_HEIGHT + 6; }
+    /** Отображаемое имя предмета: своё из конфига, иначе локализованное имя стака (клиент). */
+    private String itemName(WarehouseSnapshot.ItemEntry item) {
+        return item.displayName().isBlank()
+                ? GuiItemIcons.stackFor(item.itemId()).getHoverName().getString()
+                : item.displayName();
+    }
+
+    /** Доступен ли предмет к выдаче прямо сейчас (роль + ранг + хватает очков). */
+    private boolean isAvailable(WarehouseSnapshot.ItemEntry item) {
+        return item.roleAllowed() && item.rankAllowed() && item.affordable() && snapshot.canWithdraw();
+    }
+
+    private void sortItems(List<WarehouseSnapshot.ItemEntry> items) {
+        switch (sortMode) {
+            case NAME -> items.sort((a, b) -> itemName(a).compareToIgnoreCase(itemName(b)));
+            case AVAILABILITY -> items.sort((a, b) -> {
+                boolean aa = isAvailable(a);
+                boolean ba = isAvailable(b);
+                if (aa != ba) return aa ? -1 : 1;
+                return itemName(a).compareToIgnoreCase(itemName(b));
+            });
+            case DEFAULT -> { /* исходный порядок из снапшота */ }
+        }
+    }
+
+    private int searchRowTop() { return guiTop() + HEADER_HEIGHT + POOL_BAR_HEIGHT; }
+
+    private int listTop() { return searchRowTop() + SEARCH_ROW_HEIGHT + 4; }
 
     private int rowsVisible() {
         int listHeight = guiTop() + GUI_HEIGHT - 8 - listTop();
@@ -150,6 +206,21 @@ public class WarehouseScreen extends PjmBaseScreen {
         return new Rect(x, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT);
     }
 
+    private Rect searchFieldRect() {
+        int h = 16;
+        int x = contentLeft();
+        int w = contentWidth() - SORT_BUTTON_WIDTH - 6;
+        int y = searchRowTop() + (SEARCH_ROW_HEIGHT - h) / 2;
+        return new Rect(x, y, w, h);
+    }
+
+    private Rect sortButtonRect() {
+        int h = 16;
+        int x = contentLeft() + contentWidth() - SORT_BUTTON_WIDTH;
+        int y = searchRowTop() + (SEARCH_ROW_HEIGHT - h) / 2;
+        return new Rect(x, y, SORT_BUTTON_WIDTH, h);
+    }
+
     private void clampScroll() {
         int max = Math.max(0, currentItems().size() - rowsVisible());
         if (scroll > max) scroll = max;
@@ -183,6 +254,40 @@ public class WarehouseScreen extends PjmBaseScreen {
     }
 
     @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (searchFocused) {
+            if (keyCode == 256) { // Esc — снять фокус, экран не закрываем
+                searchFocused = false;
+                return true;
+            }
+            if (keyCode == 257 || keyCode == 335) { // Enter / NumpadEnter — подтвердить
+                searchFocused = false;
+                return true;
+            }
+            if (keyCode == 259) { // Backspace
+                if (!searchQuery.isEmpty()) {
+                    searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
+                    scroll = 0;
+                    clampScroll();
+                }
+                return true;
+            }
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (searchFocused && chr >= ' ' && chr != 127 && searchQuery.length() < SEARCH_MAX_LEN) {
+            searchQuery += chr;
+            scroll = 0;
+            clampScroll();
+            return true;
+        }
+        return super.charTyped(chr, modifiers);
+    }
+
+    @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         return mouseClickedScaled(vMouseX(mouseX), vMouseY(mouseY), button);
     }
@@ -200,6 +305,26 @@ public class WarehouseScreen extends PjmBaseScreen {
             this.onClose();
             return true;
         }
+
+        // Поле поиска — фокус
+        if (searchFieldRect().contains(mouseX, mouseY)) {
+            if (!searchFocused) PjmUiSounds.playClick();
+            searchFocused = true;
+            return true;
+        }
+
+        // Кнопка сортировки — цикл режимов
+        if (sortButtonRect().contains(mouseX, mouseY)) {
+            PjmUiSounds.playClick();
+            sortMode = sortMode.next();
+            searchFocused = false;
+            scroll = 0;
+            clampScroll();
+            return true;
+        }
+
+        // Любой другой клик снимает фокус с поиска (обработка ниже продолжается).
+        searchFocused = false;
 
         // Вкладки категорий
         for (int i = 0; i < categories.size(); i++) {
@@ -257,8 +382,12 @@ public class WarehouseScreen extends PjmBaseScreen {
         graphics.drawString(this.font, getTitle(), left + 8, top + 7, 0xFFE8E8E8, false);
         drawSmoothIcon(graphics, CLOSE_ICON, left + GUI_WIDTH - 19, top + 4, 14, 14);
 
-        // Личный лимит (анти-«пылесос»): остаток/потолок справа в хедере. max=0 — лимит выключен.
-        if (snapshot.personalBudgetMax() > 0) {
+        // Личный лимит (анти-«пылесос») справа в хедере. max<0 — безлимит (OP/ранг) → «∞»; max=0 — скрыт.
+        if (snapshot.personalBudgetMax() < 0) {
+            String budgetText = Component.translatable("gui.pjmbasemod.warehouse.budget.unlimited").getString();
+            int budgetW = this.font.width(budgetText);
+            graphics.drawString(this.font, budgetText, left + GUI_WIDTH - 30 - budgetW, top + 7, 0xFF6FC36F, false);
+        } else if (snapshot.personalBudgetMax() > 0) {
             String budgetText = Component.translatable("gui.pjmbasemod.warehouse.budget",
                     snapshot.personalBudget(), snapshot.personalBudgetMax()).getString();
             boolean low = snapshot.personalBudget() <= 0;
@@ -285,6 +414,11 @@ public class WarehouseScreen extends PjmBaseScreen {
             }
         }
 
+        // При активном поиске сайдбар приглушается — поиск глобальный, вкладка неактуальна.
+        if (isSearching()) {
+            graphics.fill(left, top + HEADER_HEIGHT, left + SIDEBAR_WIDTH, top + GUI_HEIGHT, 0x99000000);
+        }
+
         // Панель очков по пулам
         int poolY = top + HEADER_HEIGHT + 4;
         int poolX = left + SIDEBAR_WIDTH + 8;
@@ -309,6 +443,31 @@ public class WarehouseScreen extends PjmBaseScreen {
             graphics.drawString(this.font, text, currentX, currentY, 0xFFD8B15F, false);
             currentX += textWidth + 12;
         }
+
+        // Строка поиска
+        Rect searchRect = searchFieldRect();
+        int searchBorder = searchFocused ? 0xFF5A7BA8 : 0xFF3A3A44;
+        graphics.fill(searchRect.x() - 1, searchRect.y() - 1, searchRect.x() + searchRect.w() + 1,
+                searchRect.y() + searchRect.h() + 1, searchBorder);
+        graphics.fill(searchRect.x(), searchRect.y(), searchRect.x() + searchRect.w(),
+                searchRect.y() + searchRect.h(), 0xFF18181D);
+        boolean placeholder = searchQuery.isEmpty() && !searchFocused;
+        String searchText = placeholder
+                ? Component.translatable("gui.pjmbasemod.warehouse.search").getString()
+                : searchQuery + (searchFocused ? "_" : "");
+        graphics.drawString(this.font, ellipsize(searchText, searchRect.w() - 10),
+                searchRect.x() + 5, searchRect.y() + (searchRect.h() - 8) / 2,
+                placeholder ? 0xFF6A6A72 : 0xFFE8E8E8, false);
+
+        // Кнопка сортировки
+        Rect sortRect = sortButtonRect();
+        boolean sortHovered = sortRect.contains(mouseX, mouseY);
+        graphics.fill(sortRect.x(), sortRect.y(), sortRect.x() + sortRect.w(), sortRect.y() + sortRect.h(),
+                sortHovered ? 0xFF3A3A46 : 0xFF26262E);
+        String sortValue = Component.translatable("gui.pjmbasemod.warehouse.sort." + sortMode.key).getString();
+        String sortLabel = Component.translatable("gui.pjmbasemod.warehouse.sort", sortValue).getString();
+        graphics.drawString(this.font, ellipsize(sortLabel, sortRect.w() - 8),
+                sortRect.x() + 5, sortRect.y() + (sortRect.h() - 8) / 2, 0xFFC8C8C8, false);
 
         // Список предметов
         int contentLeft = left + SIDEBAR_WIDTH + 8;

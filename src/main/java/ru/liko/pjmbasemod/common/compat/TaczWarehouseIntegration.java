@@ -169,6 +169,30 @@ final class TaczWarehouseIntegration {
         return !stack.isEmpty() && stack.getItem() instanceof IGun;
     }
 
+    /**
+     * Считывает реальный TACZ-id «простого» предмета — патрона ({@link IAmmo}) или обвеса ({@link IAttachment}).
+     * Это предметы, у которых один базовый Item на все варианты, а конкретика хранится в NBT (как GunId у стволов).
+     * Возвращает {@code null}, если стек — не патрон и не обвес, либо id пустой. Стволы тут не обрабатываются
+     * (у них отдельный богатый захват {@link #captureGun}).
+     */
+    @Nullable
+    static String captureSimpleTaczId(ItemStack stack) {
+        if (stack.isEmpty()) return null;
+        if (stack.getItem() instanceof IAttachment iAttachment) {
+            ResourceLocation id = iAttachment.getAttachmentId(stack);
+            if (id != null && !DefaultAssets.isEmptyAttachmentId(id) && !id.getPath().isBlank()) {
+                return id.toString();
+            }
+        }
+        if (stack.getItem() instanceof IAmmo iAmmo) {
+            ResourceLocation id = iAmmo.getAmmoId(stack);
+            if (id != null && !DefaultAssets.EMPTY_AMMO_ID.equals(id) && !id.getPath().isBlank()) {
+                return id.toString();
+            }
+        }
+        return null;
+    }
+
     @Nullable
     private static ResourceLocation resolveTaczId(ResourceLocation configuredId) {
         for (ResourceLocation candidate : candidates(configuredId)) {
