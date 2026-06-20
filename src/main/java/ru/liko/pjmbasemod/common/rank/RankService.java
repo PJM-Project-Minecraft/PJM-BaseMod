@@ -2,6 +2,7 @@ package ru.liko.pjmbasemod.common.rank;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
@@ -135,6 +136,35 @@ public final class RankService {
             rewarded++;
         }
         return rewarded;
+    }
+
+    /** ResourceLocation bitmap-шрифта с иконками рангов ({@code assets/pjmbasemod/font/rank_icons.json}). */
+    private static final ResourceLocation CHAT_RANK_FONT =
+            ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "rank_icons");
+
+    /**
+     * Бейдж ранга для строки чата: иконка (bitmap-шрифт) + {@code [shortName]} цветом ранга + пробел.
+     * Возвращает {@code null}, если система рангов выключена или {@code showChatRank == false}.
+     */
+    @Nullable
+    public static Component chatBadge(ServerPlayer sender) {
+        if (sender == null || sender.getServer() == null) return null;
+        RankConfig config = RankRegistry.get().config();
+        if (!config.enabled() || !config.showChatRank()) return null;
+
+        RankDefinition rank = RankRegistry.get().rankForXp(xp(sender));
+        int color = rank.accentColorRgb();
+        net.minecraft.network.chat.MutableComponent badge = Component.empty();
+
+        String glyph = rank.chatGlyph();
+        if (glyph != null && !glyph.isEmpty()) {
+            badge.append(Component.literal(glyph)
+                    .withStyle(style -> style.withFont(CHAT_RANK_FONT).withColor(TextColor.fromRgb(0xFFFFFF))));
+            badge.append(Component.literal(" "));
+        }
+        badge.append(Component.literal("[" + rank.shortName() + "] ")
+                .withStyle(style -> style.withColor(TextColor.fromRgb(color))));
+        return badge;
     }
 
     public static Component tabListName(ServerPlayer player) {

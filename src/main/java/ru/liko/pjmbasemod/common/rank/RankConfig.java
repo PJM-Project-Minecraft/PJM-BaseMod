@@ -14,6 +14,7 @@ public final class RankConfig {
     private boolean showRankHud = true;
     private boolean showXpPopups = true;
     private boolean showTabPrefix = true;
+    private boolean showChatRank = true;
     private List<RankDefinition> ranks = new ArrayList<>();
 
     public RankConfig() {
@@ -80,6 +81,10 @@ public final class RankConfig {
 
     public boolean showTabPrefix() {
         return showTabPrefix;
+    }
+
+    public boolean showChatRank() {
+        return showChatRank;
     }
 
     public List<RankDefinition> ranks() {

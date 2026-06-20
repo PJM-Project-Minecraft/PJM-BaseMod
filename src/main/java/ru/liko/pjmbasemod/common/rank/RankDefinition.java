@@ -4,8 +4,25 @@ import ru.liko.pjmbasemod.Pjmbasemod;
 
 import javax.annotation.Nullable;
 import java.util.Locale;
+import java.util.Map;
 
 public final class RankDefinition {
+
+    /**
+     * Дефолтный маппинг id ранга → символ bitmap-шрифта {@code pjmbasemod:rank_icons}
+     * (см. {@code assets/pjmbasemod/font/rank_icons.json}). Кодпоинты U+E000…U+E007.
+     * Для рангов вне таблицы иконка в чате не рисуется (только текстовый код).
+     */
+    private static final Map<String, String> DEFAULT_CHAT_GLYPHS = Map.of(
+            "private",    "",
+            "corporal",   "",
+            "sergeant",   "",
+            "lieutenant", "",
+            "captain",    "",
+            "major",      "",
+            "colonel",    "",
+            "general",    ""
+    );
 
     private String id;
     private String displayName;
@@ -13,6 +30,8 @@ public final class RankDefinition {
     private int minXp;
     private String icon;
     private String accentColor;
+    /** Символ bitmap-шрифта для иконки ранга в чате. Пусто → берётся из {@link #DEFAULT_CHAT_GLYPHS} по id. */
+    private String chatGlyph;
     /** Потолок личной квоты склада для ранга. {@code null} (не задано) или {@code -1} → безлимит. */
     private Integer warehouseBudgetMax;
     /** Регенерация квоты, очков/час. {@code null} (не задано) → равна потолку {@link #warehouseBudgetMax}. */
@@ -53,6 +72,15 @@ public final class RankDefinition {
 
     public int accentColorRgb() {
         return parseColor(accentColor, 0xD8B15F);
+    }
+
+    /**
+     * Символ иконки ранга для bitmap-шрифта чата. Явное значение из {@code ranks.json}
+     * имеет приоритет; иначе берётся дефолт по id; иначе пусто (иконка не рисуется).
+     */
+    public String chatGlyph() {
+        if (chatGlyph != null && !chatGlyph.isEmpty()) return chatGlyph;
+        return DEFAULT_CHAT_GLYPHS.getOrDefault(id(), "");
     }
 
     /** Потолок личной квоты склада. {@code null}/{@code -1} → безлимит (см. {@code WarehouseBudgetLimits}). */

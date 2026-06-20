@@ -1,9 +1,11 @@
 package ru.liko.pjmbasemod.common.chat;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.rank.RankService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,8 +47,13 @@ public final class ChatService {
             case TEAM   -> "[G]";
             case GLOBAL -> "[G]";
         };
-        return Component.literal(tag + " ")
-                .withStyle(s -> s.withColor(m.getColor()))
+        MutableComponent line = Component.literal(tag + " ")
+                .withStyle(s -> s.withColor(m.getColor()));
+        Component rankBadge = RankService.chatBadge(sender);
+        if (rankBadge != null) {
+            line.append(rankBadge);
+        }
+        return line
                 .append(Component.literal(sender.getName().getString() + ": "))
                 .append(raw);
     }

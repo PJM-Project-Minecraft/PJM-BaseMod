@@ -101,7 +101,8 @@ public final class PjmServerEvents {
         ServerPlayer sender = event.getPlayer();
         if (sender == null) return;
         ChatMode mode = ServerPacketHandlers.getChatMode(sender);
-        if (mode == ChatMode.GLOBAL) return;
+        // Все режимы (включая GLOBAL) идут через кастомную доставку, чтобы добавить
+        // иконку+ранг к нику. Компромисс: GLOBAL теряет ванильную криптоподпись/репорт.
         event.setCanceled(true);
         ChatService.deliver(sender, mode, event.getMessage());
     }
