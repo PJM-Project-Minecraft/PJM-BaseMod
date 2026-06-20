@@ -64,6 +64,9 @@
 `FactionCommanderService`, `FactionCommanderSavedData` — роль командира.
 `FactionJoinActions` — действия при вступлении в фракцию.
 `FactionPermissions`, `FactionManagementSnapshot` — права и синхронизация.
+`FactionDeputySavedData` + enum `DeputyPermission` (ASSIGN_ROLES/SET_ORDER/OPEN_GUI) — заместители фракции (teamId → playerId → битмаска), лимит `faction.maxDeputies`.
+`FactionOrderSavedData`, `FactionOrderManager` — приказ фракции (текст + TTL): разовое уведомление + постоянная HUD-плашка у всех членов команды. Клиент: `ClientFactionOrderState`, `FactionOrderHudOverlay`.
+`FactionMenuService.Authority` — права зрителя. Конфиг-секция `faction` (maxDeputies, orderMaxLength, orderDefaultTtlMinutes, orderMaxTtlMinutes). Экран: вкладки Роль/Зам/Приказ, недоступные скрыты — [`docs/FACTION_MANAGEMENT.md`](./docs/FACTION_MANAGEMENT.md).
 
 ### role
 `RoleService`, `RoleSavedData` — боевая роль игрока (enum `CombatRole`).
@@ -195,6 +198,7 @@ Brigadier-дерево: `common/command/PjmCommands` (корень `/pjm`) + `Wa
 | [`docs/WAREHOUSE_CONFIG.md`](./docs/WAREHOUSE_CONFIG.md) | Краткий редирект на `WAREHOUSE.md`. |
 | [`docs/ROLES.md`](./docs/ROLES.md) | Система боевых ролей: назначение через radial menu, лимиты. |
 | [`docs/FACTION_COMMANDER.md`](./docs/FACTION_COMMANDER.md) | Роль командира фракции (`КМД`), отдельная от XP-званий. |
+| [`docs/FACTION_MANAGEMENT.md`](./docs/FACTION_MANAGEMENT.md) | Экран управления фракцией: командир/зам, права заместителей (`DeputyPermission`), приказ фракции с TTL, конфиг `faction`. |
 | [`docs/GUI_SCREENS.md`](./docs/GUI_SCREENS.md) | Руководство по полноэкранным `Screen`-меню с масштабированием (`PjmBaseScreen`). |
 | [`docs/DEPENDENCIES.md`](./docs/DEPENDENCIES.md) | Зависимости фронтенда: что UI ожидает от мода, импорты по слоям. |
 
