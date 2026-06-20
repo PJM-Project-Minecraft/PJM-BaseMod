@@ -84,11 +84,13 @@
 ### warehouse
 `WarehouseManager`, `WarehouseSavedData`, `WarehouseSettingsSavedData`, `WarehouseSettings`, `WarehouseSnapshot` — склад очков.
 `WarehouseItemRegistry`, `WarehouseItemDefinition`, `CrateRegistry`, `CrateDefinition` — JSON-каталоги.
-`WarehousePoolCategory` — 4 пула: WEAPON/SUPPLY/RAW/SPECIAL.
+`WarehousePersonalBudgetSavedData` — личный лимит очков на игрока (анти-«пылесос», секция `warehouse` в конфиге).
+`WarehousePoolCategory` — 5 пулов: WEAPON/SUPPLY/EQUIPMENT/RAW/SPECIAL.
 `WarehousePermissions` — права.
 `QuartermasterEntity` — NPC-кладовщик (`Mob` без ИИ, рендер `QuartermasterRenderer` через ванильную `PlayerModel`).
-Ящики: `SupplyCrateItem` × 4 (weapon_crate/supply_crate/raw_crate/special_crate).
+Ящики: `SupplyCrateItem` × 5 (weapon_crate/supply_crate/equipment_crate/raw_crate/special_crate).
 Клиентский экран: `client/gui/screen/WarehouseScreen`.
+Полная документация подсистемы (флаги конфига, `items.json`, `crates/`, команды, NPC, TACZ) — [`docs/WAREHOUSE.md`](./docs/WAREHOUSE.md).
 
 ### inventory
 `InventoryLimitService`, `InventoryLimitRegistry`, `InventoryLimitConfig` — блокировка слотов инвентаря.
@@ -182,6 +184,19 @@ Brigadier-дерево: `common/command/PjmCommands` (корень `/pjm`) + `Wa
 4. Метод в `ClientPacketProxy` (default noop) + реализация в `ClientPacketHandlersImpl`
 5. `client/gui/screen/*Screen` (extends `Screen`, без ContainerMenu)
 6. Клиентский state-класс `client/<name>/Client*State`
+
+## Документация (`docs/`)
+
+Актуальная документация по подсистемам, сверенная с кодом:
+
+| Файл | О чём |
+|------|-------|
+| [`docs/WAREHOUSE.md`](./docs/WAREHOUSE.md) | Система склада: флаги конфига, `items.json`, ящики `crates/`, пулы очков, NPC-кладовщик, зона приёма, личный бюджет, сдача, команды, права, TACZ. |
+| [`docs/WAREHOUSE_CONFIG.md`](./docs/WAREHOUSE_CONFIG.md) | Краткий редирект на `WAREHOUSE.md`. |
+| [`docs/ROLES.md`](./docs/ROLES.md) | Система боевых ролей: назначение через radial menu, лимиты. |
+| [`docs/FACTION_COMMANDER.md`](./docs/FACTION_COMMANDER.md) | Роль командира фракции (`КМД`), отдельная от XP-званий. |
+| [`docs/GUI_SCREENS.md`](./docs/GUI_SCREENS.md) | Руководство по полноэкранным `Screen`-меню с масштабированием (`PjmBaseScreen`). |
+| [`docs/DEPENDENCIES.md`](./docs/DEPENDENCIES.md) | Зависимости фронтенда: что UI ожидает от мода, импорты по слоям. |
 
 ## Предостережение по DOCS.md
 
