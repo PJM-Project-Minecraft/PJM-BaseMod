@@ -122,7 +122,7 @@ public class TacticalMainMenuScreen extends Screen {
         // 2. Sub-Menu Buttons (Connect Main, Alt 1, Alt 2, Singleplayer)
         TacticalButton btnConnectMain = new TacticalButton(startX + 20, 0, PANEL_WIDTH - 100, SUB_BUTTON_HEIGHT, Component.translatable("menu.pjm.connect_main"),
                 button -> {
-                    ServerData serverData = new ServerData("Project Minecraft Server", "13.140.17.105:25565", ServerData.Type.OTHER);
+                    ServerData serverData = new ServerData("Project Minecraft Server", "13.140.17.105:33555", ServerData.Type.OTHER);
                     ConnectScreen.startConnecting(this, this.minecraft, ServerAddress.parseString(serverData.ip), serverData, false, null);
                 }, false, false, true);
         addRenderableWidget(btnConnectMain);
