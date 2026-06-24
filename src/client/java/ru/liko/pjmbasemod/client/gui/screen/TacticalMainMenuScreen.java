@@ -122,7 +122,7 @@ public class TacticalMainMenuScreen extends Screen {
         // 2. Sub-Menu Buttons (Connect Main, Alt 1, Alt 2, Singleplayer)
         TacticalButton btnConnectMain = new TacticalButton(startX + 20, 0, PANEL_WIDTH - 100, SUB_BUTTON_HEIGHT, Component.translatable("menu.pjm.connect_main"),
                 button -> {
-                    ServerData serverData = new ServerData("Project Minecraft Server", "pl1.hoxen.one:25569", ServerData.Type.OTHER);
+                    ServerData serverData = new ServerData("Project Minecraft Server", "13.140.17.105:25565", ServerData.Type.OTHER);
                     ConnectScreen.startConnecting(this, this.minecraft, ServerAddress.parseString(serverData.ip), serverData, false, null);
                 }, false, false, true);
         addRenderableWidget(btnConnectMain);
@@ -130,19 +130,11 @@ public class TacticalMainMenuScreen extends Screen {
 
         TacticalButton btnConnectAlt1 = new TacticalButton(startX + 20, 0, PANEL_WIDTH - 100, SUB_BUTTON_HEIGHT, Component.translatable("menu.pjm.connect_alt1"),
                 button -> {
-                    ServerData serverData = new ServerData("Project Minecraft Alt 1", "213.152.43.50:25984", ServerData.Type.OTHER);
+                    ServerData serverData = new ServerData("Project Minecraft Alt 1", "81.88.221.192:25565", ServerData.Type.OTHER);
                     ConnectScreen.startConnecting(this, this.minecraft, ServerAddress.parseString(serverData.ip), serverData, false, null);
                 }, false, false, true);
         addRenderableWidget(btnConnectAlt1);
         playSubMenuButtons.add(btnConnectAlt1);
-
-        TacticalButton btnConnectAlt2 = new TacticalButton(startX + 20, 0, PANEL_WIDTH - 100, SUB_BUTTON_HEIGHT, Component.translatable("menu.pjm.connect_alt2"),
-                button -> {
-                    ServerData serverData = new ServerData("Project Minecraft Alt 2", "13.140.17.105:25565", ServerData.Type.OTHER);
-                    ConnectScreen.startConnecting(this, this.minecraft, ServerAddress.parseString(serverData.ip), serverData, false, null);
-                }, false, false, true);
-        addRenderableWidget(btnConnectAlt2);
-        playSubMenuButtons.add(btnConnectAlt2);
 
         TacticalButton btnSingle = new TacticalButton(startX + 20, 0, PANEL_WIDTH - 100, SUB_BUTTON_HEIGHT, Component.translatable("menu.pjm.singleplayer"),
                 button -> {
