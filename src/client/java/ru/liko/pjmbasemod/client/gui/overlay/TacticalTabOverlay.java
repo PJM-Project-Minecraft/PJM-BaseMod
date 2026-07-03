@@ -25,19 +25,22 @@ import java.util.TreeMap;
  * Кастомный TAB-список: колонка на каждую scoreboard-команду (фракцию),
  * игроки без команды — компактной секцией снизу. Ванильный TAB отменён
  * в {@link CancelVanillaHotbar}.
+ *
+ * Минималистичный стиль: чистый текст на размытом blur-фоне без рамок и
+ * разделителей, тонкая цветная полоска-акцент слева у имени фракции.
+ * Пинг игроков — числом в мс цветом по латентности.
  */
 public class TacticalTabOverlay {
 
     private static final int COL_WIDTH = 150;
     private static final int ROW_HEIGHT = 12;
-    private static final int HEADER_HEIGHT = 20;
-    private static final int TEAM_HEADER_HEIGHT = 16;
+    private static final int HEADER_HEIGHT = 18;
+    private static final int TEAM_HEADER_HEIGHT = 14;
     private static final int PADDING = 6;
-    private static final int TOP = 30;
+    private static final int TOP = 28;
 
-    private static final int BG_COLOR = 0xCC101418;
-    private static final int BORDER_COLOR = 0x44FFFFFF;
-    private static final int DIVIDER_COLOR = 0x33FFFFFF;
+    /** Полупрозрачный тёмный фон списка поверх blur-эффекта (читаемость текста). */
+    private static final int BG_COLOR = 0xA80E1014;
     private static final int NEUTRAL_COLOR = 0xFF9AA0A6;
 
     public static final LayeredDraw.Layer LAYER = (graphics, deltaTracker) -> {
@@ -111,26 +114,32 @@ public class TacticalTabOverlay {
 
         int left = (screenWidth - width) / 2;
         int right = left + width;
-        int bottom = TOP + height;
+        int top = TOP;
+        int bottom = top + height;
+
+        // Blur только под областью списка (через scissor), чтобы остальной HUD
+        // (hotbar, компас, уведомления) оставался чётким. Поверх — полупрозрачный фон.
+        graphics.pose().pushPose();
+        RenderSystem.disableDepthTest();
+        graphics.enableScissor(left, top, right, bottom);
+        mc.gameRenderer.processBlurEffect(deltaTracker.getGameTimeDeltaPartialTick(false));
+        mc.getMainRenderTarget().bindWrite(false);
+        graphics.disableScissor();
+        graphics.pose().popPose();
 
         graphics.pose().pushPose();
         RenderSystem.enableBlend();
 
-        // Фон и тонкая внешняя рамка.
-        graphics.fill(left, TOP, right, bottom, BG_COLOR);
-        graphics.fill(left, TOP, right, TOP + 1, BORDER_COLOR);
-        graphics.fill(left, bottom - 1, right, bottom, BORDER_COLOR);
-        graphics.fill(left, TOP, left + 1, bottom, BORDER_COLOR);
-        graphics.fill(right - 1, TOP, right, bottom, BORDER_COLOR);
+        // Полупрозрачный фон без рамок и разделителей.
+        graphics.fill(left, top, right, bottom, BG_COLOR);
 
         // Шапка: заголовок + общий онлайн.
         Component title = Component.translatable("gui.pjmbasemod.tab.title")
                 .append(Component.literal(" • " + players.size()));
         int titleWidth = font.width(title);
-        graphics.drawString(font, title, left + (width - titleWidth) / 2, TOP + 6, 0xFFFFFFFF, false);
-        graphics.fill(left, TOP + HEADER_HEIGHT, right, TOP + HEADER_HEIGHT + 1, DIVIDER_COLOR);
+        graphics.drawString(font, title, left + (width - titleWidth) / 2, top + 5, 0xFFFFFFFF, false);
 
-        int teamHeaderTop = TOP + HEADER_HEIGHT + 1;
+        int teamHeaderTop = top + HEADER_HEIGHT;
         int rowsTop = teamHeaderTop + TEAM_HEADER_HEIGHT;
         int rowsBottom = rowsTop + columnRows * ROW_HEIGHT;
 
@@ -139,15 +148,11 @@ public class TacticalTabOverlay {
             int colLeft = left + c * colWidth;
             int colRight = colLeft + colWidth;
 
-            // Вертикальный разделитель между колонками.
-            if (c > 0) {
-                graphics.fill(colLeft, teamHeaderTop, colLeft + 1, rowsBottom, DIVIDER_COLOR);
-            }
-
-            // Заголовок фракции: полоса-акцент + имя + счётчик.
-            graphics.fill(colLeft + PADDING, teamHeaderTop + 2, colRight - PADDING, teamHeaderTop + 4, col.color);
-            String teamLabel = font.plainSubstrByWidth(col.name + " — " + col.players.size(), colWidth - PADDING * 2);
-            graphics.drawString(font, teamLabel, colLeft + PADDING, teamHeaderTop + 6, col.color, false);
+            // Тонкая цветная полоска-акцент слева у имени фракции.
+            graphics.fill(colLeft + PADDING, teamHeaderTop + 1, colLeft + PADDING + 2,
+                    teamHeaderTop + TEAM_HEADER_HEIGHT - 1, col.color);
+            String teamLabel = font.plainSubstrByWidth(col.name + " — " + col.players.size(), colWidth - PADDING * 2 - 6);
+            graphics.drawString(font, teamLabel, colLeft + PADDING + 6, teamHeaderTop + 3, col.color, false);
 
             int shown = Math.min(col.players.size(), maxRows);
             boolean overflow = col.players.size() > maxRows;
@@ -166,11 +171,10 @@ public class TacticalTabOverlay {
         // Секция игроков без фракции.
         if (showNoTeamSection) {
             int sectionTop = rowsBottom + PADDING;
-            graphics.fill(left, sectionTop, right, sectionTop + 1, DIVIDER_COLOR);
             Component label = Component.translatable("gui.pjmbasemod.tab.no_faction")
                     .append(Component.literal(" — " + noTeam.size()));
-            graphics.drawString(font, label, left + PADDING, sectionTop + 4, NEUTRAL_COLOR, false);
-            int lineY = sectionTop + 14;
+            graphics.drawString(font, label, left + PADDING, sectionTop + 2, NEUTRAL_COLOR, false);
+            int lineY = sectionTop + 12;
             for (FormattedCharSequence line : noTeamLines) {
                 graphics.drawString(font, line, left + PADDING, lineY, 0xFF777777, false);
                 lineY += font.lineHeight + 1;
@@ -228,23 +232,22 @@ public class TacticalTabOverlay {
             }
         }
 
-        int pingAreaWidth = 12;
-        String name = font.plainSubstrByWidth(rawName, colRight - PADDING - pingAreaWidth - currentX);
-        graphics.drawString(font, name, currentX, y, teamColor, false);
+        // Пинг числом в мс, выровнен по правому краю колонки; имя — что осталось.
+        int ping = info.getLatency();
+        String pingText = (ping < 0 ? "??" : String.valueOf(ping)) + "ms";
+        int pingWidth = font.width(pingText) + PADDING;
 
-        drawPingBars(graphics, colRight - PADDING - 8, y, info.getLatency());
+        String name = font.plainSubstrByWidth(rawName, colRight - PADDING - pingWidth - currentX);
+        graphics.drawString(font, name, currentX, y, teamColor, false);
+        graphics.drawString(font, pingText, colRight - PADDING - font.width(pingText), y, pingColor(ping), false);
     }
 
-    /** Три ping-бара: количество и цвет по латентности. */
-    private static void drawPingBars(GuiGraphics graphics, int x, int y, int ping) {
-        int filled = ping < 0 ? 0 : ping < 80 ? 3 : ping < 160 ? 2 : 1;
-        int color = ping < 80 ? 0xFF55FF55 : ping < 160 ? 0xFFFFAA00 : 0xFFFF5555;
-        int baseline = y + 8;
-        for (int i = 0; i < 3; i++) {
-            int barHeight = 3 + i * 2;
-            int barColor = i < filled ? color : 0xFF333333;
-            graphics.fill(x + i * 3, baseline - barHeight, x + i * 3 + 2, baseline, barColor);
-        }
+    /** Цвет пинга по латентности: зелёный < 80, оранжевый < 160, красный иначе. */
+    private static int pingColor(int ping) {
+        if (ping < 0) return 0xFF888888;
+        if (ping < 80) return 0xFF55FF55;
+        if (ping < 160) return 0xFFFFAA00;
+        return 0xFFFF5555;
     }
 
     private record Column(String name, int color, List<PlayerInfo> players) {
