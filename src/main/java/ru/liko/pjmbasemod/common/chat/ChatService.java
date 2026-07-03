@@ -44,7 +44,7 @@ public final class ChatService {
         final ChatMode m = mode == null ? ChatMode.GLOBAL : mode;
         String tag = switch (m) {
             case LOCAL  -> "[L]";
-            case TEAM   -> "[G]";
+            case TEAM   -> "[T]";
             case GLOBAL -> "[G]";
         };
         MutableComponent line = Component.literal(tag + " ")
