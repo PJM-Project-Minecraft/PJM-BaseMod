@@ -141,6 +141,8 @@
   "gui.pjmbasemod.faction.order.notify_title": "Наказ фракції",
   "gui.pjmbasemod.faction.order.hud_prefix": "НАКАЗ",
   "gui.pjmbasemod.faction.manage.members": "Бійці онлайн",
+  "gui.pjmbasemod.tab.title": "Список гравців",
+  "gui.pjmbasemod.tab.no_faction": "Без фракції",
   "gui.pjmbasemod.faction.manage.no_members": "Немає бійців онлайн",
   "gui.pjmbasemod.faction.manage.select_member": "Виберіть бійця",
   "gui.pjmbasemod.faction.manage.current_role": "Поточна роль: %s",

@@ -141,6 +141,8 @@
   "gui.pjmbasemod.faction.order.notify_title": "Fraktionsbefehl",
   "gui.pjmbasemod.faction.order.hud_prefix": "BEFEHL",
   "gui.pjmbasemod.faction.manage.members": "Mitglieder online",
+  "gui.pjmbasemod.tab.title": "Spielerliste",
+  "gui.pjmbasemod.tab.no_faction": "Ohne Fraktion",
   "gui.pjmbasemod.faction.manage.no_members": "Keine Mitglieder online",
   "gui.pjmbasemod.faction.manage.select_member": "Mitglied wählen",
   "gui.pjmbasemod.faction.manage.current_role": "Aktuelle Rolle: %s",

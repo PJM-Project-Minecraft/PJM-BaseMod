@@ -141,6 +141,8 @@
   "gui.pjmbasemod.faction.order.notify_title": "Faction order",
   "gui.pjmbasemod.faction.order.hud_prefix": "ORDER",
   "gui.pjmbasemod.faction.manage.members": "Online members",
+  "gui.pjmbasemod.tab.title": "Player Roster",
+  "gui.pjmbasemod.tab.no_faction": "No Faction",
   "gui.pjmbasemod.faction.manage.no_members": "No online members",
   "gui.pjmbasemod.faction.manage.select_member": "Select a member",
   "gui.pjmbasemod.faction.manage.current_role": "Current role: %s",

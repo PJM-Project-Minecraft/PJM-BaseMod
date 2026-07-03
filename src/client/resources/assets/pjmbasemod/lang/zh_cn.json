@@ -141,6 +141,8 @@
   "gui.pjmbasemod.faction.order.notify_title": "阵营命令",
   "gui.pjmbasemod.faction.order.hud_prefix": "命令",
   "gui.pjmbasemod.faction.manage.members": "在线成员",
+  "gui.pjmbasemod.tab.title": "玩家列表",
+  "gui.pjmbasemod.tab.no_faction": "无阵营",
   "gui.pjmbasemod.faction.manage.no_members": "没有在线成员",
   "gui.pjmbasemod.faction.manage.select_member": "选择成员",
   "gui.pjmbasemod.faction.manage.current_role": "当前角色：%s",

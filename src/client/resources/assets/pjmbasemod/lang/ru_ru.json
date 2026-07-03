@@ -141,6 +141,8 @@
   "gui.pjmbasemod.faction.order.notify_title": "Приказ фракции",
   "gui.pjmbasemod.faction.order.hud_prefix": "ПРИКАЗ",
   "gui.pjmbasemod.faction.manage.members": "Бойцы онлайн",
+  "gui.pjmbasemod.tab.title": "Список игроков",
+  "gui.pjmbasemod.tab.no_faction": "Без фракции",
   "gui.pjmbasemod.faction.manage.no_members": "Нет бойцов онлайн",
   "gui.pjmbasemod.faction.manage.select_member": "Выберите бойца",
   "gui.pjmbasemod.faction.manage.current_role": "Текущая роль: %s",

@@ -18,13 +18,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
 
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class TacticalMainMenuScreen extends Screen {
 
@@ -66,19 +61,6 @@ public class TacticalMainMenuScreen extends Screen {
     // --- State ---
     private boolean isPlayMenuOpen = false;
     private long devMessageUntil = 0L;
-
-    // --- Async Server Status ---
-    private static final String STATUS_SERVER_HOST = "pl1.hoxen.one";
-    private static final int STATUS_SERVER_PORT = 25567;
-    private static final long PING_INTERVAL_OK = 15_000L;
-    private static final long PING_INTERVAL_FAIL = 30_000L;
-    private static final long INITIAL_PING_DELAY = 2_000L;
-    private static final int PING_TIMEOUT_MS = 3_000;
-    private final AtomicBoolean serverOnline = new AtomicBoolean(false);
-    private final AtomicLong lastPingResult = new AtomicLong(-1);
-    private long lastPingAttemptMs = 0L;
-    private boolean pingInProgress = false;
-    private long screenOpenedAt = 0L;
 
     // --- Widgets ---
     private final List<TacticalButton> mainButtons = new ArrayList<>();
@@ -172,8 +154,6 @@ public class TacticalMainMenuScreen extends Screen {
         mainButtons.add(btnQuit);
 
         updateButtonPositions();
-
-        screenOpenedAt = System.currentTimeMillis();
     }
 
     private void togglePlayMenu() {
@@ -228,33 +208,6 @@ public class TacticalMainMenuScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
-
-        long now = System.currentTimeMillis();
-        if (!pingInProgress && (now - screenOpenedAt > INITIAL_PING_DELAY)) {
-            long interval = serverOnline.get() ? PING_INTERVAL_OK : PING_INTERVAL_FAIL;
-            if (now - lastPingAttemptMs >= interval) {
-                lastPingAttemptMs = now;
-                pingInProgress = true;
-                pingServerAsync();
-            }
-        }
-
-    }
-
-    private void pingServerAsync() {
-        CompletableFuture.supplyAsync(() -> {
-            long start = System.currentTimeMillis();
-            try (Socket socket = new Socket()) {
-                socket.connect(new InetSocketAddress(STATUS_SERVER_HOST, STATUS_SERVER_PORT), PING_TIMEOUT_MS);
-                return System.currentTimeMillis() - start;
-            } catch (Exception e) {
-                return -1L;
-            }
-        }).thenAcceptAsync(pingMs -> {
-            serverOnline.set(pingMs >= 0);
-            lastPingResult.set(pingMs);
-            pingInProgress = false;
-        });
     }
 
     @Override
@@ -356,9 +309,6 @@ public class TacticalMainMenuScreen extends Screen {
         String version = "ver. " + Pjmbasemod.MODID.toUpperCase() + " 0.1";
         guiGraphics.drawString(this.font, version, 10, vHeight - 15, 0xAAFFFFFF, true);
 
-        // Server Status Bottom Left, above version
-        renderServerStatus(guiGraphics, vHeight);
-
         // Dev Message Right Top
         if (System.currentTimeMillis() < devMessageUntil) {
             String msg = "WORK IN PROGRESS";
@@ -385,33 +335,6 @@ public class TacticalMainMenuScreen extends Screen {
         }
         
         guiGraphics.pose().popPose();
-    }
-
-    private void renderServerStatus(GuiGraphics gg, int vHeight) {
-        boolean online = serverOnline.get();
-        long ping = lastPingResult.get();
-
-        int statusColor = online ? 0xFF00FF00 : 0xFFFF0000;
-        String statusText;
-        if (ping < 0 && lastPingAttemptMs == 0L) {
-            statusText = "...";
-            statusColor = 0xFFAAAAAA;
-        } else {
-            statusText = online ? "ONLINE" : "OFFLINE";
-        }
-
-        int x = 10;
-        int y = vHeight - 30;
-
-        gg.drawString(this.font, "SERVER:", x, y, 0xFFAAAAAA, true);
-        int labelW = this.font.width("SERVER: ");
-        gg.drawString(this.font, statusText, x + labelW, y, statusColor, true);
-
-        if (online && ping > 0) {
-            String pingText = ping + " ms";
-            int statusW = this.font.width(statusText);
-            gg.drawString(this.font, pingText, x + labelW + statusW + 5, y, 0xFFFFFFFF, true);
-        }
     }
 
     // --- Custom Button ---
