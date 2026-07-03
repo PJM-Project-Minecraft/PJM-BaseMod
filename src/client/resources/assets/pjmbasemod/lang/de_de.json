@@ -221,5 +221,8 @@
   "role.pjmbasemod.crew": "Besatzung",
   "pjmbasemod.command.inventory.reloaded": "Inventarlimit neu geladen: gesperrte Slots — %s",
   "pjmbasemod.command.inventory.reload_failed": "Inventarlimit-Konfiguration konnte nicht geladen werden",
-  "pjmbasemod.command.inventory.info": "Inventarlimit: %s, gesperrte Slots: %s [%s]"
+  "pjmbasemod.command.inventory.info": "Inventarlimit: %s, gesperrte Slots: %s [%s]",
+  "pjmbasemod.antigrief.break_denied": "Du kannst hier keine Blöcke abbauen",
+  "pjmbasemod.antigrief.interact_denied": "Interaktion mit diesem Block ist nicht erlaubt",
+  "pjmbasemod.antigrief.place_denied": "Du kannst hier keine Blöcke platzieren"
 }

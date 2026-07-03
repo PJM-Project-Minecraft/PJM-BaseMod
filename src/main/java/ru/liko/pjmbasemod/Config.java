@@ -124,6 +124,12 @@ public final class Config {
     public static int getFactionOrderMaxLength()         { return data().faction.orderMaxLength; }
     public static int getFactionOrderDefaultTtlMinutes() { return data().faction.orderDefaultTtlMinutes; }
     public static int getFactionOrderMaxTtlMinutes()     { return data().faction.orderMaxTtlMinutes; }
+    public static boolean isAntiGriefEnabled()           { return data().antigrief.enabled; }
+    public static boolean isAntiGriefExemptCreative()    { return data().antigrief.exemptCreative; }
+    public static int getAntiGriefBypassPermissionLevel(){ return data().antigrief.bypassPermissionLevel; }
+    public static List<? extends String> getAntiGriefAllowedBreakBlocks()    { return data().antigrief.allowedBreakBlocks; }
+    public static List<? extends String> getAntiGriefAllowedInteractBlocks() { return data().antigrief.allowedInteractBlocks; }
+    public static List<? extends String> getAntiGriefAllowedPlaceBlocks()    { return data().antigrief.allowedPlaceBlocks; }
 
     public static List<ConfiguredTeam> getTeams() {
         return parseTeams(data().teams.definitions);
@@ -256,6 +262,7 @@ public final class Config {
         Frontline frontline = new Frontline();
         Garage garage = new Garage();
         Faction faction = new Faction();
+        AntiGrief antigrief = new AntiGrief();
         Commands commands = new Commands();
 
         /** Заменяет null-секции дефолтами и зажимает числовые значения в допустимые диапазоны. */
@@ -271,6 +278,11 @@ public final class Config {
             faction.orderMaxLength = clamp(faction.orderMaxLength, 1, 256);
             faction.orderMaxTtlMinutes = clamp(faction.orderMaxTtlMinutes, 0, 10_080);
             faction.orderDefaultTtlMinutes = clamp(faction.orderDefaultTtlMinutes, 0, faction.orderMaxTtlMinutes);
+            if (antigrief == null) antigrief = new AntiGrief();
+            antigrief.bypassPermissionLevel = clamp(antigrief.bypassPermissionLevel, 0, 4);
+            if (antigrief.allowedBreakBlocks == null) antigrief.allowedBreakBlocks = new ArrayList<>();
+            if (antigrief.allowedInteractBlocks == null) antigrief.allowedInteractBlocks = new ArrayList<>();
+            if (antigrief.allowedPlaceBlocks == null) antigrief.allowedPlaceBlocks = new ArrayList<>();
             if (commands == null) commands = new Commands();
 
             if (teams.definitions == null) teams.definitions = new ArrayList<>();
@@ -386,6 +398,23 @@ public final class Config {
         int orderMaxLength = 120;
         int orderDefaultTtlMinutes = 30;
         int orderMaxTtlMinutes = 240;
+    }
+
+    /**
+     * Анти-гриф: ломание/установка/взаимодействие с блоками запрещены всем,
+     * кроме позиций из whitelist-ов. Записи — id блока ({@code minecraft:lever})
+     * или тег с решёткой ({@code #minecraft:doors}).
+     * {@code bypassPermissionLevel} — permission level, с которого защита не действует
+     * (0 = обход по правам выключен). Креатив обходит защиту при {@code exemptCreative}.
+     */
+    static final class AntiGrief {
+        boolean enabled = false;
+        boolean exemptCreative = true;
+        int bypassPermissionLevel = 2;
+        List<String> allowedBreakBlocks = new ArrayList<>();
+        List<String> allowedInteractBlocks = new ArrayList<>(List.of(
+                "#minecraft:doors", "#minecraft:trapdoors", "#minecraft:buttons", "minecraft:lever"));
+        List<String> allowedPlaceBlocks = new ArrayList<>();
     }
 
     static final class Commands {

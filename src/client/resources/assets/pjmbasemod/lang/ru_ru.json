@@ -221,5 +221,8 @@
   "role.pjmbasemod.crew": "Экипаж",
   "pjmbasemod.command.inventory.reloaded": "Лимит инвентаря перезагружен: заблокировано слотов — %s",
   "pjmbasemod.command.inventory.reload_failed": "Ошибка загрузки конфига лимита инвентаря",
-  "pjmbasemod.command.inventory.info": "Лимит инвентаря: %s, заблокировано слотов: %s [%s]"
+  "pjmbasemod.command.inventory.info": "Лимит инвентаря: %s, заблокировано слотов: %s [%s]",
+  "pjmbasemod.antigrief.break_denied": "Здесь нельзя ломать блоки",
+  "pjmbasemod.antigrief.interact_denied": "Взаимодействие с этим блоком запрещено",
+  "pjmbasemod.antigrief.place_denied": "Здесь нельзя ставить блоки"
 }

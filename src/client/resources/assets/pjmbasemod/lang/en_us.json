@@ -221,5 +221,8 @@
   "role.pjmbasemod.crew": "Crew",
   "pjmbasemod.command.inventory.reloaded": "Inventory limit reloaded: locked slots — %s",
   "pjmbasemod.command.inventory.reload_failed": "Failed to load inventory limit config",
-  "pjmbasemod.command.inventory.info": "Inventory limit: %s, locked slots: %s [%s]"
+  "pjmbasemod.command.inventory.info": "Inventory limit: %s, locked slots: %s [%s]",
+  "pjmbasemod.antigrief.break_denied": "You cannot break blocks here",
+  "pjmbasemod.antigrief.interact_denied": "Interacting with this block is not allowed",
+  "pjmbasemod.antigrief.place_denied": "You cannot place blocks here"
 }

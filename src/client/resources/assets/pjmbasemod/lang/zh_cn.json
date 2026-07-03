@@ -221,5 +221,8 @@
   "role.pjmbasemod.crew": "载具乘员",
   "pjmbasemod.command.inventory.reloaded": "已重新加载背包限制：锁定槽位 — %s",
   "pjmbasemod.command.inventory.reload_failed": "加载背包限制配置失败",
-  "pjmbasemod.command.inventory.info": "背包限制：%s，锁定槽位：%s [%s]"
+  "pjmbasemod.command.inventory.info": "背包限制：%s，锁定槽位：%s [%s]",
+  "pjmbasemod.antigrief.break_denied": "此处无法破坏方块",
+  "pjmbasemod.antigrief.interact_denied": "禁止与此方块交互",
+  "pjmbasemod.antigrief.place_denied": "此处无法放置方块"
 }

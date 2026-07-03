@@ -10,17 +10,20 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.common.util.TriState;
 import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.antigrief.AntiGriefService;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
 import ru.liko.pjmbasemod.common.chat.ChatService;
 import ru.liko.pjmbasemod.common.customization.SkinRegistry;
@@ -170,9 +173,30 @@ public final class PjmServerEvents {
     @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         if (event.getLevel().isClientSide()) return;
-        if (event.getHand() != InteractionHand.MAIN_HAND) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        // Анти-гриф: запрещаем только взаимодействие с блоком (useBlock), не отменяя
+        // событие целиком — использование предмета в руке (еда, оружие) остаётся доступным.
+        if (!AntiGriefService.checkInteract(player, event.getLevel().getBlockState(event.getPos()))) {
+            event.setUseBlock(TriState.FALSE);
+        }
+        if (event.getHand() != InteractionHand.MAIN_HAND) return;
         if (EquipmentLockService.shouldCancelUse(player, event.getItemStack())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onBlockBreak(BlockEvent.BreakEvent event) {
+        if (!(event.getPlayer() instanceof ServerPlayer player)) return;
+        if (!AntiGriefService.checkBreak(player, event.getState())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        if (!AntiGriefService.checkPlace(player, event.getPlacedBlock())) {
             event.setCanceled(true);
         }
     }
