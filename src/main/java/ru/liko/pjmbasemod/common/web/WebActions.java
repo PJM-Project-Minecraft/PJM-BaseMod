@@ -157,7 +157,9 @@ public final class WebActions {
             if (x == null || y == null || z == null) return ActionResult.error("bad_coordinates");
             ServerLevel level = player.serverLevel();
             if (dim != null && !dim.isBlank()) {
-                level = server.getLevel(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dim)));
+                ResourceLocation dimRl = ResourceLocation.tryParse(dim);
+                if (dimRl == null) return ActionResult.error("bad_dimension");
+                level = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimRl));
                 if (level == null) return ActionResult.error("bad_dimension");
             }
             player.teleportTo(level, x, y, z, player.getYRot(), player.getXRot());
@@ -200,7 +202,9 @@ public final class WebActions {
                                                                      @Nullable Double centerX, @Nullable Double centerZ,
                                                                      @Nullable Double radius, String adminName) {
         return action(server, () -> {
-            ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dimId)));
+            ResourceLocation dimRl = ResourceLocation.tryParse(dimId);
+            if (dimRl == null) return ActionResult.error("bad_dimension");
+            ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimRl));
             if (level == null) return ActionResult.error("bad_dimension");
             boolean byRadius = centerX != null && centerZ != null && radius != null;
             double radiusSq = byRadius ? radius * radius : 0;
