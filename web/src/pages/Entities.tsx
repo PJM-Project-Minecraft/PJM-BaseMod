@@ -35,21 +35,33 @@ export default function Entities({ live, profilerAllowed }: { live: LiveState; p
   })
 
   const removeChecked = async () => {
-    const res = await api.post<{ ok: boolean; message?: string }>(
-      '/api/actions/entities/remove', { uuids: [...checked] })
-    setStatus(res.ok ? `✓ ${res.message}` : '✗ ошибка')
-    setChecked(new Set())
-    refresh()
+    try {
+      const res = await api.post<{ ok: boolean; message?: string }>(
+        '/api/actions/entities/remove', { uuids: [...checked] })
+      setStatus(res.ok ? `✓ ${res.message}` : '✗ ошибка')
+      setChecked(new Set())
+      refresh()
+    } catch (e) {
+      setStatus(`✗ ${(e as Error).message}`)
+    }
   }
 
   const removeBulk = async () => {
     if (!dim) { setStatus('✗ для массового удаления выберите дименшен'); return }
     const radius = bulkRadius.trim() ? Number(bulkRadius) : undefined
-    const res = await api.post<{ ok: boolean; message?: string }>(
-      '/api/actions/entities/remove-bulk',
-      { type: type.trim() || null, dim, x: radius ? 0 : null, z: radius ? 0 : null, radius: radius ?? null })
-    setStatus(res.ok ? `✓ ${res.message}` : '✗ ошибка')
-    refresh()
+    if (radius !== undefined && (Number.isNaN(radius) || radius <= 0)) {
+      setStatus('✗ радиус должен быть положительным числом')
+      return
+    }
+    try {
+      const res = await api.post<{ ok: boolean; message?: string }>(
+        '/api/actions/entities/remove-bulk',
+        { type: type.trim() || null, dim, x: radius ? 0 : null, z: radius ? 0 : null, radius: radius ?? null })
+      setStatus(res.ok ? `✓ ${res.message}` : '✗ ошибка')
+      refresh()
+    } catch (e) {
+      setStatus(`✗ ${(e as Error).message}`)
+    }
   }
 
   return (
