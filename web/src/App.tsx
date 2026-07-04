@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { api, UnauthorizedError, type Overview } from './api'
 import { useLive } from './useLive'
@@ -20,33 +20,48 @@ const TABS: { id: Tab; label: string }[] = [
 export default function App() {
   const [phase, setPhase] = useState<Phase>('loading')
   const [overview, setOverview] = useState<Overview | null>(null)
-
-  const boot = useCallback(async () => {
-    try {
-      setOverview(await api.get<Overview>('/api/overview'))
-      setPhase('ready')
-    } catch (e) {
-      if (e instanceof UnauthorizedError) setPhase('login')
-      else setTimeout(boot, 3000)
-    }
-  }, [])
+  const [bootNonce, setBootNonce] = useState(0)
 
   useEffect(() => {
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    const go = async () => {
+      try {
+        const ov = await api.get<Overview>('/api/overview')
+        if (cancelled) return
+        setOverview(ov)
+        setPhase('ready')
+      } catch (e) {
+        if (cancelled) return
+        if (e instanceof UnauthorizedError) setPhase('login')
+        else timer = setTimeout(go, 3000)
+      }
+    }
+
     // Код из кликабельной ссылки /login?code=XXXX — обменять сразу.
     const code = new URLSearchParams(location.search).get('code')
     if (code) {
       history.replaceState(null, '', '/')
-      api.post('/api/auth/exchange', { code }).then(boot, () => setPhase('login'))
+      api.post('/api/auth/exchange', { code }).then(
+        () => { if (!cancelled) go() },
+        () => { if (!cancelled) setPhase('login') }
+      )
     } else {
-      boot()
+      go()
     }
-  }, [boot])
+
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
+  }, [bootNonce])
 
   if (phase === 'loading') {
     return <div className="muted" style={{ padding: 60, textAlign: 'center' }}>Загрузка…</div>
   }
   if (phase === 'login' || !overview) {
-    return <LoginScreen onSuccess={boot} />
+    return <LoginScreen onSuccess={() => setBootNonce(n => n + 1)} />
   }
   return <Shell overview={overview} />
 }
@@ -99,7 +114,7 @@ function Shell({ overview }: { overview: Overview }) {
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className={`pulse-dot ${live.connected ? 'on' : ''}`} />
           <span className="muted">{live.connected ? 'онлайн' : 'нет связи'}</span>
-          <button className="btn" onClick={() => api.post('/api/auth/logout').then(() => location.reload())}>
+          <button className="btn" onClick={() => api.post('/api/auth/logout').then(() => location.reload(), () => location.reload())}>
             Выйти
           </button>
         </div>

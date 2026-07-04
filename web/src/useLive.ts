@@ -51,12 +51,12 @@ export function useLive(initialHistory: MetricsSample[]): LiveState {
         const frame: Frame = JSON.parse(event.data)
         if (frame.type !== 'tick') return
         setState(s => {
-          const history = frame.sample && frame.sample.t
+          const history = frame.sample != null
             ? [...s.history, frame.sample].slice(-HISTORY_CAP)
             : s.history
           return {
             connected: true,
-            sample: frame.sample && frame.sample.t ? frame.sample : s.sample,
+            sample: frame.sample != null ? frame.sample : s.sample,
             players: frame.players ?? s.players,
             entityCounts: frame.entityCounts ?? s.entityCounts,
             profiler: frame.profiler ?? s.profiler,
