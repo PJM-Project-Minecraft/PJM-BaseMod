@@ -46,4 +46,12 @@ class LoginCodesTest {
         assertNotNull(codes.consume(code.toLowerCase(java.util.Locale.ROOT), 1));
         assertNull(codes.consume(null, 1));
     }
+
+    @Test
+    void codeExpiresExactlyAtTtlBoundary() {
+        LoginCodes codes = new LoginCodes(300_000);
+        String code = codes.issue(ID, "Liko", 0);
+        // Граница включительно: expiresAtMs <= nowMs → код истёк ровно в момент TTL.
+        assertNull(codes.consume(code, 300_000));
+    }
 }

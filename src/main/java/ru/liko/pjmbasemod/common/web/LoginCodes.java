@@ -40,7 +40,7 @@ public final class LoginCodes {
         return code;
     }
 
-    /** @return данные входа или null (нет кода / истёк / уже использован). Код сгорает. */
+    /** @return данные входа или null (нет кода / истёк / уже использован). Код сгорает. Граница TTL включительно: при {@code nowMs == expiresAtMs} код считается истёкшим. */
     @Nullable
     public synchronized PendingLogin consume(@Nullable String code, long nowMs) {
         if (code == null || code.isBlank()) return null;
