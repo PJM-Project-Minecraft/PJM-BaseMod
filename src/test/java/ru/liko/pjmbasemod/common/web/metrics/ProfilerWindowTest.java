@@ -67,4 +67,17 @@ class ProfilerWindowTest {
         window.flush(30_000, 10);
         assertTrue(window.flush(30_000, 10).topEntities().isEmpty());
     }
+
+    @Test
+    void hotChunksHandleNegativeCoords() {
+        ProfilerWindow window = new ProfilerWindow();
+        // x=-0.5 → floor=-1 → чанк -1; наивный (int)x >> 4 дал бы чанк 0.
+        window.record("a", "t", "n", "minecraft:overworld", -0.5, 0, -0.5, 100);
+        window.record("b", "t", "n", "minecraft:overworld", -17, 0, -17, 50);
+        ProfilerWindow.Report report = window.flush(30_000, 10);
+        assertEquals(2, report.hotChunks().size());
+        assertEquals(-1, report.hotChunks().get(0).chunkX());
+        assertEquals(-1, report.hotChunks().get(0).chunkZ());
+        assertEquals(-2, report.hotChunks().get(1).chunkX());
+    }
 }

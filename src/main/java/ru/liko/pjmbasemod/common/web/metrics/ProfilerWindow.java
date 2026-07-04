@@ -91,8 +91,14 @@ public final class ProfilerWindow {
 
         List<ChunkTiming> chunks = new ArrayList<>();
         for (Map.Entry<String, long[]> e : chunkNanos.entrySet()) {
-            String[] parts = e.getKey().split("\\|");
-            chunks.add(new ChunkTiming(parts[0], Integer.parseInt(parts[1]), Integer.parseInt(parts[2]), e.getValue()[0]));
+            // Парсим с конца: dim может теоретически содержать разделитель.
+            String key = e.getKey();
+            int lastSep = key.lastIndexOf('|');
+            int prevSep = key.lastIndexOf('|', lastSep - 1);
+            String dim = key.substring(0, prevSep);
+            int chunkX = Integer.parseInt(key.substring(prevSep + 1, lastSep));
+            int chunkZ = Integer.parseInt(key.substring(lastSep + 1));
+            chunks.add(new ChunkTiming(dim, chunkX, chunkZ, e.getValue()[0]));
         }
         chunks.sort(Comparator.comparingLong(ChunkTiming::totalNanos).reversed());
 
