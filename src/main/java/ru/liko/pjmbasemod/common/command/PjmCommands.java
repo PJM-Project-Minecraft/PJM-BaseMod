@@ -80,6 +80,7 @@ public final class PjmCommands {
                 .then(regionCommand())
                 .then(frontlineCommand())
                 .then(inventoryCommand())
+                .then(ModerationCommands.build())
                 .then(configCommand())
                 .then(debugCommand()));
     }

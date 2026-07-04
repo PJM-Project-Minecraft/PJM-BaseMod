@@ -10,10 +10,12 @@ import ru.liko.pjmbasemod.client.gui.overlay.RankHudOverlay;
 import ru.liko.pjmbasemod.client.gui.screen.FactionManagementScreen;
 import ru.liko.pjmbasemod.client.gui.screen.FactionSelectionScreen;
 import ru.liko.pjmbasemod.client.gui.screen.GarageScreen;
+import ru.liko.pjmbasemod.client.gui.screen.ModerationScreen;
 import ru.liko.pjmbasemod.client.gui.screen.WarehouseScreen;
 import ru.liko.pjmbasemod.client.config.ClientHudConfig;
 import ru.liko.pjmbasemod.client.customization.ClientSkinState;
 import ru.liko.pjmbasemod.client.inventory.LockedSlotsClientState;
+import ru.liko.pjmbasemod.client.moderation.ClientModerationState;
 import ru.liko.pjmbasemod.common.customization.PlayerSkinClientCache;
 import ru.liko.pjmbasemod.common.network.packet.HudConfigPacket;
 import ru.liko.pjmbasemod.common.network.packet.PlayerSkinSyncPacket;
@@ -26,7 +28,9 @@ import ru.liko.pjmbasemod.common.network.packet.OpenFactionManagementPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionSelectionPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenGaragePacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenWarehousePacket;
+import ru.liko.pjmbasemod.common.network.packet.OpenModerationPacket;
 import ru.liko.pjmbasemod.common.network.packet.WarehouseSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.ModerationSyncPacket;
 import ru.liko.pjmbasemod.client.frontline.ClientFrontlineState;
 import ru.liko.pjmbasemod.client.gui.overlay.NotificationOverlay;
 import ru.liko.pjmbasemod.client.rank.ClientRankState;
@@ -205,6 +209,19 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     @Override
     public void factionOrderSync(FactionOrderSyncPacket payload) {
         ClientFactionOrderState.update(payload);
+    }
+
+    @Override
+    public void openModeration(OpenModerationPacket payload) {
+        ModerationScreen.open(payload.snapshot());
+    }
+
+    @Override
+    public void moderationSync(ModerationSyncPacket payload) {
+        ClientModerationState.update(payload.snapshot());
+        if (Minecraft.getInstance().screen instanceof ModerationScreen screen) {
+            screen.updateSnapshot(payload.snapshot());
+        }
     }
 
     @Override

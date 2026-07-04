@@ -131,6 +131,13 @@ public final class Config {
     public static List<? extends String> getAntiGriefAllowedInteractBlocks() { return data().antigrief.allowedInteractBlocks; }
     public static List<? extends String> getAntiGriefAllowedPlaceBlocks()    { return data().antigrief.allowedPlaceBlocks; }
 
+    public static boolean isModerationOverrideVanilla()      { return data().moderation.overrideVanillaCommands; }
+    public static int  getModerationDefaultTempBanMinutes()  { return data().moderation.defaultTempBanMinutes; }
+    public static int  getModerationDefaultMuteMinutes()     { return data().moderation.defaultMuteMinutes; }
+    public static boolean isModerationBroadcast()            { return data().moderation.broadcastPunishments; }
+    public static int  getModerationWarnDecayDays()          { return data().moderation.warnDecayDays; }
+    public static List<? extends String> getModerationWarnEscalationRaw() { return data().moderation.warnEscalation; }
+
     public static List<ConfiguredTeam> getTeams() {
         return parseTeams(data().teams.definitions);
     }
@@ -263,6 +270,7 @@ public final class Config {
         Garage garage = new Garage();
         Faction faction = new Faction();
         AntiGrief antigrief = new AntiGrief();
+        Moderation moderation = new Moderation();
         Commands commands = new Commands();
 
         /** Заменяет null-секции дефолтами и зажимает числовые значения в допустимые диапазоны. */
@@ -283,6 +291,11 @@ public final class Config {
             if (antigrief.allowedBreakBlocks == null) antigrief.allowedBreakBlocks = new ArrayList<>();
             if (antigrief.allowedInteractBlocks == null) antigrief.allowedInteractBlocks = new ArrayList<>();
             if (antigrief.allowedPlaceBlocks == null) antigrief.allowedPlaceBlocks = new ArrayList<>();
+            if (moderation == null) moderation = new Moderation();
+            moderation.defaultTempBanMinutes = clamp(moderation.defaultTempBanMinutes, 1, 5_256_000);
+            moderation.defaultMuteMinutes = clamp(moderation.defaultMuteMinutes, 1, 5_256_000);
+            moderation.warnDecayDays = clamp(moderation.warnDecayDays, 0, 3650);
+            if (moderation.warnEscalation == null) moderation.warnEscalation = new ArrayList<>();
             if (commands == null) commands = new Commands();
 
             if (teams.definitions == null) teams.definitions = new ArrayList<>();
@@ -415,6 +428,25 @@ public final class Config {
         List<String> allowedInteractBlocks = new ArrayList<>(List.of(
                 "#minecraft:doors", "#minecraft:trapdoors", "#minecraft:buttons", "minecraft:lever"));
         List<String> allowedPlaceBlocks = new ArrayList<>();
+    }
+
+    /**
+     * Система модерации: варны с автоэскалацией, баны (замена ванильных), муты войса/текста.
+     * {@code warnEscalation} — правила автонаказания при накоплении варнов, формат строки
+     * {@code "<count> <action> <duration>"}: action ∈ {mute_voice, mute_text, tempban, ban, kick},
+     * duration в формате DurationParser ({@code 30m}, {@code 1d}, {@code permanent}). Пример:
+     * {@code "3 mute_voice 30m"}, {@code "5 tempban 1d"}, {@code "7 ban permanent"}.
+     * Строки интерпретируются в {@code ModerationService.parsedThresholds()}.
+     * {@code warnDecayDays} — через сколько дней варн перестаёт учитываться (0 = не сгорают).
+     */
+    static final class Moderation {
+        boolean overrideVanillaCommands = true;
+        int defaultTempBanMinutes = 1440;
+        int defaultMuteMinutes = 30;
+        boolean broadcastPunishments = true;
+        int warnDecayDays = 0;
+        List<String> warnEscalation = new ArrayList<>(List.of(
+                "3 mute_voice 30m", "5 tempban 1d", "7 ban permanent"));
     }
 
     static final class Commands {

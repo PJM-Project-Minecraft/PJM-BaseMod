@@ -8,6 +8,7 @@ import net.neoforged.neoforge.server.permission.events.PermissionGatherEvent;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 import net.neoforged.neoforge.server.permission.nodes.PermissionTypes;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.permission.PermissionReady;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -43,7 +44,10 @@ public final class RolePermissions {
     }
 
     public static boolean can(ServerPlayer player, PermissionNode<Boolean> node) {
-        return player != null && Boolean.TRUE.equals(PermissionAPI.getPermission(player, node));
+        if (player == null) return false;
+        // До PlayerLoggedInEvent capability LuckPerms ещё не инициализирована — откат к ванильному OP.
+        if (!PermissionReady.isReady(player)) return player.hasPermissions(2);
+        return Boolean.TRUE.equals(PermissionAPI.getPermission(player, node));
     }
 
     /** true, если роль бесплатная (по RoleAccessRegistry) ИЛИ у игрока есть нода разблокировки. */

@@ -14,7 +14,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "21";
+    public static final String VERSION = "22";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -48,6 +48,8 @@ public final class PjmNetworking {
         r.playToServer(SetFactionOrderPacket.TYPE,     SetFactionOrderPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleSetFactionOrder(p, (ServerPlayer) ctx.player())));
         r.playToServer(RequestTargetRoleAccessPacket.TYPE, RequestTargetRoleAccessPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestTargetRoleAccess(p, (ServerPlayer) ctx.player())));
         r.playToServer(RequestFactionManagementPacket.TYPE, RequestFactionManagementPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestFactionManagement(p, (ServerPlayer) ctx.player())));
+        r.playToServer(RequestModerationPacket.TYPE,   RequestModerationPacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestModeration(p, (ServerPlayer) ctx.player())));
+        r.playToServer(ModerationActionPacket.TYPE,    ModerationActionPacket.STREAM_CODEC,    (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleModerationAction(p, (ServerPlayer) ctx.player())));
 
         // ===== Server → Client =====
         r.playToClient(SyncPjmDataPacket.TYPE,  SyncPjmDataPacket.STREAM_CODEC,  (p, ctx) -> ctx.enqueueWork(() -> CLIENT.syncPlayerData(p)));
@@ -76,8 +78,10 @@ public final class PjmNetworking {
         r.playToClient(PlayerSkinSyncPacket.TYPE, PlayerSkinSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.playerSkinSync(p)));
         r.playToClient(SkinSelectionSyncPacket.TYPE, SkinSelectionSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.skinSelectionSync(p)));
         r.playToClient(HudConfigPacket.TYPE, HudConfigPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.hudConfig(p)));
+        r.playToClient(OpenModerationPacket.TYPE, OpenModerationPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openModeration(p)));
+        r.playToClient(ModerationSyncPacket.TYPE, ModerationSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.moderationSync(p)));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 40);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 44);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {

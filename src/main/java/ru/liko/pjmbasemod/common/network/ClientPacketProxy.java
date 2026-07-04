@@ -11,6 +11,8 @@ import ru.liko.pjmbasemod.common.network.packet.LockedSlotsPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionManagementPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionSelectionPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenGaragePacket;
+import ru.liko.pjmbasemod.common.network.packet.OpenModerationPacket;
+import ru.liko.pjmbasemod.common.network.packet.ModerationSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenWarehousePacket;
 import ru.liko.pjmbasemod.common.network.packet.PlayerSkinSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.SkinSelectionSyncPacket;
@@ -57,4 +59,6 @@ public interface ClientPacketProxy {
     default void playerSkinSync(PlayerSkinSyncPacket payload) {}
     default void skinSelectionSync(SkinSelectionSyncPacket payload) {}
     default void hudConfig(HudConfigPacket payload) {}
+    default void openModeration(OpenModerationPacket payload) {}
+    default void moderationSync(ModerationSyncPacket payload) {}
 }

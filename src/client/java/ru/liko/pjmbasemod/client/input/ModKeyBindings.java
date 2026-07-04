@@ -24,6 +24,9 @@ public final class ModKeyBindings {
     public static final KeyMapping COMMAND_RADIO = new KeyMapping(
             "key.pjmbasemod.command_radio", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_Z, CATEGORY);
 
+    public static final KeyMapping OPEN_MODERATION = new KeyMapping(
+            "key.pjmbasemod.moderation", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, CATEGORY);
+
     private ModKeyBindings() {}
 
     @SubscribeEvent
@@ -31,5 +34,6 @@ public final class ModKeyBindings {
         event.register(OPEN_RADIAL_MENU);
         event.register(CYCLE_CHAT_MODE);
         event.register(COMMAND_RADIO);
+        event.register(OPEN_MODERATION);
     }
 }

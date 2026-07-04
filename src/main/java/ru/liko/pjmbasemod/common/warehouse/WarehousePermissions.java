@@ -8,6 +8,7 @@ import net.neoforged.neoforge.server.permission.events.PermissionGatherEvent;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 import net.neoforged.neoforge.server.permission.nodes.PermissionTypes;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.permission.PermissionReady;
 
 /**
  * Ноды прав системы склада.
@@ -36,6 +37,13 @@ public final class WarehousePermissions {
     }
 
     public static boolean can(ServerPlayer player, PermissionNode<Boolean> node) {
-        return player != null && Boolean.TRUE.equals(PermissionAPI.getPermission(player, node));
+        if (player == null) return false;
+        // До PlayerLoggedInEvent capability LuckPerms ещё не инициализирована — откат к дефолтному resolver'у ноды.
+        if (!PermissionReady.isReady(player)) return defaultResolver(node, player);
+        return Boolean.TRUE.equals(PermissionAPI.getPermission(player, node));
+    }
+
+    private static boolean defaultResolver(PermissionNode<Boolean> node, ServerPlayer player) {
+        return Boolean.TRUE.equals(node.getDefaultResolver().resolve(player, player.getUUID()));
     }
 }

@@ -39,6 +39,7 @@ import ru.liko.pjmbasemod.common.garage.VehicleRegistry;
 import ru.liko.pjmbasemod.common.inventory.EquipmentLockService;
 import ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry;
 import ru.liko.pjmbasemod.common.inventory.InventoryLimitService;
+import ru.liko.pjmbasemod.common.moderation.ModerationService;
 import ru.liko.pjmbasemod.common.init.PjmItems;
 import ru.liko.pjmbasemod.common.warehouse.CrateRegistry;
 import ru.liko.pjmbasemod.common.warehouse.WarehouseItemRegistry;
@@ -63,6 +64,7 @@ public final class PjmServerEvents {
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer sp)) return;
+        if (ModerationService.enforceOnLogin(sp)) return; // забанен — кикнут, синхронизировать нечего
         ChatMode mode = ServerPacketHandlers.getChatMode(sp);
         PjmNetworking.sendToPlayer(sp, new SyncPjmDataPacket(sp.getUUID(), mode.getKey()));
         ServerPacketHandlers.sendHudConfig(sp);
@@ -103,6 +105,11 @@ public final class PjmServerEvents {
     public static void onChat(ServerChatEvent event) {
         ServerPlayer sender = event.getPlayer();
         if (sender == null) return;
+        if (ModerationService.isTextMuted(sender.server, sender.getUUID())) {
+            event.setCanceled(true);
+            sender.sendSystemMessage(Component.literal("§cВы не можете писать в чат: текстовый чат заглушён"));
+            return;
+        }
         ChatMode mode = ServerPacketHandlers.getChatMode(sender);
         // Все режимы (включая GLOBAL) идут через кастомную доставку, чтобы добавить
         // иконку+ранг к нику. Компромисс: GLOBAL теряет ванильную криптоподпись/репорт.
@@ -223,6 +230,7 @@ public final class PjmServerEvents {
         FrontlineManager.onServerTick(event.getServer());
         FrontlineBlueMapService.onServerTick(event.getServer());
         FactionOrderManager.onServerTick(event.getServer());
+        ModerationService.tick(event.getServer());
 
         if (++warehouseScanCounter >= 20) {
             warehouseScanCounter = 0;

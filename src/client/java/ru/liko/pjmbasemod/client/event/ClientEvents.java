@@ -31,6 +31,7 @@ import ru.liko.pjmbasemod.client.role.ClientRoleState;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
+import ru.liko.pjmbasemod.common.network.packet.RequestModerationPacket;
 
 @EventBusSubscriber(modid = Pjmbasemod.MODID, value = Dist.CLIENT)
 public final class ClientEvents {
@@ -79,6 +80,9 @@ public final class ClientEvents {
         while (ModKeyBindings.CYCLE_CHAT_MODE.consumeClick()) {
             ChatMode m = ClientChatModeState.cycle();
             PjmNetworking.sendToServer(ChangeChatModePacket.setMode(m));
+        }
+        while (ModKeyBindings.OPEN_MODERATION.consumeClick()) {
+            PjmNetworking.sendToServer(RequestModerationPacket.INSTANCE);
         }
     }
 

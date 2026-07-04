@@ -47,6 +47,8 @@ public class PjmVoiceChatPlugin implements VoicechatPlugin {
     private final Map<UUID, OpusDecoder> opusDecoders = new ConcurrentHashMap<>();
     private final Map<UUID, OpusEncoder> opusEncoders = new ConcurrentHashMap<>();
     private final Set<UUID> broadcastingPlayers = ConcurrentHashMap.newKeySet();
+    /** Игроки с наложенным войс-мутом модерации — их микрофон глушится в onMicrophonePacket. */
+    private final Set<UUID> mutedPlayers = ConcurrentHashMap.newKeySet();
     private final Map<UUID, RadioAudioProcessor> audioProcessors = new ConcurrentHashMap<>();
 
     public PjmVoiceChatPlugin() {
@@ -56,6 +58,21 @@ public class PjmVoiceChatPlugin implements VoicechatPlugin {
     @Nullable
     public static PjmVoiceChatPlugin get() {
         return INSTANCE;
+    }
+
+    /** Наложить/снять войс-мут модерации на игрока (вызывается через VoicechatBridge). */
+    public void setMuted(UUID playerId, boolean muted) {
+        if (playerId == null) return;
+        if (muted) {
+            mutedPlayers.add(playerId);
+            broadcastingPlayers.remove(playerId);
+        } else {
+            mutedPlayers.remove(playerId);
+        }
+    }
+
+    public boolean isMuted(UUID playerId) {
+        return playerId != null && mutedPlayers.contains(playerId);
     }
 
     @Override
@@ -99,6 +116,12 @@ public class PjmVoiceChatPlugin implements VoicechatPlugin {
         ServerPlayer sender = (ServerPlayer) playerWrapper.getPlayer();
         if (sender == null) return;
         UUID senderId = sender.getUUID();
+
+        // Войс-мут модерации: глушим весь голос (и проксимити, и рацию) до любой доставки.
+        if (mutedPlayers.contains(senderId)) {
+            event.cancel();
+            return;
+        }
 
         if (!broadcastingPlayers.contains(senderId)) return;
 
