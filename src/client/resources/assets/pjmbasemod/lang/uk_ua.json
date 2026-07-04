@@ -301,5 +301,8 @@
   "pjmbasemod.moderation.cmd.invalid_duration": "Невірна тривалість: '%s'. Приклади: 30m, 1d, permanent",
   "pjmbasemod.moderation.cmd.invalid_duration.short": "Невірна тривалість: '%s'",
   "pjmbasemod.moderation.cmd.yes": "так",
-  "pjmbasemod.moderation.cmd.no": "ні"
+  "pjmbasemod.moderation.cmd.no": "ні",
+  "basezone.warning.title": "⚠ ЧУЖА БАЗА",
+  "basezone.warning.subtitle": "Покиньте зону бази! Смерть через %s сек.",
+  "death.attack.pjm_base_zone": "%1$s загинув у зоні ворожої бази"
 }
