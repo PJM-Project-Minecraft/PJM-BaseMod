@@ -40,7 +40,8 @@ public final class EntityProfiler {
         if (value && !Config.isWebProfilerAllowed()) return;
         active = value;
         if (!value) {
-            WINDOW.flush(0, 0); // очистить недописанное окно
+            ticksSinceFlush = 0; // сброс, чтобы первый flush после ре-включения покрывал полное окно
+            WINDOW.flush(0, 0); // возвращаемое значение не нужно — только очистка буфера
             WebState.setProfilerReport(ProfilerWindow.Report.empty());
             Pjmbasemod.LOGGER.info("[WebPanel] профайлер entity выключен");
         } else {
