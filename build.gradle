@@ -127,6 +127,15 @@ dependencies {
     compileOnly files(taczReferenceJar)
     clientCompileOnly files(taczReferenceJar)
     runtimeOnly files(taczReferenceJar)
+
+    // Юнит-тесты чистых классов веб-панели (без Minecraft classpath)
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
 }
 
 // ==================== Resource processing with variable expansion ====================
