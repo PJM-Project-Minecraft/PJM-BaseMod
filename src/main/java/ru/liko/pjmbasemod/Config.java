@@ -138,6 +138,14 @@ public final class Config {
     public static int  getModerationWarnDecayDays()          { return data().moderation.warnDecayDays; }
     public static List<? extends String> getModerationWarnEscalationRaw() { return data().moderation.warnEscalation; }
 
+    public static boolean isWebEnabled()           { return data().web.enabled; }
+    public static int     getWebPort()             { return data().web.port; }
+    public static String  getWebBindAddress()      { return data().web.bindAddress; }
+    public static int     getWebSessionTtlMinutes(){ return data().web.sessionTtlMinutes; }
+    public static int     getWebHistoryMinutes()   { return data().web.historyMinutes; }
+    public static boolean isWebProfilerAllowed()   { return data().web.profilerEnabled; }
+    public static String  getWebPublicUrl()        { return data().web.publicUrl; }
+
     public static List<ConfiguredTeam> getTeams() {
         return parseTeams(data().teams.definitions);
     }
@@ -271,6 +279,7 @@ public final class Config {
         Faction faction = new Faction();
         AntiGrief antigrief = new AntiGrief();
         Moderation moderation = new Moderation();
+        Web web = new Web();
         Commands commands = new Commands();
 
         /** Заменяет null-секции дефолтами и зажимает числовые значения в допустимые диапазоны. */
@@ -296,6 +305,12 @@ public final class Config {
             moderation.defaultMuteMinutes = clamp(moderation.defaultMuteMinutes, 1, 5_256_000);
             moderation.warnDecayDays = clamp(moderation.warnDecayDays, 0, 3650);
             if (moderation.warnEscalation == null) moderation.warnEscalation = new ArrayList<>();
+            if (web == null) web = new Web();
+            web.port = clamp(web.port, 1, 65_535);
+            web.sessionTtlMinutes = clamp(web.sessionTtlMinutes, 5, 43_200);
+            web.historyMinutes = clamp(web.historyMinutes, 5, 1_440);
+            if (web.bindAddress == null || web.bindAddress.isBlank()) web.bindAddress = "0.0.0.0";
+            if (web.publicUrl == null) web.publicUrl = "";
             if (commands == null) commands = new Commands();
 
             if (teams.definitions == null) teams.definitions = new ArrayList<>();
@@ -447,6 +462,23 @@ public final class Config {
         int warnDecayDays = 0;
         List<String> warnEscalation = new ArrayList<>(List.of(
                 "3 mute_voice 30m", "5 tempban 1d", "7 ban permanent"));
+    }
+
+    /**
+     * Веб-панель админа (common/web/): встроенный Javalin-сервер с графиками
+     * TPS/нагрузки, списками игроков/entity и действиями модерации.
+     * Вход — {@code /pjm web login}. TLS не встроен — в проде ставить за reverse proxy.
+     * {@code publicUrl} — базовый URL для кликабельной ссылки входа
+     * ({@code https://panel.example.com}); пустой → в чат печатается только код.
+     */
+    static final class Web {
+        boolean enabled = false;
+        int port = 8776;
+        String bindAddress = "0.0.0.0";
+        int sessionTtlMinutes = 720;
+        int historyMinutes = 120;
+        boolean profilerEnabled = true;
+        String publicUrl = "";
     }
 
     static final class Commands {
