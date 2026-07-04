@@ -16,12 +16,14 @@ public final class WebState {
 
     private WebState() {}
 
+    /** Оба счётчика публикуются одной volatile-записью — читатель всегда видит согласованную пару. */
+    private record EntityCounts(Map<String, Integer> byDim, Map<String, Integer> byCategory) {}
+
     private static volatile MetricsHistory history = new MetricsHistory(7200);
     private static volatile MetricsSample current;
     private static volatile List<WebDtos.PlayerDto> players = List.of();
     private static volatile List<WebDtos.EntityDto> entities = List.of();
-    private static volatile Map<String, Integer> entityCountsByDim = Map.of();
-    private static volatile Map<String, Integer> entityCountsByCategory = Map.of();
+    private static volatile EntityCounts entityCounts = new EntityCounts(Map.of(), Map.of());
     private static volatile ProfilerWindow.Report profilerReport = ProfilerWindow.Report.empty();
 
     /** Вызывается на старте сервера: сброс состояния, ёмкость истории из конфига. */
@@ -30,8 +32,7 @@ public final class WebState {
         current = null;
         players = List.of();
         entities = List.of();
-        entityCountsByDim = Map.of();
-        entityCountsByCategory = Map.of();
+        entityCounts = new EntityCounts(Map.of(), Map.of());
         profilerReport = ProfilerWindow.Report.empty();
     }
 
@@ -45,10 +46,10 @@ public final class WebState {
     public static List<WebDtos.PlayerDto> players()       { return players; }
     public static List<WebDtos.EntityDto> entities()      { return entities; }
     public static ProfilerWindow.Report profilerReport()  { return profilerReport; }
-    public static Map<String, Integer> entityCountsByCategory() { return entityCountsByCategory; }
+    public static Map<String, Integer> entityCountsByCategory() { return entityCounts.byCategory(); }
 
     public static int entityCount(String dim) {
-        return entityCountsByDim.getOrDefault(dim, 0);
+        return entityCounts.byDim().getOrDefault(dim, 0);
     }
 
     public static void setPlayers(List<WebDtos.PlayerDto> value)   { players = value; }
@@ -56,7 +57,6 @@ public final class WebState {
     public static void setProfilerReport(ProfilerWindow.Report r)  { profilerReport = r; }
 
     public static void setEntityCounts(Map<String, Integer> byDim, Map<String, Integer> byCategory) {
-        entityCountsByDim = byDim;
-        entityCountsByCategory = byCategory;
+        entityCounts = new EntityCounts(byDim, byCategory);
     }
 }

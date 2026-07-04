@@ -64,6 +64,8 @@ public final class MetricsCollector {
         if (!Config.isWebEnabled() || tickStartNanos == 0L) return;
         accumulatedTickNanos += System.nanoTime() - tickStartNanos;
         tickCount++;
+        // Сброс до переполнения int; 2_000_000_000 кратно 40 — обе кадансы (20/40) не сбиваются.
+        if (tickCount >= 2_000_000_000) tickCount = 0;
 
         MinecraftServer server = event.getServer();
         if (tickCount % SNAPSHOT_EVERY_TICKS == 0) {
