@@ -28,3 +28,4 @@ runs/
 
 # Локальные настройки Claude Code
 .claude/settings.local.json
+.superpowers/
