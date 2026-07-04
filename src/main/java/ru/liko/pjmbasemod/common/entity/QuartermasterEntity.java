@@ -1,7 +1,6 @@
 package ru.liko.pjmbasemod.common.entity;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -155,11 +154,20 @@ public class QuartermasterEntity extends Mob {
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
-        // Кладовщик бессмертен ко всему, кроме принудительного устранения (/kill, выпадение из мира).
-        if (!source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
-            return false;
+        // Кладовщик полностью бессмертен — в том числе к /kill (он бьёт уроном с тегом
+        // BYPASSES_INVULNERABILITY). Убрать NPC можно только командой «/pjm entity remove»,
+        // которая идёт мимо hurt() через discard().
+        return false;
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        // Подстраховка: даже если урон-иммунитет обойдут, снос по /kill (RemovalReason.KILLED)
+        // игнорируем. Командное удаление использует discard() → RemovalReason.DISCARDED.
+        if (reason == RemovalReason.KILLED) {
+            return;
         }
-        return super.hurt(source, amount);
+        super.remove(reason);
     }
 
     @Override

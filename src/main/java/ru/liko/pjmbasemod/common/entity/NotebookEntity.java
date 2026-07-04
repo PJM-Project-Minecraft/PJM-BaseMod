@@ -75,6 +75,17 @@ public class NotebookEntity extends Entity implements GeoEntity {
     }
 
     @Override
+    public void remove(RemovalReason reason) {
+        // Терминал нельзя снести ванильным /kill (он вызывает kill() → remove(KILLED)).
+        // Убрать его можно только командой «/pjm entity remove», которая идёт через
+        // discard() → RemovalReason.DISCARDED.
+        if (reason == RemovalReason.KILLED) {
+            return;
+        }
+        super.remove(reason);
+    }
+
+    @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
         this.ownerId = tag.hasUUID("Owner") ? tag.getUUID("Owner") : null;
         if (tag.contains("FacingYaw")) {

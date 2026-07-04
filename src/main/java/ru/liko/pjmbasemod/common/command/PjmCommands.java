@@ -11,13 +11,20 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
+import ru.liko.pjmbasemod.common.entity.NotebookEntity;
+import ru.liko.pjmbasemod.common.entity.QuartermasterEntity;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderSavedData;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
 import ru.liko.pjmbasemod.common.faction.FactionMenuService;
@@ -30,6 +37,7 @@ import ru.liko.pjmbasemod.common.frontline.FrontlineSectorState;
 import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.frontline.bluemap.FrontlineBlueMapService;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
+import ru.liko.pjmbasemod.common.garage.GarageTerminalSavedData;
 import ru.liko.pjmbasemod.common.garage.VehicleDefinition;
 import ru.liko.pjmbasemod.common.garage.VehicleRegistry;
 import ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers;
@@ -80,9 +88,55 @@ public final class PjmCommands {
                 .then(regionCommand())
                 .then(frontlineCommand())
                 .then(inventoryCommand())
+                .then(entityCommand())
                 .then(ModerationCommands.build())
                 .then(configCommand())
                 .then(debugCommand()));
+    }
+
+    // ---------------------------------------------------------------- entity (удаление сущностей мода)
+
+    /** Радиус рейкаста для «/pjm entity remove». */
+    private static final double ENTITY_REMOVE_REACH = 6.0D;
+
+    /**
+     * Сущности мода (терминал гаража, кладовщик склада) иммунны к ванильному /kill.
+     * Снести их можно только этой командой — рейкастом по сущности, на которую смотрит игрок.
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> entityCommand() {
+        return Commands.literal("entity")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("remove")
+                        .executes(ctx -> removeLookedAtEntity(ctx.getSource(), requirePlayer(ctx.getSource()))));
+    }
+
+    private static int removeLookedAtEntity(CommandSourceStack source, @Nullable ServerPlayer player) {
+        if (player == null) return 0;
+        Vec3 eye = player.getEyePosition();
+        Vec3 view = player.getViewVector(1.0F);
+        Vec3 end = eye.add(view.scale(ENTITY_REMOVE_REACH));
+        AABB searchBox = player.getBoundingBox().expandTowards(view.scale(ENTITY_REMOVE_REACH)).inflate(1.0D);
+        EntityHitResult hit = ProjectileUtil.getEntityHitResult(
+                player, eye, end, searchBox,
+                e -> e instanceof NotebookEntity || e instanceof QuartermasterEntity,
+                ENTITY_REMOVE_REACH * ENTITY_REMOVE_REACH);
+        if (hit == null) {
+            source.sendFailure(Component.literal("Наведись на терминал гаража или кладовщика склада (не дальше "
+                    + (int) ENTITY_REMOVE_REACH + " блоков)"));
+            return 0;
+        }
+        Entity target = hit.getEntity();
+        final String label;
+        if (target instanceof NotebookEntity) {
+            label = "терминал гаража";
+            // Чистим осиротевшие настройки терминала, привязанные к UUID сущности.
+            GarageTerminalSavedData.get(source.getServer()).forget(target.getUUID());
+        } else {
+            label = "кладовщика склада";
+        }
+        target.discard();
+        source.sendSuccess(() -> Component.literal("Удалён " + label), true);
+        return 1;
     }
 
     // ---------------------------------------------------------------- debug (принудительное открытие меню)
