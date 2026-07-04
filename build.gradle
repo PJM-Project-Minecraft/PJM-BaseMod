@@ -128,6 +128,72 @@ dependencies {
     clientCompileOnly files(taczReferenceJar)
     runtimeOnly files(taczReferenceJar)
 
+    // Веб-панель: Javalin (встроенный HTTP/WS-сервер), вшивается в JAR через jarJar.
+    // slf4j-api не вшиваем — его поставляет Minecraft.
+    jarJar(implementation("io.javalin:javalin")) {
+        version {
+            strictly '[6.0,7.0)'
+            prefer '6.6.0'
+        }
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
+    // Транзитивные зависимости Javalin — Jetty 11 + Kotlin stdlib.
+    // jarJar не подтягивает их автоматически, объявляем явно.
+    jarJar("org.eclipse.jetty:jetty-util") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty:jetty-io") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty:jetty-http") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty:jetty-server") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty:jetty-security") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty:jetty-servlet") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty:jetty-xml") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty:jetty-webapp") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api") {
+        version { strictly '[5.0,6.0)'; prefer '5.0.2' }
+    }
+    jarJar("org.eclipse.jetty.websocket:websocket-core-common") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty.websocket:websocket-jetty-api") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty.websocket:websocket-jetty-common") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty.websocket:websocket-core-server") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty.websocket:websocket-servlet") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.eclipse.jetty.websocket:websocket-jetty-server") {
+        version { strictly '[11.0,12.0)'; prefer '11.0.25' }
+    }
+    jarJar("org.jetbrains.kotlin:kotlin-stdlib") {
+        version { strictly '[1.9,2.0)'; prefer '1.9.25' }
+    }
+    jarJar("org.jetbrains.kotlin:kotlin-stdlib-jdk7") {
+        version { strictly '[1.9,2.0)'; prefer '1.9.25' }
+    }
+    jarJar("org.jetbrains.kotlin:kotlin-stdlib-jdk8") {
+        version { strictly '[1.9,2.0)'; prefer '1.9.25' }
+    }
+
     // Юнит-тесты чистых классов веб-панели (без Minecraft classpath)
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -198,6 +264,7 @@ tasks.register('serverJar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from sourceSets.main.output
     from sourceSets.server.output
+    from tasks.named('jarJar')
     manifest { attributes(sharedManifestAttrs + ['Side': 'SERVER']) }
 }
 
@@ -210,6 +277,7 @@ tasks.register('localJar', Jar) {
     from sourceSets.main.output
     from sourceSets.client.output
     from sourceSets.server.output
+    from tasks.named('jarJar')
     manifest { attributes(sharedManifestAttrs + ['Side': 'BOTH']) }
 }
 
