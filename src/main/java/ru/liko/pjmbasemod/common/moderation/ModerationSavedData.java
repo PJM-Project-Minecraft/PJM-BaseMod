@@ -25,6 +25,8 @@ public final class ModerationSavedData extends SavedData {
     private static final String DATA_NAME = "pjmbasemod_moderation";
     /** Ограничение размера аудит-истории на игрока, чтобы NBT не рос бесконечно. */
     private static final int MAX_HISTORY = 200;
+    /** Ограничение размера списка варнов на игрока (пороги эскалации малы). */
+    private static final int MAX_WARNS = 200;
 
     private static final SavedData.Factory<ModerationSavedData> FACTORY = new SavedData.Factory<>(
             ModerationSavedData::new,
@@ -123,7 +125,10 @@ public final class ModerationSavedData extends SavedData {
 
     public void addWarn(UUID playerId, String name, WarnEntry warn) {
         if (playerId == null || warn == null) return;
-        profileOrCreate(playerId, name).warns.add(warn);
+        List<WarnEntry> warns = profileOrCreate(playerId, name).warns;
+        warns.add(warn);
+        // Кап, чтобы NBT не рос неограниченно при частых варнах (эскалация оперирует малыми порогами).
+        while (warns.size() > MAX_WARNS) warns.remove(0);
         setDirty();
     }
 

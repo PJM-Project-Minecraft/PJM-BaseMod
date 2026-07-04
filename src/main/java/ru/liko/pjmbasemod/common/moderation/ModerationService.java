@@ -261,7 +261,8 @@ public final class ModerationService {
         if (now - lastMuteSweepMs < 5000L) return;
         lastMuteSweepMs = now;
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-            isVoiceMuted(server, p.getUUID()); // ленивое снятие + ресинк
+            // Ленивое снятие истёкших + ре-ассерт рантайм-флага войс-плагина (на случай его сброса).
+            VoicechatBridge.setVoiceMuted(p.getUUID(), isVoiceMuted(server, p.getUUID()));
             isTextMuted(server, p.getUUID());
         }
     }
@@ -294,7 +295,9 @@ public final class ModerationService {
 
     @Nullable
     private static WarnThreshold matchingThreshold(int count) {
-        // Варны растут по одному, поэтому точного совпадения достаточно — каждый порог срабатывает единожды.
+        // Счётчик активных варнов растёт по одному, поэтому точного совпадения достаточно.
+        // При warnDecayDays=0 каждый порог срабатывает единожды; при decay>0 после распада
+        // варнов счётчик может снова дойти до порога и наказание применится повторно (ожидаемо).
         for (WarnThreshold t : parsedThresholds()) {
             if (t.count() == count) return t;
         }

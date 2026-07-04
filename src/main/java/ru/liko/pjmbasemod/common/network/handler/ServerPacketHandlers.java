@@ -209,29 +209,31 @@ public final class ServerPacketHandlers {
         Map<UUID, ModerationSnapshot.PlayerModEntry> byId = new LinkedHashMap<>();
         // Онлайн-игроки.
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-            UUID id = p.getUUID();
-            ModerationSavedData.ModerationProfile prof = data.profile(id);
-            byId.put(id, new ModerationSnapshot.PlayerModEntry(
-                    id, p.getGameProfile().getName(), true,
-                    ModerationService.isBanned(server, id),
-                    ModerationService.isVoiceMuted(server, id),
-                    ModerationService.isTextMuted(server, id),
-                    prof == null ? 0 : prof.warnCount(),
-                    banExpires(prof), banReason(prof)));
+            byId.put(p.getUUID(), snapshotEntry(server, p.getUUID(), p.getGameProfile().getName(), true));
         }
         // Оффлайн-игроки из SavedData.
-        for (Map.Entry<UUID, ModerationSavedData.ModerationProfile> e : data.entries().entrySet()) {
-            if (byId.containsKey(e.getKey())) continue;
-            ModerationSavedData.ModerationProfile prof = e.getValue();
-            byId.put(e.getKey(), new ModerationSnapshot.PlayerModEntry(
-                    e.getKey(), prof.lastKnownName(), false,
-                    prof.activeBan() != null,
-                    prof.voiceMute() != null,
-                    prof.textMute() != null,
-                    prof.warnCount(),
-                    banExpires(prof), banReason(prof)));
+        for (UUID id : data.entries().keySet()) {
+            if (byId.containsKey(id)) continue;
+            ModerationSavedData.ModerationProfile prof = data.profile(id);
+            byId.put(id, snapshotEntry(server, id, prof == null ? "unknown" : prof.lastKnownName(), false));
         }
         return new ModerationSnapshot(List.copyOf(byId.values()));
+    }
+
+    /**
+     * Строка снапшота с ленивым истечением через ModerationService — одинаково для онлайн и оффлайн,
+     * поэтому истёкшие, но ещё не снятые наказания не показываются активными.
+     */
+    private static ModerationSnapshot.PlayerModEntry snapshotEntry(MinecraftServer server, UUID id, String name, boolean online) {
+        boolean banned = ModerationService.isBanned(server, id);
+        ModerationSavedData.ModerationProfile prof = ModerationSavedData.get(server).profile(id);
+        return new ModerationSnapshot.PlayerModEntry(
+                id, name, online, banned,
+                ModerationService.isVoiceMuted(server, id),
+                ModerationService.isTextMuted(server, id),
+                prof == null ? 0 : prof.warnCount(),
+                banned ? banExpires(prof) : 0L,
+                banned ? banReason(prof) : "");
     }
 
     private static long banExpires(ModerationSavedData.ModerationProfile prof) {
