@@ -109,6 +109,9 @@ public final class WebActions {
     public static CompletableFuture<ActionResult> pardon(MinecraftServer server, UUID target, String targetName,
                                                          String type, @Nullable UUID adminId, String adminName) {
         return action(server, () -> {
+            if (!type.equals("ban") && !type.equals("mute_voice") && !type.equals("mute_text")) {
+                return ActionResult.error("bad_type");
+            }
             ServerPlayer moderator = moderatorOrNull(server, adminId);
             boolean removed = switch (type) {
                 case "ban" -> ModerationService.pardon(server, target, targetName, moderator);

@@ -23,14 +23,14 @@ interface Frame {
 const HISTORY_CAP = 7200
 
 /** WebSocket /ws/live с авто-reconnect (экспоненциальная задержка до 15с). */
-export function useLive(initialHistory: MetricsSample[]): LiveState {
+export function useLive(initialHistory: MetricsSample[], initialProfilerActive = false): LiveState {
   const [state, setState] = useState<LiveState>({
     connected: false,
     sample: initialHistory.length ? initialHistory[initialHistory.length - 1] : null,
     players: [],
     entityCounts: {},
     profiler: null,
-    profilerActive: false,
+    profilerActive: initialProfilerActive,
     history: initialHistory,
   })
   const retryRef = useRef(0)

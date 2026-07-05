@@ -99,7 +99,7 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
 
 function Shell({ overview }: { overview: Overview }) {
   const [tab, setTab] = useState<Tab>('dashboard')
-  const live = useLive(overview.history)
+  const live = useLive(overview.history, overview.profilerActive)
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', padding: '16px 20px 40px' }}>

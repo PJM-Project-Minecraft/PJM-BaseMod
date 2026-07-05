@@ -33,4 +33,13 @@ class RateLimiterTest {
         assertTrue(limiter.allow("b", 0));
         assertFalse(limiter.allow("a", 1));
     }
+
+    @Test
+    void staleKeysDoNotBlockAfterWindow() {
+        RateLimiter limiter = new RateLimiter(1, 10_000);
+        assertTrue(limiter.allow("a", 0));
+        assertFalse(limiter.allow("a", 1));
+        // Спустя окно ключ снова доступен (и внутренняя карта не копит мусор).
+        assertTrue(limiter.allow("a", 10_001));
+    }
 }

@@ -23,10 +23,12 @@ public final class RateLimiter {
 
     /** @return true, если попытка разрешена (и учтена). */
     public synchronized boolean allow(String key, long nowMs) {
+        // Попутная эвикция: убираем полностью протухшие ключи, чтобы карта не росла бесконечно.
+        hits.values().removeIf(queue -> {
+            while (!queue.isEmpty() && queue.peekFirst() <= nowMs - windowMs) queue.pollFirst();
+            return queue.isEmpty();
+        });
         Deque<Long> queue = hits.computeIfAbsent(key, k -> new ArrayDeque<>());
-        while (!queue.isEmpty() && queue.peekFirst() <= nowMs - windowMs) {
-            queue.pollFirst();
-        }
         if (queue.size() >= maxAttempts) return false;
         queue.addLast(nowMs);
         return true;

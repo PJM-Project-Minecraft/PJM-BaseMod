@@ -26,6 +26,7 @@ public final class EntityProfiler {
     private static final ProfilerWindow WINDOW = new ProfilerWindow();
     private static volatile boolean active;
     private static long startNanos;
+    // Один слот замера: при вложенном тике entity (пассажиры некоторых модов) внешний сэмпл отбрасывается — приемлемо для диагностики.
     private static int startedEntityId = Integer.MIN_VALUE;
     private static int ticksSinceFlush;
 

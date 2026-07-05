@@ -36,9 +36,9 @@ export default function Entities({ live, profilerAllowed }: { live: LiveState; p
 
   const removeChecked = async () => {
     try {
-      const res = await api.post<{ ok: boolean; message?: string }>(
+      const res = await api.post<{ ok: boolean; message?: string; error?: string }>(
         '/api/actions/entities/remove', { uuids: [...checked] })
-      setStatus(res.ok ? `✓ ${res.message}` : '✗ ошибка')
+      setStatus(res.ok ? `✓ ${res.message}` : `✗ ${res.error ?? 'ошибка'}`)
       setChecked(new Set())
       refresh()
     } catch (e) {
@@ -54,10 +54,10 @@ export default function Entities({ live, profilerAllowed }: { live: LiveState; p
       return
     }
     try {
-      const res = await api.post<{ ok: boolean; message?: string }>(
+      const res = await api.post<{ ok: boolean; message?: string; error?: string }>(
         '/api/actions/entities/remove-bulk',
         { type: type.trim() || null, dim, x: radius ? 0 : null, z: radius ? 0 : null, radius: radius ?? null })
-      setStatus(res.ok ? `✓ ${res.message}` : '✗ ошибка')
+      setStatus(res.ok ? `✓ ${res.message}` : `✗ ${res.error ?? 'ошибка'}`)
       refresh()
     } catch (e) {
       setStatus(`✗ ${(e as Error).message}`)
