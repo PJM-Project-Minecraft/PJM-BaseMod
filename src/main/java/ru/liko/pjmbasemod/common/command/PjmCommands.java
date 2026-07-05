@@ -876,15 +876,14 @@ public final class PjmCommands {
                                     Component.translatable("pjmbasemod.web.login.copy"))));
                     ctx.getSource().sendSuccess(
                             () -> Component.translatable("pjmbasemod.web.login.header", codeComponent), false);
-                    String publicUrl = Config.getWebPublicUrl();
-                    if (!publicUrl.isBlank()) {
-                        String url = publicUrl.replaceAll("/+$", "") + "/login?code=" + code;
-                        ctx.getSource().sendSuccess(() -> Component.translatable("pjmbasemod.web.login.link")
-                                .withStyle(style -> style
-                                        .withColor(ChatFormatting.AQUA)
-                                        .withUnderlined(true)
-                                        .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))), false);
-                    }
+                    // Ссылка всегда: publicUrl из конфига или http://<IP сервера>:<порт>.
+                    String url = ru.liko.pjmbasemod.common.web.WebPanelService
+                            .panelBaseUrl(ctx.getSource().getServer()) + "/login?code=" + code;
+                    ctx.getSource().sendSuccess(() -> Component.translatable("pjmbasemod.web.login.link")
+                            .withStyle(style -> style
+                                    .withColor(ChatFormatting.AQUA)
+                                    .withUnderlined(true)
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))), false);
                     return 1;
                 }))
                 .then(Commands.literal("logout").executes(ctx -> {

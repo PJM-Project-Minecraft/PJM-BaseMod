@@ -16,8 +16,12 @@ import ru.liko.pjmbasemod.common.web.api.WebApiRoutes;
 import ru.liko.pjmbasemod.common.web.api.WebSocketHub;
 import ru.liko.pjmbasemod.common.web.metrics.EntityProfiler;
 
+import net.minecraft.server.MinecraftServer;
+
 import javax.annotation.Nullable;
 import java.lang.reflect.Type;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 
 /**
  * Жизненный цикл встроенного Javalin-сервера веб-панели. Стартует на
@@ -35,6 +39,30 @@ public final class WebPanelService {
     private static Javalin app;
 
     private WebPanelService() {}
+
+    /**
+     * Базовый URL панели для ссылки входа: {@code web.publicUrl}, если задан,
+     * иначе {@code http://<IP сервера>:<web.port>}. IP берётся из server-ip
+     * (server.properties), а при пустом — определяется по исходящему интерфейсу машины.
+     */
+    public static String panelBaseUrl(MinecraftServer server) {
+        String publicUrl = Config.getWebPublicUrl();
+        if (!publicUrl.isBlank()) return publicUrl.replaceAll("/+$", "");
+        String host = server.getLocalIp();
+        if (host == null || host.isBlank()) host = detectLocalAddress();
+        return "http://" + host + ":" + Config.getWebPort();
+    }
+
+    /** IP исходящего интерфейса: UDP-connect не шлёт пакетов, но выбирает локальный адрес маршрута. */
+    private static String detectLocalAddress() {
+        try (DatagramSocket socket = new DatagramSocket()) {
+            socket.connect(InetAddress.getByName("1.1.1.1"), 53);
+            InetAddress local = socket.getLocalAddress();
+            if (local != null && !local.isAnyLocalAddress()) return local.getHostAddress();
+        } catch (Exception ignored) {
+        }
+        return "localhost";
+    }
 
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {

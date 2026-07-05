@@ -467,13 +467,14 @@ public final class Config {
     /**
      * Веб-панель админа (common/web/): встроенный Javalin-сервер с графиками
      * TPS/нагрузки, списками игроков/entity и действиями модерации.
-     * Вход — {@code /pjm web login}. TLS не встроен — в проде ставить за reverse proxy.
+     * Вход — {@code /pjm web login}. Панель доступна напрямую по порту; TLS не встроен —
+     * при желании ставится за reverse proxy (см. docs/WEBPANEL.md).
      * {@code publicUrl} — базовый URL для кликабельной ссылки входа
-     * ({@code https://panel.example.com}); пустой → в чат печатается только код.
+     * ({@code https://panel.example.com}); пустой → ссылка строится из IP сервера и порта.
      */
     static final class Web {
         boolean enabled = false;
-        int port = 8776;
+        int port = 33005;
         String bindAddress = "0.0.0.0";
         int sessionTtlMinutes = 720;
         int historyMinutes = 120;
