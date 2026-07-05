@@ -45,9 +45,12 @@ import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
 import ru.liko.pjmbasemod.common.rank.RankRegistry;
 import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.rank.RankSnapshot;
+import ru.liko.pjmbasemod.common.basezone.BaseZone;
+import ru.liko.pjmbasemod.common.basezone.BaseZoneSavedData;
 import ru.liko.pjmbasemod.common.region.Region;
 import ru.liko.pjmbasemod.common.region.RegionManager;
 import ru.liko.pjmbasemod.common.region.RegionSavedData;
+import net.minecraft.core.BlockPos;
 import ru.liko.pjmbasemod.common.role.CombatRole;
 import ru.liko.pjmbasemod.common.role.RolePermissions;
 import ru.liko.pjmbasemod.common.role.RoleSavedData;
@@ -86,6 +89,7 @@ public final class PjmCommands {
                 .then(WarehouseCommands.build())
                 // --- админ / управление миром ---
                 .then(regionCommand())
+                .then(baseZoneCommand())
                 .then(frontlineCommand())
                 .then(inventoryCommand())
                 .then(entityCommand())
@@ -904,6 +908,161 @@ public final class PjmCommands {
                 .then(Commands.literal("pos2")
                         .then(Commands.argument("name", StringArgumentType.word())
                                 .executes(ctx -> setRegionPos(ctx.getSource(), StringArgumentType.getString(ctx, "name"), false))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> baseZoneCommand() {
+        return Commands.literal("basezone")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("create")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> createBaseZone(ctx.getSource(), StringArgumentType.getString(ctx, "name"), null))
+                                .then(Commands.argument("displayName", StringArgumentType.greedyString())
+                                        .executes(ctx -> createBaseZone(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "name"),
+                                                StringArgumentType.getString(ctx, "displayName"))))))
+                .then(Commands.literal("delete")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> deleteBaseZone(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("list")
+                        .executes(ctx -> listBaseZones(ctx.getSource())))
+                .then(Commands.literal("info")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> baseZoneInfo(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("displayname")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .then(Commands.argument("displayName", StringArgumentType.greedyString())
+                                        .executes(ctx -> setBaseZoneDisplayName(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "name"),
+                                                StringArgumentType.getString(ctx, "displayName"))))))
+                .then(Commands.literal("owner")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .then(Commands.argument("owner", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> suggestCombatTeams(builder))
+                                        .executes(ctx -> setBaseZoneOwner(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "name"),
+                                                StringArgumentType.getString(ctx, "owner"))))))
+                .then(Commands.literal("pos1")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> setBaseZonePos(ctx.getSource(), StringArgumentType.getString(ctx, "name"), true))))
+                .then(Commands.literal("pos2")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> setBaseZonePos(ctx.getSource(), StringArgumentType.getString(ctx, "name"), false))));
+    }
+
+    private static int createBaseZone(CommandSourceStack source, String name, @Nullable String displayName) {
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        boolean existed = data.zone(name) != null;
+        BaseZone zone = data.getOrCreateZone(name);
+        if (displayName != null && !displayName.isBlank()) {
+            zone.setDisplayName(displayName);
+            data.setDirty();
+        }
+        source.sendSuccess(() -> Component.literal(existed
+                ? "Зона базы '" + name + "' уже существует"
+                : "Зона базы '" + name + "' создана. Задай границы pos1/pos2 и владельца: /pjm basezone owner " + name + " <team>"), true);
+        return existed ? 0 : 1;
+    }
+
+    private static int deleteBaseZone(CommandSourceStack source, String name) {
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        if (!data.deleteZone(name)) {
+            source.sendFailure(Component.literal("Зона базы '" + name + "' не найдена"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Зона базы '" + name + "' удалена"), true);
+        return 1;
+    }
+
+    private static int listBaseZones(CommandSourceStack source) {
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        if (data.zones().isEmpty()) {
+            source.sendSuccess(() -> Component.literal("Зоны базы не созданы"), false);
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Зоны базы:"), false);
+        for (BaseZone zone : data.zones()) {
+            source.sendSuccess(() -> Component.literal(" - " + describeBaseZone(source, zone)), false);
+        }
+        return data.zones().size();
+    }
+
+    private static int baseZoneInfo(CommandSourceStack source, String name) {
+        BaseZone zone = BaseZoneSavedData.get(source.getServer()).zone(name);
+        if (zone == null) {
+            source.sendFailure(Component.literal("Зона базы '" + name + "' не найдена"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(describeBaseZone(source, zone)), false);
+        return 1;
+    }
+
+    private static int setBaseZoneDisplayName(CommandSourceStack source, String name, String displayName) {
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        BaseZone zone = data.zone(name);
+        if (zone == null) {
+            source.sendFailure(Component.literal("Зона базы '" + name + "' не найдена"));
+            return 0;
+        }
+        zone.setDisplayName(displayName);
+        data.setDirty();
+        source.sendSuccess(() -> Component.literal("DisplayName зоны '" + zone.name() + "' = " + zone.displayName()), true);
+        return 1;
+    }
+
+    private static int setBaseZoneOwner(CommandSourceStack source, String name, String ownerArg) {
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        BaseZone zone = data.zone(name);
+        if (zone == null) {
+            source.sendFailure(Component.literal("Зона базы '" + name + "' не найдена"));
+            return 0;
+        }
+        String owner = parseCombatTeam(source, ownerArg);
+        if (owner == null) return 0;
+        zone.setOwner(owner);
+        data.setDirty();
+        source.sendSuccess(() -> Component.literal("Владелец зоны '" + zone.name() + "' = " + FrontlineTeams.displayName(source.getServer(), owner)), true);
+        return 1;
+    }
+
+    private static int setBaseZonePos(CommandSourceStack source, String name, boolean first) {
+        ServerPlayer player = requirePlayer(source);
+        if (player == null) return 0;
+
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        BaseZone zone = data.getOrCreateZone(name);
+        String dimension = dimensionId(player);
+        if (!zone.dimension().isBlank() && !zone.dimension().equals(dimension)) {
+            source.sendFailure(Component.literal("Зона базы уже привязана к измерению " + zone.dimension()));
+            return 0;
+        }
+
+        BlockPos pos = player.blockPosition();
+        if (first) zone.setPos1(dimension, pos);
+        else zone.setPos2(dimension, pos);
+        data.setDirty();
+
+        source.sendSuccess(() -> Component.literal((first ? "pos1" : "pos2") + " зоны '" + name + "' = "
+                + pos.getX() + " " + pos.getY() + " " + pos.getZ()), true);
+        if (zone.isComplete()) {
+            source.sendSuccess(() -> Component.literal("Границы заданы: " + describeBaseZone(source, zone)), false);
+        }
+        return 1;
+    }
+
+    private static String describeBaseZone(CommandSourceStack source, BaseZone zone) {
+        String ownerLabel = zone.owner().isBlank() ? "не задан" : FrontlineTeams.displayName(source.getServer(), zone.owner());
+        if (!zone.isComplete()) {
+            return zone.name() + " (" + zone.displayName() + ") | границы не заданы | владелец: " + ownerLabel
+                    + " | dimension: " + (zone.dimension().isBlank() ? "не задано" : zone.dimension());
+        }
+        return zone.name() + " (" + zone.displayName() + ") | " + zone.dimension()
+                + " | X " + zone.minX() + ".." + zone.maxX()
+                + ", Y " + zone.minY() + ".." + zone.maxY()
+                + ", Z " + zone.minZ() + ".." + zone.maxZ()
+                + " | владелец: " + ownerLabel;
     }
 
     private static int setActive(CommandSourceStack source, boolean active) {

@@ -304,5 +304,8 @@
   "pjmbasemod.moderation.cmd.invalid_duration": "Ungültige Dauer: '%s'. Beispiele: 30m, 1d, permanent",
   "pjmbasemod.moderation.cmd.invalid_duration.short": "Ungültige Dauer: '%s'",
   "pjmbasemod.moderation.cmd.yes": "ja",
-  "pjmbasemod.moderation.cmd.no": "nein"
+  "pjmbasemod.moderation.cmd.no": "nein",
+  "basezone.warning.title": "⚠ FEINDLICHE BASIS",
+  "basezone.warning.subtitle": "Verlasse die Basiszone! Tod in %s Sek.",
+  "death.attack.pjm_base_zone": "%1$s starb in einer feindlichen Basiszone"
 }
