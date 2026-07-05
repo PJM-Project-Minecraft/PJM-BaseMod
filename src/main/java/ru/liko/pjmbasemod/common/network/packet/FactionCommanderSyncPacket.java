@@ -15,6 +15,7 @@ import java.util.UUID;
 public record FactionCommanderSyncPacket(
         UUID playerId,
         boolean active,
+        boolean canManage,
         String teamId,
         String teamName,
         int teamColor,
@@ -29,6 +30,7 @@ public record FactionCommanderSyncPacket(
             (buf, packet) -> {
                 buf.writeUUID(packet.playerId());
                 buf.writeBoolean(packet.active());
+                buf.writeBoolean(packet.canManage());
                 buf.writeUtf(packet.teamId());
                 buf.writeUtf(packet.teamName());
                 buf.writeVarInt(packet.teamColor());
@@ -38,6 +40,7 @@ public record FactionCommanderSyncPacket(
             buf -> new FactionCommanderSyncPacket(
                     buf.readUUID(),
                     buf.readBoolean(),
+                    buf.readBoolean(),
                     buf.readUtf(),
                     buf.readUtf(),
                     buf.readVarInt(),
@@ -46,12 +49,13 @@ public record FactionCommanderSyncPacket(
             )
     );
 
-    public static FactionCommanderSyncPacket from(ServerPlayer player, @Nullable String teamId) {
+    public static FactionCommanderSyncPacket from(ServerPlayer player, @Nullable String teamId, boolean canManage) {
         boolean active = teamId != null && !teamId.isBlank();
         String team = active ? teamId : "";
         return new FactionCommanderSyncPacket(
                 player.getUUID(),
                 active,
+                canManage,
                 team,
                 active ? FrontlineTeams.displayName(player.getServer(), team) : "",
                 active ? FrontlineTeams.color(player.getServer(), team) : FactionCommanderService.ROLE_COLOR,

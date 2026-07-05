@@ -114,6 +114,14 @@ HUD: `client/gui/overlay/FrontlineHudOverlay`.
 `RegionManager`, `RegionSavedData`, `Region` — именованные регионы мира.
 Клиентское зеркало: `client/region/ClientRegionState`.
 
+### basezone
+`BaseZone`, `BaseZoneSavedData`, `BaseZoneManager` — зоны базы (блочный AABB с Y +
+owner-команда). Враг в чужой зоне получает полноэкранное предупреждение с отсчётом
+и погибает от кастомного `DamageType` `pjmbasemod:base_zone`, если не вышел. OP и
+creative/spectator игнорируют защиту. Конфиг-секция `baseZone` (enabled,
+countdownSeconds). Команды `/pjm basezone`. Enforcement — серверный, в
+`PjmServerEvents.onPlayerTick`. Документация — [`docs/BASE_ZONE.md`](./docs/BASE_ZONE.md).
+
 ### dimension
 `PjmDimensions`, `LobbyService` — кастомные дименшены через datapack JSON.
 Пара файлов: `data/pjmbasemod/dimension/<name>.json` + `data/pjmbasemod/dimension_type/<name>.json`.

@@ -130,6 +130,8 @@ public final class Config {
     public static List<? extends String> getAntiGriefAllowedBreakBlocks()    { return data().antigrief.allowedBreakBlocks; }
     public static List<? extends String> getAntiGriefAllowedInteractBlocks() { return data().antigrief.allowedInteractBlocks; }
     public static List<? extends String> getAntiGriefAllowedPlaceBlocks()    { return data().antigrief.allowedPlaceBlocks; }
+    public static boolean isBaseZoneEnabled()          { return data().baseZone.enabled; }
+    public static int     getBaseZoneCountdownSeconds() { return data().baseZone.countdownSeconds; }
 
     public static boolean isModerationOverrideVanilla()      { return data().moderation.overrideVanillaCommands; }
     public static int  getModerationDefaultTempBanMinutes()  { return data().moderation.defaultTempBanMinutes; }
@@ -280,6 +282,7 @@ public final class Config {
         AntiGrief antigrief = new AntiGrief();
         Moderation moderation = new Moderation();
         Web web = new Web();
+        BaseZone baseZone = new BaseZone();
         Commands commands = new Commands();
 
         /** Заменяет null-секции дефолтами и зажимает числовые значения в допустимые диапазоны. */
@@ -311,6 +314,8 @@ public final class Config {
             web.historyMinutes = clamp(web.historyMinutes, 5, 1_440);
             if (web.bindAddress == null || web.bindAddress.isBlank()) web.bindAddress = "0.0.0.0";
             if (web.publicUrl == null) web.publicUrl = "";
+            if (baseZone == null) baseZone = new BaseZone();
+            baseZone.countdownSeconds = clamp(baseZone.countdownSeconds, 1, 60);
             if (commands == null) commands = new Commands();
 
             if (teams.definitions == null) teams.definitions = new ArrayList<>();
@@ -480,6 +485,11 @@ public final class Config {
         int historyMinutes = 120;
         boolean profilerEnabled = true;
         String publicUrl = "";
+    }
+
+    static final class BaseZone {
+        boolean enabled = true;
+        int countdownSeconds = 5;
     }
 
     static final class Commands {

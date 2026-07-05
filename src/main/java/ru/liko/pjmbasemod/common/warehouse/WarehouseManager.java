@@ -101,6 +101,10 @@ public final class WarehouseManager {
             player.displayClientMessage(RankService.requiredRankMessage(def.minRank()), true);
             return;
         }
+        if (!WarehouseDonorPermissions.canAccess(player, def)) {
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.donate_restricted"), true);
+            return;
+        }
 
         if (def.createStack(1).isEmpty()) {
             resync(player);
@@ -180,7 +184,9 @@ public final class WarehouseManager {
             return;
         }
 
-        int want = Math.max(1, count);
+        // count — число ПАЧЕК (симметрично выдаче, где один клик = одна пачка), а не штук.
+        // Иначе одиночный клик (count=1) при quantity>1, например у патронов, давал бы 1/quantity = 0 пачек.
+        int wantBatches = Math.max(1, count);
         int quantity = Math.max(1, def.quantity());
         int batchRefund = def.refundValue();    // возврат очков за одну выдачу (пачку из quantity штук)
 
@@ -194,10 +200,10 @@ public final class WarehouseManager {
             }
         }
 
-        // Сдаём ТОЛЬКО целыми пачнами по quantity штук (симметрично выдаче). Это закрывает дюп:
+        // Сдаём ТОЛЬКО целыми пачками по quantity штук (симметрично выдаче). Это закрывает дюп:
         // нельзя получить quantity штук за pointCost, а затем вернуть по одной за полный refund.
-        int depositItems = Math.min(want, available);
-        int batches = depositItems / quantity;
+        int availableBatches = available / quantity;
+        int batches = Math.min(wantBatches, availableBatches);
         if (batches <= 0) {
             player.displayClientMessage(quantity > 1
                     ? Component.translatable("gui.pjmbasemod.warehouse.deposit_need_batch", quantity)
@@ -409,10 +415,11 @@ public final class WarehouseManager {
             boolean roleAllowed = RoleService.hasAllowedRole(player, def.allowedRoles());
             boolean rankAllowed = RankService.meetsMinRank(player, def.minRank());
             String requiredRankName = RankService.rankDisplayName(def.minRank());
+            boolean donateAllowed = WarehouseDonorPermissions.canAccess(player, def);
             items.add(new WarehouseSnapshot.ItemEntry(def.id(), def.rawDisplayName(), def.iconId(),
                     def.displayCategory(), def.pool(), def.pointCost(), def.maxPerWithdraw(), def.quantity(),
                     def.refundValue(), inInventory, available, affordable,
-                    roleAllowed, def.allowedRoles(), rankAllowed, requiredRankName));
+                    roleAllowed, def.allowedRoles(), rankAllowed, requiredRankName, donateAllowed));
         }
 
         boolean canWithdraw = WarehousePermissions.can(player, WarehousePermissions.WITHDRAW);

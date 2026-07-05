@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.LayeredDraw;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.ChunkPos;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.client.frontline.ClientFrontlineState;
@@ -12,11 +13,26 @@ import ru.liko.pjmbasemod.common.network.packet.FrontlineHudPacket;
 
 public final class FrontlineHudOverlay {
 
-    public static final LayeredDraw.Layer OVERLAY = (graphics, deltaTracker) -> render(graphics);
+    /** Целевая высота обычной плашки. */
+    private static final int HEIGHT_IDLE = 22;
+    /** Целевая высота расширенной плашки (с прогресс-баром). */
+    private static final int HEIGHT_PROGRESS = 38;
+
+    /** Состояние плавной анимации (Dynamic Island-стиль: морфинг размеров). */
+    private static float animHeight = HEIGHT_IDLE;
+    private static float animWidthFactor = 1.0f;
+    private static float animPulse = 0f;
+    private static long lastFrameTime = System.currentTimeMillis();
+    /** Момент последней смены состояния для spring-подъёма. */
+    private static boolean lastHasProgress = false;
+    private static float springVel = 0f;
+    private static float springOffset = 0f;
+
+    public static final LayeredDraw.Layer OVERLAY = (graphics, deltaTracker) -> render(graphics, deltaTracker);
 
     private FrontlineHudOverlay() {}
 
-    private static void render(GuiGraphics graphics) {
+    private static void render(GuiGraphics graphics, net.minecraft.client.DeltaTracker deltaTracker) {
         Minecraft mc = Minecraft.getInstance();
         if (!Config.isFrontlineHudEnabled() || mc.player == null || mc.options.hideGui || mc.screen != null) return;
 
@@ -26,9 +42,43 @@ public final class FrontlineHudOverlay {
         int sectorZ = hud == null ? Math.floorDiv(clientChunk.z, 3) : hud.sectorZ();
 
         Font font = mc.font;
-        int width = 280;
         boolean hasProgress = hud != null && (hud.progressPercent() > 0 || hud.secondsRemaining() > 0);
-        int height = hasProgress ? 38 : 22;
+
+        // --- Плавная анимация размеров (spring-модель как у Dynamic Island) ---
+        long now = System.currentTimeMillis();
+        float dt = (now - lastFrameTime) / 1000.0f;
+        if (dt > 0.1f) dt = 0.1f;
+        if (dt <= 0f) dt = 0.016f;
+        lastFrameTime = now;
+
+        float targetHeight = hasProgress ? HEIGHT_PROGRESS : HEIGHT_IDLE;
+        // Easing к целевой высоте (критически демпфированный spring).
+        float heightDiff = targetHeight - animHeight;
+        springVel += heightDiff * 90.0f * dt;
+        springVel *= Mth.clamp(1.0f - 8.0f * dt, 0.0f, 1.0f);
+        animHeight += springVel * dt;
+        // Лёгкое «перелетание» (overshoot) для Dynamic-Island-ощущения.
+        if (hasProgress != lastHasProgress) {
+            springOffset = hasProgress ? -3.0f : 0f;
+            lastHasProgress = hasProgress;
+        }
+        springOffset += (0f - springOffset) * Mth.clamp(10.0f * dt, 0.0f, 1.0f);
+
+        int height = Math.max(HEIGHT_IDLE, Math.round(animHeight + springOffset));
+
+        // --- Пульсация фона/блюра при активном захвате ---
+        boolean captureActive = hud != null && hud.captureActive() && hasProgress;
+        if (captureActive) {
+            animPulse += dt;
+        } else {
+            animPulse = 0f;
+        }
+        // Плавная синусоидальная волна амплитудой 0..1.
+        float pulse = captureActive ? (0.5f + 0.5f * (float) Math.sin(animPulse * 2.2f * Math.PI)) : 0f;
+
+        int baseWidth = 280;
+        // Лёгкое расширение плашки при захвате.
+        int width = baseWidth;
         int cx = mc.getWindow().getGuiScaledWidth() / 2;
         int x = cx - width / 2;
         int y = 5; // Top center margin
@@ -39,16 +89,30 @@ public final class FrontlineHudOverlay {
         graphics.pose().pushPose();
         RenderSystem.enableBlend();
         try {
-            // Main dark bar (Squad style)
-            graphics.fill(x, y, x + width, y + height, 0x99000000);
+            // Blur-фон под баром; радиус блюра пульсирует при захвате (через alpha-подложку).
+            graphics.enableScissor(x, y, x + width, y + height);
+            mc.gameRenderer.processBlurEffect(deltaTracker.getGameTimeDeltaPartialTick(false));
+            mc.getMainRenderTarget().bindWrite(false);
+            graphics.disableScissor();
+
+            // Полупрозрачный тёмный фон; alpha «дышит» при активном захвате.
+            int bgBase = 0xA8;
+            int bgAlpha = captureActive
+                    ? Math.min(0xFF, Math.round(bgBase + 0x30 * pulse))
+                    : bgBase;
+            int colorBg = (bgAlpha << 24) | 0x0E1014;
+            graphics.fill(x, y, x + width, y + height, colorBg);
+
+            // Пульсирующая мягкая подложка акцентным цветом при захвате.
+            if (captureActive) {
+                int pulseAlpha = Math.round(0x44 * pulse);
+                graphics.fill(x, y, x + width, y + height, (pulseAlpha << 24) | (accent & 0x00FFFFFF));
+            }
             
             // Top colored indicator line
-            graphics.fill(x, y, x + width, y + 2, ownerColor);
+            int lineAlpha = captureActive ? Math.min(0xFF, 0xFF - Math.round(0x33 * pulse)) : 0xFF;
+            graphics.fill(x, y, x + width, y + 2, withAlpha(ownerColor, lineAlpha));
             
-            // Subtle bottom gradient line
-            graphics.fillGradient(x, y + height - 1, cx, y + height, 0x00FFFFFF, 0x55FFFFFF);
-            graphics.fillGradient(cx, y + height - 1, x + width, y + height, 0x55FFFFFF, 0x00FFFFFF);
-
             if (hud == null) {
                 graphics.drawCenteredString(font, "СЕКТОР: " + sectorX + ", " + sectorZ, cx, y + 8, 0xFFDDDDDD);
                 return;
@@ -62,27 +126,32 @@ public final class FrontlineHudOverlay {
                 graphics.drawString(font, "СЕКТОР " + sectorX + "," + sectorZ, x + 8, y + 8, 0xFFAAAAAA, false);
                 graphics.drawString(font, ownerText, x + width - 8 - font.width(ownerText), y + 8, ownerColor, false);
                 
-                // Center: Capture Point Name
-                graphics.drawCenteredString(font, captureName, cx, y + 8, hud.captureActive() ? 0xFFFFFFFF : 0xFFFFCC00);
+                // Center: Capture Point Name — мигает при активном захвате.
+                int nameColor = hud.captureActive()
+                        ? withAlpha(0xFFFFFF, Math.round(0xFF - 0x33 * pulse))
+                        : 0xFFFFCC00;
+                graphics.drawCenteredString(font, captureName, cx, y + 8, nameColor);
                 
                 // Progress Bar
                 int barW = 200;
                 int barH = 6;
                 int barX = cx - barW / 2;
-                int barY = y + 24;
+                // Плавно поднимаем бар по мере роста высоты плашки.
+                int barY = y + Math.round(height - 14);
                 
                 // Bar Background
                 graphics.fill(barX, barY, barX + barW, barY + barH, 0x66000000);
                 
                 // Bar Fill
                 int fillW = hud.progressPercent() <= 0 ? 0 : Math.max(1, barW * hud.progressPercent() / 100);
-                graphics.fill(barX, barY, barX + fillW, barY + barH, withAlpha(accent, 0xEE));
-                
-                // Bar Outline
-                graphics.fill(barX - 1, barY - 1, barX + barW + 1, barY, 0x33FFFFFF);
-                graphics.fill(barX - 1, barY + barH, barX + barW + 1, barY + barH + 1, 0x33FFFFFF);
-                graphics.fill(barX - 1, barY, barX, barY + barH, 0x33FFFFFF);
-                graphics.fill(barX + barW, barY, barX + barW + 1, barY + barH, 0x33FFFFFF);
+                int fillAlpha = captureActive ? Math.round(0xEE + 0x11 * pulse) : 0xEE;
+                graphics.fill(barX, barY, barX + fillW, barY + barH, withAlpha(accent, Math.min(0xFF, fillAlpha)));
+
+                // Glow при захвате — мягкая подсветка под заливкой.
+                if (captureActive) {
+                    int glowAlpha = Math.round(0x22 * pulse);
+                    graphics.fill(barX, barY - 2, barX + fillW, barY, (glowAlpha << 24) | (accent & 0x00FFFFFF));
+                }
                 
                 // Percent text
                 String pctText = hud.progressPercent() + "%";

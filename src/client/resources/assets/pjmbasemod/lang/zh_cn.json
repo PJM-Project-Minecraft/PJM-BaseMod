@@ -193,6 +193,9 @@
   "gui.pjmbasemod.role.locked_short": "角色",
   "gui.pjmbasemod.rank.required": "需要军衔：%s",
   "gui.pjmbasemod.rank.locked_short": "军衔",
+  "gui.pjmbasemod.donate.required": "仅限捐赠",
+  "gui.pjmbasemod.donate.locked_short": "捐赠",
+  "gui.pjmbasemod.warehouse.donate_restricted": "该物品仅可通过捐赠获得",
   "gui.pjmbasemod.garage.type.ground": "地面载具",
   "gui.pjmbasemod.garage.type.aviation": "航空",
   "gui.pjmbasemod.garage.wrong_garage_type": "该载具属于其他车库：%s",
@@ -306,5 +309,8 @@
   "pjmbasemod.web.login.link": "打开网页面板",
   "pjmbasemod.web.login.copy": "复制代码",
   "pjmbasemod.web.login.disabled": "网页面板已在配置中禁用（web.enabled）",
-  "pjmbasemod.web.logout.done": "已注销网页面板会话：%s"
+  "pjmbasemod.web.logout.done": "已注销网页面板会话：%s",
+  "basezone.warning.title": "⚠ 敌方基地",
+  "basezone.warning.subtitle": "离开基地区域！%s 秒后死亡。",
+  "death.attack.pjm_base_zone": "%1$s 死在了敌方基地区域内"
 }

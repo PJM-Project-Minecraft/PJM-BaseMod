@@ -12,6 +12,7 @@ public final class ClientFactionCommanderState {
     public static void update(FactionCommanderSyncPacket packet) {
         state = new State(
                 packet.active(),
+                packet.canManage(),
                 packet.teamId(),
                 packet.teamName(),
                 packet.teamColor(),
@@ -30,6 +31,7 @@ public final class ClientFactionCommanderState {
 
     public record State(
             boolean active,
+            boolean canManage,
             String teamId,
             String teamName,
             int teamColor,
@@ -37,7 +39,7 @@ public final class ClientFactionCommanderState {
             String roleDisplayName
     ) {
         public static State empty() {
-            return new State(false, "", "", 0xF0B43A, "КМД", "КОМАНДИР ФРАКЦИИ");
+            return new State(false, false, "", "", 0xF0B43A, "КМД", "КОМАНДИР ФРАКЦИИ");
         }
     }
 }

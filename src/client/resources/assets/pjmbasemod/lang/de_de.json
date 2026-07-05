@@ -193,6 +193,9 @@
   "gui.pjmbasemod.role.locked_short": "Rolle",
   "gui.pjmbasemod.rank.required": "Benötigter Rang: %s",
   "gui.pjmbasemod.rank.locked_short": "Rang",
+  "gui.pjmbasemod.donate.required": "Nur per Spende",
+  "gui.pjmbasemod.donate.locked_short": "Spende",
+  "gui.pjmbasemod.warehouse.donate_restricted": "Dieser Gegenstand ist nur per Spende verfügbar",
   "gui.pjmbasemod.garage.type.ground": "Bodenfahrzeuge",
   "gui.pjmbasemod.garage.type.aviation": "Luftfahrt",
   "gui.pjmbasemod.garage.wrong_garage_type": "Dieses Fahrzeug gehört zu einer anderen Garage: %s",
@@ -306,5 +309,8 @@
   "pjmbasemod.web.login.link": "Webpanel öffnen",
   "pjmbasemod.web.login.copy": "Code kopieren",
   "pjmbasemod.web.login.disabled": "Webpanel ist in der Konfiguration deaktiviert (web.enabled)",
-  "pjmbasemod.web.logout.done": "Beendete Webpanel-Sitzungen: %s"
+  "pjmbasemod.web.logout.done": "Beendete Webpanel-Sitzungen: %s",
+  "basezone.warning.title": "⚠ FEINDLICHE BASIS",
+  "basezone.warning.subtitle": "Verlasse die Basiszone! Tod in %s Sek.",
+  "death.attack.pjm_base_zone": "%1$s starb in einer feindlichen Basiszone"
 }

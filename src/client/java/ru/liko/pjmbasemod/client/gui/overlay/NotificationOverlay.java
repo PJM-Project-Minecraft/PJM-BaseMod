@@ -95,37 +95,37 @@ public class NotificationOverlay {
         int width = Math.max(180, textOffsetX + maxTextWidth + 24);
         int height = 36;
 
-        // Tactical colors
-        int bgAlpha = (int)(0x99 * currentAnimProgress);
-        int colorBg = (bgAlpha << 24) | 0x000000;
-        
+        // Полупрозрачный тёмный фон (как в TAB/верхнем баре) поверх blur.
+        int bgAlpha = (int)(0xA8 * currentAnimProgress);
+        int colorBg = (bgAlpha << 24) | 0x0E1014;
+
         int accentBase = currentNotification.accentColor & 0x00FFFFFF;
         int colorAccent = (alphaInt << 24) | accentBase;
-        
-        int borderAlpha = (int)(0x33 * currentAnimProgress);
-        int colorBorder = (borderAlpha << 24) | 0xFFFFFF;
-        
+
         int colorTextTitle = (alphaInt << 24) | accentBase;
         int colorTextSub = (alphaInt << 24) | 0xEEEEEE;
 
-        // Slide in from the right edge, placed below the minimap
-        int targetX = sw - width - 12;
-        int x = sw - (int)((width + 12) * currentAnimProgress);
-        int y = 140; // Опустили ниже миникарты
+        // Выезд сверху по центру экрана (под верхним баром).
+        int targetX = (sw - width) / 2;
+        int targetY = 40;
+        int x = targetX;
+        int y = targetY - (int)((height + 20) * (1.0f - currentAnimProgress));
 
         graphics.pose().pushPose();
         RenderSystem.enableBlend();
 
         try {
-            // Main Tactical Background
+            // Blur-фон под плашкой (scissor + processBlurEffect), как в TAB.
+            graphics.enableScissor(x, y, x + width, y + height);
+            mc.gameRenderer.processBlurEffect(deltaTracker.getGameTimeDeltaPartialTick(false));
+            mc.getMainRenderTarget().bindWrite(false);
+            graphics.disableScissor();
+
+            // Полупрозрачный фон без рамок.
             graphics.fill(x, y, x + width, y + height, colorBg);
 
-            // Left Accent Border
-            graphics.fill(x, y, x + 3, y + height, colorAccent);
-
-            // Thin Borders
-            graphics.fill(x + 3, y, x + width, y + 1, colorBorder);
-            graphics.fill(x + 3, y + height - 1, x + width, y + height, colorBorder);
+            // Тонкая цветная полоска-акцент слева.
+            graphics.fill(x, y, x + 2, y + height, colorAccent);
 
             // Icon
             if (currentNotification.icon != null) {

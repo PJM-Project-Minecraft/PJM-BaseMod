@@ -63,6 +63,15 @@ public final class GarageTerminalSavedData extends SavedData {
         return terminals.get(terminalId);
     }
 
+    /** Удаляет сохранённые настройки терминала (при сносе ноутбука командой). Возвращает true, если запись была. */
+    public boolean forget(UUID terminalId) {
+        if (terminals.remove(terminalId) != null) {
+            setDirty();
+            return true;
+        }
+        return false;
+    }
+
     public GarageTerminalSettings remember(UUID terminalId, ServerLevel level, BlockPos terminalPos, float terminalYaw) {
         GarageTerminalSettings old = terminals.get(terminalId);
         GarageTerminalSettings updated = old == null

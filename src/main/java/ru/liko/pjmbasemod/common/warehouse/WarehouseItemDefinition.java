@@ -56,6 +56,12 @@ public final class WarehouseItemDefinition {
     private transient boolean invalidAllowedTeams;
     /** Минимальный ранг (id), начиная с которого предмет доступен; пусто/null — без ограничения по рангу. */
     private String minRank;
+    /**
+     * Ключ донат-пермишена. Пусто/null — предмет доступен всем. Иначе выдача требует permission-ноду
+     * {@code pjmbasemod.warehouse.perm.<permission>} (выдаётся донат-плагином/LuckPerms). Один ключ
+     * у нескольких предметов = общая нода («пакет доната»). См. {@link WarehouseDonorPermissions}.
+     */
+    private String permission;
     /** Сколько штук предмета выдаётся за одну покупку (за {@link #pointCost} очков). По умолчанию 1. */
     private int quantity = 1;
     /**
@@ -286,6 +292,18 @@ public final class WarehouseItemDefinition {
     }
 
     public void setMinRank(String minRank) { this.minRank = minRank; }
+
+    /** Ключ донат-пермишена или "" если ограничения нет. */
+    public String permission() {
+        return permission == null ? "" : permission;
+    }
+
+    /** Требует ли предмет донат-пермишен для выдачи. */
+    public boolean donateRestricted() {
+        return permission != null && !permission.isBlank();
+    }
+
+    public void setPermission(String permission) { this.permission = permission; }
 
     @Nullable
     public ResourceLocation itemLocation() {
@@ -544,6 +562,13 @@ public final class WarehouseItemDefinition {
             }
         } else {
             minRank = null;
+        }
+        if (permission != null && !permission.isBlank()) {
+            // Санитайз ключа: латиница/цифры/_/-, остальное → '_'. Ключ входит в имя permission-ноды.
+            String key = permission.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]", "_");
+            permission = key.isBlank() ? null : key;
+        } else {
+            permission = null;
         }
     }
 }

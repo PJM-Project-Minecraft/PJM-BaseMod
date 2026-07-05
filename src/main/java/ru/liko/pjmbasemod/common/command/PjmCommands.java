@@ -14,7 +14,12 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -22,6 +27,8 @@ import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
 import ru.liko.pjmbasemod.common.web.WebAuthService;
+import ru.liko.pjmbasemod.common.entity.NotebookEntity;
+import ru.liko.pjmbasemod.common.entity.QuartermasterEntity;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderSavedData;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
 import ru.liko.pjmbasemod.common.faction.FactionMenuService;
@@ -34,6 +41,7 @@ import ru.liko.pjmbasemod.common.frontline.FrontlineSectorState;
 import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.frontline.bluemap.FrontlineBlueMapService;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
+import ru.liko.pjmbasemod.common.garage.GarageTerminalSavedData;
 import ru.liko.pjmbasemod.common.garage.VehicleDefinition;
 import ru.liko.pjmbasemod.common.garage.VehicleRegistry;
 import ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers;
@@ -41,9 +49,12 @@ import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
 import ru.liko.pjmbasemod.common.rank.RankRegistry;
 import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.rank.RankSnapshot;
+import ru.liko.pjmbasemod.common.basezone.BaseZone;
+import ru.liko.pjmbasemod.common.basezone.BaseZoneSavedData;
 import ru.liko.pjmbasemod.common.region.Region;
 import ru.liko.pjmbasemod.common.region.RegionManager;
 import ru.liko.pjmbasemod.common.region.RegionSavedData;
+import net.minecraft.core.BlockPos;
 import ru.liko.pjmbasemod.common.role.CombatRole;
 import ru.liko.pjmbasemod.common.role.RolePermissions;
 import ru.liko.pjmbasemod.common.role.RoleSavedData;
@@ -83,11 +94,58 @@ public final class PjmCommands {
                 // --- админ / управление миром ---
                 .then(regionCommand())
                 .then(webCommand())
+                .then(baseZoneCommand())
                 .then(frontlineCommand())
                 .then(inventoryCommand())
+                .then(entityCommand())
                 .then(ModerationCommands.build())
                 .then(configCommand())
                 .then(debugCommand()));
+    }
+
+    // ---------------------------------------------------------------- entity (удаление сущностей мода)
+
+    /** Радиус рейкаста для «/pjm entity remove». */
+    private static final double ENTITY_REMOVE_REACH = 6.0D;
+
+    /**
+     * Сущности мода (терминал гаража, кладовщик склада) иммунны к ванильному /kill.
+     * Снести их можно только этой командой — рейкастом по сущности, на которую смотрит игрок.
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> entityCommand() {
+        return Commands.literal("entity")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("remove")
+                        .executes(ctx -> removeLookedAtEntity(ctx.getSource(), requirePlayer(ctx.getSource()))));
+    }
+
+    private static int removeLookedAtEntity(CommandSourceStack source, @Nullable ServerPlayer player) {
+        if (player == null) return 0;
+        Vec3 eye = player.getEyePosition();
+        Vec3 view = player.getViewVector(1.0F);
+        Vec3 end = eye.add(view.scale(ENTITY_REMOVE_REACH));
+        AABB searchBox = player.getBoundingBox().expandTowards(view.scale(ENTITY_REMOVE_REACH)).inflate(1.0D);
+        EntityHitResult hit = ProjectileUtil.getEntityHitResult(
+                player, eye, end, searchBox,
+                e -> e instanceof NotebookEntity || e instanceof QuartermasterEntity,
+                ENTITY_REMOVE_REACH * ENTITY_REMOVE_REACH);
+        if (hit == null) {
+            source.sendFailure(Component.literal("Наведись на терминал гаража или кладовщика склада (не дальше "
+                    + (int) ENTITY_REMOVE_REACH + " блоков)"));
+            return 0;
+        }
+        Entity target = hit.getEntity();
+        final String label;
+        if (target instanceof NotebookEntity) {
+            label = "терминал гаража";
+            // Чистим осиротевшие настройки терминала, привязанные к UUID сущности.
+            GarageTerminalSavedData.get(source.getServer()).forget(target.getUUID());
+        } else {
+            label = "кладовщика склада";
+        }
+        target.discard();
+        source.sendSuccess(() -> Component.literal("Удалён " + label), true);
+        return 1;
     }
 
     // ---------------------------------------------------------------- debug (принудительное открытие меню)
@@ -472,7 +530,7 @@ public final class PjmCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> factionCommand() {
         return Commands.literal("faction")
                 .then(Commands.literal("manage")
-                        .requires(PjmCommands::canManageRoles)
+                        .requires(PjmCommands::canOpenFactionManagement)
                         .executes(ctx -> factionManage(ctx.getSource())))
                 .then(Commands.literal("commander")
                         .then(Commands.literal("set")
@@ -893,6 +951,161 @@ public final class PjmCommands {
                             () -> Component.translatable("pjmbasemod.web.logout.done", revoked), false);
                     return 1;
                 }));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> baseZoneCommand() {
+        return Commands.literal("basezone")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("create")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> createBaseZone(ctx.getSource(), StringArgumentType.getString(ctx, "name"), null))
+                                .then(Commands.argument("displayName", StringArgumentType.greedyString())
+                                        .executes(ctx -> createBaseZone(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "name"),
+                                                StringArgumentType.getString(ctx, "displayName"))))))
+                .then(Commands.literal("delete")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> deleteBaseZone(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("list")
+                        .executes(ctx -> listBaseZones(ctx.getSource())))
+                .then(Commands.literal("info")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> baseZoneInfo(ctx.getSource(), StringArgumentType.getString(ctx, "name")))))
+                .then(Commands.literal("displayname")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .then(Commands.argument("displayName", StringArgumentType.greedyString())
+                                        .executes(ctx -> setBaseZoneDisplayName(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "name"),
+                                                StringArgumentType.getString(ctx, "displayName"))))))
+                .then(Commands.literal("owner")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .then(Commands.argument("owner", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> suggestCombatTeams(builder))
+                                        .executes(ctx -> setBaseZoneOwner(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "name"),
+                                                StringArgumentType.getString(ctx, "owner"))))))
+                .then(Commands.literal("pos1")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> setBaseZonePos(ctx.getSource(), StringArgumentType.getString(ctx, "name"), true))))
+                .then(Commands.literal("pos2")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> setBaseZonePos(ctx.getSource(), StringArgumentType.getString(ctx, "name"), false))));
+    }
+
+    private static int createBaseZone(CommandSourceStack source, String name, @Nullable String displayName) {
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        boolean existed = data.zone(name) != null;
+        BaseZone zone = data.getOrCreateZone(name);
+        if (displayName != null && !displayName.isBlank()) {
+            zone.setDisplayName(displayName);
+            data.setDirty();
+        }
+        source.sendSuccess(() -> Component.literal(existed
+                ? "Зона базы '" + name + "' уже существует"
+                : "Зона базы '" + name + "' создана. Задай границы pos1/pos2 и владельца: /pjm basezone owner " + name + " <team>"), true);
+        return existed ? 0 : 1;
+    }
+
+    private static int deleteBaseZone(CommandSourceStack source, String name) {
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        if (!data.deleteZone(name)) {
+            source.sendFailure(Component.literal("Зона базы '" + name + "' не найдена"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Зона базы '" + name + "' удалена"), true);
+        return 1;
+    }
+
+    private static int listBaseZones(CommandSourceStack source) {
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        if (data.zones().isEmpty()) {
+            source.sendSuccess(() -> Component.literal("Зоны базы не созданы"), false);
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Зоны базы:"), false);
+        for (BaseZone zone : data.zones()) {
+            source.sendSuccess(() -> Component.literal(" - " + describeBaseZone(source, zone)), false);
+        }
+        return data.zones().size();
+    }
+
+    private static int baseZoneInfo(CommandSourceStack source, String name) {
+        BaseZone zone = BaseZoneSavedData.get(source.getServer()).zone(name);
+        if (zone == null) {
+            source.sendFailure(Component.literal("Зона базы '" + name + "' не найдена"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(describeBaseZone(source, zone)), false);
+        return 1;
+    }
+
+    private static int setBaseZoneDisplayName(CommandSourceStack source, String name, String displayName) {
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        BaseZone zone = data.zone(name);
+        if (zone == null) {
+            source.sendFailure(Component.literal("Зона базы '" + name + "' не найдена"));
+            return 0;
+        }
+        zone.setDisplayName(displayName);
+        data.setDirty();
+        source.sendSuccess(() -> Component.literal("DisplayName зоны '" + zone.name() + "' = " + zone.displayName()), true);
+        return 1;
+    }
+
+    private static int setBaseZoneOwner(CommandSourceStack source, String name, String ownerArg) {
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        BaseZone zone = data.zone(name);
+        if (zone == null) {
+            source.sendFailure(Component.literal("Зона базы '" + name + "' не найдена"));
+            return 0;
+        }
+        String owner = parseCombatTeam(source, ownerArg);
+        if (owner == null) return 0;
+        zone.setOwner(owner);
+        data.setDirty();
+        source.sendSuccess(() -> Component.literal("Владелец зоны '" + zone.name() + "' = " + FrontlineTeams.displayName(source.getServer(), owner)), true);
+        return 1;
+    }
+
+    private static int setBaseZonePos(CommandSourceStack source, String name, boolean first) {
+        ServerPlayer player = requirePlayer(source);
+        if (player == null) return 0;
+
+        BaseZoneSavedData data = BaseZoneSavedData.get(source.getServer());
+        BaseZone zone = data.getOrCreateZone(name);
+        String dimension = dimensionId(player);
+        if (!zone.dimension().isBlank() && !zone.dimension().equals(dimension)) {
+            source.sendFailure(Component.literal("Зона базы уже привязана к измерению " + zone.dimension()));
+            return 0;
+        }
+
+        BlockPos pos = player.blockPosition();
+        if (first) zone.setPos1(dimension, pos);
+        else zone.setPos2(dimension, pos);
+        data.setDirty();
+
+        source.sendSuccess(() -> Component.literal((first ? "pos1" : "pos2") + " зоны '" + name + "' = "
+                + pos.getX() + " " + pos.getY() + " " + pos.getZ()), true);
+        if (zone.isComplete()) {
+            source.sendSuccess(() -> Component.literal("Границы заданы: " + describeBaseZone(source, zone)), false);
+        }
+        return 1;
+    }
+
+    private static String describeBaseZone(CommandSourceStack source, BaseZone zone) {
+        String ownerLabel = zone.owner().isBlank() ? "не задан" : FrontlineTeams.displayName(source.getServer(), zone.owner());
+        if (!zone.isComplete()) {
+            return zone.name() + " (" + zone.displayName() + ") | границы не заданы | владелец: " + ownerLabel
+                    + " | dimension: " + (zone.dimension().isBlank() ? "не задано" : zone.dimension());
+        }
+        return zone.name() + " (" + zone.displayName() + ") | " + zone.dimension()
+                + " | X " + zone.minX() + ".." + zone.maxX()
+                + ", Y " + zone.minY() + ".." + zone.maxY()
+                + ", Z " + zone.minZ() + ".." + zone.maxZ()
+                + " | владелец: " + ownerLabel;
     }
 
     private static int setActive(CommandSourceStack source, boolean active) {
@@ -1346,6 +1559,14 @@ public final class PjmCommands {
         if (source.getEntity() instanceof ServerPlayer player) {
             return RolePermissions.can(player, RolePermissions.ADMIN)
                     || FactionCommanderService.isActiveCommander(player);
+        }
+        return source.hasPermission(2);
+    }
+
+    /** Открыть экран управления фракцией вправе админ, командир и заместитель с правом OPEN_GUI. */
+    private static boolean canOpenFactionManagement(CommandSourceStack source) {
+        if (source.getEntity() instanceof ServerPlayer player) {
+            return FactionMenuService.authority(player).canOpen();
         }
         return source.hasPermission(2);
     }

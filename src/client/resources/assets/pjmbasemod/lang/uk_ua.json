@@ -193,6 +193,9 @@
   "gui.pjmbasemod.role.locked_short": "Роль",
   "gui.pjmbasemod.rank.required": "Потрібне звання: %s",
   "gui.pjmbasemod.rank.locked_short": "Звання",
+  "gui.pjmbasemod.donate.required": "Доступно за донат",
+  "gui.pjmbasemod.donate.locked_short": "Донат",
+  "gui.pjmbasemod.warehouse.donate_restricted": "Цей предмет доступний лише за донат",
   "gui.pjmbasemod.garage.type.ground": "Наземна техніка",
   "gui.pjmbasemod.garage.type.aviation": "Авіація",
   "gui.pjmbasemod.garage.wrong_garage_type": "Ця техніка належить до іншого гаража: %s",
@@ -306,5 +309,8 @@
   "pjmbasemod.web.login.link": "Відкрити веб-панель",
   "pjmbasemod.web.login.copy": "Скопіювати код",
   "pjmbasemod.web.login.disabled": "Веб-панель вимкнена в конфігурації (web.enabled)",
-  "pjmbasemod.web.logout.done": "Завершено сесій веб-панелі: %s"
+  "pjmbasemod.web.logout.done": "Завершено сесій веб-панелі: %s",
+  "basezone.warning.title": "⚠ ЧУЖА БАЗА",
+  "basezone.warning.subtitle": "Покиньте зону бази! Смерть через %s сек.",
+  "death.attack.pjm_base_zone": "%1$s загинув у зоні ворожої бази"
 }

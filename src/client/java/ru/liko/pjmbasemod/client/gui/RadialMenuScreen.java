@@ -119,8 +119,8 @@ public class RadialMenuScreen extends Screen {
                 true,
                 (SubmenuAction) p -> openCharacterSubmenu()));
 
-        // Командир фракции: открыть экран управления фракцией (роли/замы/приказ).
-        if (ClientFactionCommanderState.state().active()) {
+        // Командир фракции или заместитель с правом открытия: экран управления (роли/замы/приказ).
+        if (ClientFactionCommanderState.state().active() || ClientFactionCommanderState.state().canManage()) {
             actions.add(new RadialAction(
                     Component.translatable("gui.pjmbasemod.radial.faction_management"),
                     0xFFF0B43A,
