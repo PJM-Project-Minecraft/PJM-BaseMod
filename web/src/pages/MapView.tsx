@@ -14,7 +14,8 @@ export default function MapView({ live }: { live: LiveState }) {
   const [entities, setEntities] = useState<EntityDto[]>([])
   const [showEntities, setShowEntities] = useState(true)
   const viewRef = useRef<View>({ centerX: 0, centerZ: 0, scale: 1 })
-  const dragRef = useRef<{ x: number; z: number } | null>(null)
+  const dragRef = useRef<{ x: number; y: number } | null>(null)
+  const drawRef = useRef<() => void>(() => {})
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null)
 
   const dims = live.sample?.dims.map(d => d.dim) ?? ['minecraft:overworld']
@@ -99,19 +100,22 @@ export default function MapView({ live }: { live: LiveState }) {
     }
   }, [entities, live.players, live.profiler, dim, showEntities])
 
+  useEffect(() => { drawRef.current = draw }, [draw])
+
+  // ResizeObserver создаётся один раз; актуальный draw берём из ref.
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const resize = () => {
       canvas.width = canvas.clientWidth
       canvas.height = 560
-      draw()
+      drawRef.current()
     }
     resize()
     const observer = new ResizeObserver(resize)
     observer.observe(canvas)
     return () => observer.disconnect()
-  }, [draw])
+  }, [])
 
   useEffect(() => { draw() }, [draw])
 
@@ -121,7 +125,7 @@ export default function MapView({ live }: { live: LiveState }) {
     view.scale = Math.min(8, Math.max(0.05, view.scale * factor))
     draw()
   }
-  const onMouseDown = (e: React.MouseEvent) => { dragRef.current = { x: e.clientX, z: e.clientY } }
+  const onMouseDown = (e: React.MouseEvent) => { dragRef.current = { x: e.clientX, y: e.clientY } }
   const onMouseUp = () => { dragRef.current = null }
   const onMouseMove = (e: React.MouseEvent) => {
     const canvas = canvasRef.current
@@ -129,8 +133,8 @@ export default function MapView({ live }: { live: LiveState }) {
     const view = viewRef.current
     if (dragRef.current) {
       view.centerX -= (e.clientX - dragRef.current.x) / view.scale
-      view.centerZ -= (e.clientY - dragRef.current.z) / view.scale
-      dragRef.current = { x: e.clientX, z: e.clientY }
+      view.centerZ -= (e.clientY - dragRef.current.y) / view.scale
+      dragRef.current = { x: e.clientX, y: e.clientY }
       draw()
       return
     }
@@ -181,7 +185,7 @@ export default function MapView({ live }: { live: LiveState }) {
       <div style={{ position: 'relative' }}>
         <canvas ref={canvasRef} style={{ width: '100%', height: 560, borderRadius: 8, cursor: 'crosshair' }}
           onWheel={onWheel} onMouseDown={onMouseDown} onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp} onMouseMove={onMouseMove} />
+          onMouseLeave={() => { dragRef.current = null; setTooltip(null) }} onMouseMove={onMouseMove} />
         {tooltip && (
           <div className="panel mono" style={{
             position: 'absolute', left: tooltip.x, top: tooltip.y,
