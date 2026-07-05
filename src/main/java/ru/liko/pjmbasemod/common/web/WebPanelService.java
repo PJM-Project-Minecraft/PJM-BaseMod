@@ -42,15 +42,24 @@ public final class WebPanelService {
 
     /**
      * Базовый URL панели для ссылки входа: {@code web.publicUrl}, если задан,
-     * иначе {@code http://<IP сервера>:<web.port>}. IP берётся из server-ip
-     * (server.properties), а при пустом — определяется по исходящему интерфейсу машины.
+     * иначе {@code http://<IP сервера>:<web.port>}. IP берётся по цепочке:
+     * конкретный {@code web.bindAddress} (не 0.0.0.0/127.0.0.1) → server-ip
+     * (server.properties) → автоопределение по исходящему интерфейсу машины.
      */
     public static String panelBaseUrl(MinecraftServer server) {
         String publicUrl = Config.getWebPublicUrl();
         if (!publicUrl.isBlank()) return publicUrl.replaceAll("/+$", "");
-        String host = server.getLocalIp();
+        String host = Config.getWebBindAddress();
+        if (isWildcardOrLoopback(host)) host = server.getLocalIp();
         if (host == null || host.isBlank()) host = detectLocalAddress();
         return "http://" + host + ":" + Config.getWebPort();
+    }
+
+    /** true для пустого адреса, 0.0.0.0/[::] и loopback — такие не годятся для внешней ссылки. */
+    private static boolean isWildcardOrLoopback(String host) {
+        if (host == null || host.isBlank()) return true;
+        return host.equals("0.0.0.0") || host.equals("::") || host.equals("[::]")
+                || host.equals("127.0.0.1") || host.equalsIgnoreCase("localhost");
     }
 
     /** IP исходящего интерфейса: UDP-connect не шлёт пакетов, но выбирает локальный адрес маршрута. */
