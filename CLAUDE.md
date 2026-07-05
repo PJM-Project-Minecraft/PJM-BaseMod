@@ -137,6 +137,16 @@ HUD: `client/gui/overlay/FrontlineHudOverlay`.
 `TaczWarehouseCompat`, `TaczWarehouseIntegration` — интеграция TACZ с системой склада.
 `client/compat/WarBornGuardCompat` — клиентская совместимость WarBorn Guard.
 
+### web
+`WebPanelService` — встроенная веб-панель админа (Javalin 6 через jarJar, порт из `web.port`).
+`WebAuthService`, `WebSessions`, `LoginCodes`, `RateLimiter` — вход через `/pjm web login` (одноразовый код → сессия-cookie).
+`metrics/MetricsCollector`, `metrics/MetricsHistory` — TPS/MSPT/heap/онлайн раз в секунду в ring buffer.
+`metrics/EntityProfiler`, `metrics/ProfilerWindow` — замер тика entity (EntityTickEvent.Pre/Post), тумблер из панели.
+`WebState` — volatile-снапшоты для HTTP-потоков (инвариант: веб-потоки НЕ трогают игровое состояние).
+`WebActions` — действия (кик/наказания/телепорт/удаление entity) через `server.execute()`.
+`api/WebApiRoutes`, `api/WebSocketHub` — REST + WS-пуш. Фронтенд: `web/` (React+Vite), dist коммитится в `src/main/resources/web/`.
+Документация: [`docs/WEBPANEL.md`](./docs/WEBPANEL.md).
+
 ## Клиентские state-классы (зеркала)
 
 Каждая подсистема имеет клиентский singleton-state в `src/client/.../client/<subsystem>/`:
@@ -201,6 +211,7 @@ Brigadier-дерево: `common/command/PjmCommands` (корень `/pjm`) + `Wa
 | [`docs/FACTION_MANAGEMENT.md`](./docs/FACTION_MANAGEMENT.md) | Экран управления фракцией: командир/зам, права заместителей (`DeputyPermission`), приказ фракции с TTL, конфиг `faction`. |
 | [`docs/GUI_SCREENS.md`](./docs/GUI_SCREENS.md) | Руководство по полноэкранным `Screen`-меню с масштабированием (`PjmBaseScreen`). |
 | [`docs/DEPENDENCIES.md`](./docs/DEPENDENCIES.md) | Зависимости фронтенда: что UI ожидает от мода, импорты по слоям. |
+| [`docs/WEBPANEL.md`](./docs/WEBPANEL.md) | Веб-панель: конфиг `web`, вход через `/pjm web login`, метрики, профайлер entity, API, reverse proxy. |
 
 ## Предостережение по DOCS.md
 
