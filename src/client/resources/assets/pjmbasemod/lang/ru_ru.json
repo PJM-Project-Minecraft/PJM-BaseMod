@@ -301,5 +301,8 @@
   "pjmbasemod.moderation.cmd.invalid_duration": "Неверная длительность: '%s'. Примеры: 30m, 1d, permanent",
   "pjmbasemod.moderation.cmd.invalid_duration.short": "Неверная длительность: '%s'",
   "pjmbasemod.moderation.cmd.yes": "да",
-  "pjmbasemod.moderation.cmd.no": "нет"
+  "pjmbasemod.moderation.cmd.no": "нет",
+  "basezone.warning.title": "⚠ ЧУЖАЯ БАЗА",
+  "basezone.warning.subtitle": "Покиньте зону базы! Смерть через %s сек.",
+  "death.attack.pjm_base_zone": "%1$s погиб в зоне вражеской базы"
 }

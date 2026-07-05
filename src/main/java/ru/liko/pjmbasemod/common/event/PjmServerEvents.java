@@ -24,6 +24,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.antigrief.AntiGriefService;
+import ru.liko.pjmbasemod.common.basezone.BaseZoneManager;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
 import ru.liko.pjmbasemod.common.chat.ChatService;
 import ru.liko.pjmbasemod.common.customization.SkinRegistry;
@@ -122,6 +123,7 @@ public final class PjmServerEvents {
         if (event.getEntity() instanceof ServerPlayer sp) {
             ServerPacketHandlers.onPlayerLogout(sp);
             ru.liko.pjmbasemod.common.inventory.EquipmentLockService.onPlayerLogout(sp.getUUID());
+            BaseZoneManager.onPlayerLogout(sp);
         }
     }
 
@@ -134,6 +136,7 @@ public final class PjmServerEvents {
         SkinService.onPlayerTick(player);
         LobbyService.onPlayerTick(player);
         FactionMenuService.onPlayerTick(player);
+        BaseZoneManager.onPlayerTick(player);
         if (player.tickCount % Math.max(1, InventoryLimitRegistry.get().config().enforceEveryTicks()) == 0) {
             InventoryLimitService.enforce(player);
         }

@@ -301,5 +301,8 @@
   "pjmbasemod.moderation.cmd.invalid_duration": "无效时长：'%s'。示例：30m、1d、permanent",
   "pjmbasemod.moderation.cmd.invalid_duration.short": "无效时长：'%s'",
   "pjmbasemod.moderation.cmd.yes": "是",
-  "pjmbasemod.moderation.cmd.no": "否"
+  "pjmbasemod.moderation.cmd.no": "否",
+  "basezone.warning.title": "⚠ 敌方基地",
+  "basezone.warning.subtitle": "离开基地区域！%s 秒后死亡。",
+  "death.attack.pjm_base_zone": "%1$s 死在了敌方基地区域内"
 }
