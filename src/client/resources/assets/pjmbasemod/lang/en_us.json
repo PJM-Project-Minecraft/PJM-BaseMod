@@ -301,5 +301,10 @@
   "pjmbasemod.moderation.cmd.invalid_duration": "Invalid duration: '%s'. Examples: 30m, 1d, permanent",
   "pjmbasemod.moderation.cmd.invalid_duration.short": "Invalid duration: '%s'",
   "pjmbasemod.moderation.cmd.yes": "yes",
-  "pjmbasemod.moderation.cmd.no": "no"
+  "pjmbasemod.moderation.cmd.no": "no",
+  "pjmbasemod.web.login.header": "Web panel login code: %s (valid 5 minutes, click to copy)",
+  "pjmbasemod.web.login.link": "Open web panel",
+  "pjmbasemod.web.login.copy": "Copy code",
+  "pjmbasemod.web.login.disabled": "Web panel is disabled in config (web.enabled)",
+  "pjmbasemod.web.logout.done": "Web panel sessions revoked: %s"
 }

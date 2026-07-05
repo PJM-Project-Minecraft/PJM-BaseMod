@@ -301,5 +301,10 @@
   "pjmbasemod.moderation.cmd.invalid_duration": "Неверная длительность: '%s'. Примеры: 30m, 1d, permanent",
   "pjmbasemod.moderation.cmd.invalid_duration.short": "Неверная длительность: '%s'",
   "pjmbasemod.moderation.cmd.yes": "да",
-  "pjmbasemod.moderation.cmd.no": "нет"
+  "pjmbasemod.moderation.cmd.no": "нет",
+  "pjmbasemod.web.login.header": "Код входа в веб-панель: %s (действует 5 минут, клик — скопировать)",
+  "pjmbasemod.web.login.link": "Открыть веб-панель",
+  "pjmbasemod.web.login.copy": "Скопировать код",
+  "pjmbasemod.web.login.disabled": "Веб-панель отключена в конфиге (web.enabled)",
+  "pjmbasemod.web.logout.done": "Завершено сессий веб-панели: %s"
 }

@@ -301,5 +301,10 @@
   "pjmbasemod.moderation.cmd.invalid_duration": "无效时长：'%s'。示例：30m、1d、permanent",
   "pjmbasemod.moderation.cmd.invalid_duration.short": "无效时长：'%s'",
   "pjmbasemod.moderation.cmd.yes": "是",
-  "pjmbasemod.moderation.cmd.no": "否"
+  "pjmbasemod.moderation.cmd.no": "否",
+  "pjmbasemod.web.login.header": "网页面板登录代码：%s（5分钟内有效，点击复制）",
+  "pjmbasemod.web.login.link": "打开网页面板",
+  "pjmbasemod.web.login.copy": "复制代码",
+  "pjmbasemod.web.login.disabled": "网页面板已在配置中禁用（web.enabled）",
+  "pjmbasemod.web.logout.done": "已注销网页面板会话：%s"
 }

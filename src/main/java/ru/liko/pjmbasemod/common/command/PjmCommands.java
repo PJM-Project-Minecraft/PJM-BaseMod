@@ -6,10 +6,13 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.suggestion.Suggestions;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -18,6 +21,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
+import ru.liko.pjmbasemod.common.web.WebAuthService;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderSavedData;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
 import ru.liko.pjmbasemod.common.faction.FactionMenuService;
@@ -78,6 +82,7 @@ public final class PjmCommands {
                 .then(WarehouseCommands.build())
                 // --- админ / управление миром ---
                 .then(regionCommand())
+                .then(webCommand())
                 .then(frontlineCommand())
                 .then(inventoryCommand())
                 .then(ModerationCommands.build())
@@ -850,6 +855,45 @@ public final class PjmCommands {
                 .then(Commands.literal("pos2")
                         .then(Commands.argument("name", StringArgumentType.word())
                                 .executes(ctx -> setRegionPos(ctx.getSource(), StringArgumentType.getString(ctx, "name"), false))));
+    }
+
+    // ---------------------------------------------------------------- /pjm web — веб-панель
+
+    private static LiteralArgumentBuilder<CommandSourceStack> webCommand() {
+        return Commands.literal("web")
+                .requires(source -> source.hasPermission(3))
+                .then(Commands.literal("login").executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                    if (!Config.isWebEnabled()) {
+                        ctx.getSource().sendFailure(Component.translatable("pjmbasemod.web.login.disabled"));
+                        return 0;
+                    }
+                    String code = WebAuthService.issueCode(player);
+                    Component codeComponent = Component.literal(code).withStyle(style -> style
+                            .withColor(ChatFormatting.GOLD)
+                            .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, code))
+                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                    Component.translatable("pjmbasemod.web.login.copy"))));
+                    ctx.getSource().sendSuccess(
+                            () -> Component.translatable("pjmbasemod.web.login.header", codeComponent), false);
+                    String publicUrl = Config.getWebPublicUrl();
+                    if (!publicUrl.isBlank()) {
+                        String url = publicUrl.replaceAll("/+$", "") + "/login?code=" + code;
+                        ctx.getSource().sendSuccess(() -> Component.translatable("pjmbasemod.web.login.link")
+                                .withStyle(style -> style
+                                        .withColor(ChatFormatting.AQUA)
+                                        .withUnderlined(true)
+                                        .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))), false);
+                    }
+                    return 1;
+                }))
+                .then(Commands.literal("logout").executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                    int revoked = WebAuthService.revokeAllFor(player.getUUID());
+                    ctx.getSource().sendSuccess(
+                            () -> Component.translatable("pjmbasemod.web.logout.done", revoked), false);
+                    return 1;
+                }));
     }
 
     private static int setActive(CommandSourceStack source, boolean active) {

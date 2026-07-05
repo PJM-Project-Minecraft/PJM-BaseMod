@@ -301,5 +301,10 @@
   "pjmbasemod.moderation.cmd.invalid_duration": "Ungültige Dauer: '%s'. Beispiele: 30m, 1d, permanent",
   "pjmbasemod.moderation.cmd.invalid_duration.short": "Ungültige Dauer: '%s'",
   "pjmbasemod.moderation.cmd.yes": "ja",
-  "pjmbasemod.moderation.cmd.no": "nein"
+  "pjmbasemod.moderation.cmd.no": "nein",
+  "pjmbasemod.web.login.header": "Anmeldecode für das Webpanel: %s (5 Minuten gültig, Klick zum Kopieren)",
+  "pjmbasemod.web.login.link": "Webpanel öffnen",
+  "pjmbasemod.web.login.copy": "Code kopieren",
+  "pjmbasemod.web.login.disabled": "Webpanel ist in der Konfiguration deaktiviert (web.enabled)",
+  "pjmbasemod.web.logout.done": "Beendete Webpanel-Sitzungen: %s"
 }
