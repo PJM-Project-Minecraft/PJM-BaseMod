@@ -184,14 +184,17 @@ dependencies {
     jarJar("org.eclipse.jetty.websocket:websocket-jetty-server") {
         version { strictly '[11.0,12.0)'; prefer '11.0.25' }
     }
+    // Диапазон до 3.0: Kotlin for Forge (KFF) поставляет stdlib 2.x — jarJar выберет старшую,
+    // stdlib 2.x бинарно совместим с кодом Javalin, собранным под 1.9. Узкий [1.9,2.0)
+    // конфликтовал с KFF и ронял загрузку обоих модов.
     jarJar("org.jetbrains.kotlin:kotlin-stdlib") {
-        version { strictly '[1.9,2.0)'; prefer '1.9.25' }
+        version { strictly '[1.9,3.0)'; prefer '1.9.25' }
     }
     jarJar("org.jetbrains.kotlin:kotlin-stdlib-jdk7") {
-        version { strictly '[1.9,2.0)'; prefer '1.9.25' }
+        version { strictly '[1.9,3.0)'; prefer '1.9.25' }
     }
     jarJar("org.jetbrains.kotlin:kotlin-stdlib-jdk8") {
-        version { strictly '[1.9,2.0)'; prefer '1.9.25' }
+        version { strictly '[1.9,3.0)'; prefer '1.9.25' }
     }
 
     // Юнит-тесты чистых классов веб-панели (без Minecraft classpath)
