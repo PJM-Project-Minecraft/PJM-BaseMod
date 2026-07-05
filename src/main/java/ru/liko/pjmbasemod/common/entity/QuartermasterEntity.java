@@ -215,6 +215,11 @@ public class QuartermasterEntity extends Mob {
 
     private static String sanitizeSkin(String raw) {
         if (raw == null || raw.isBlank()) return DEFAULT_SKIN;
-        return raw.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_+\\-]", "");
+        // Символы вне набора валидного пути ResourceLocation ('+', пробелы и т.п.) ЗАМЕНЯЕМ на '_',
+        // а не оставляем: '+' в пути textures/skins/<id>.png роняет клиент (ResourceLocationException)
+        // при рендере NPC. Легаси-имена вида "skin_mc+jacket" так превращаются в существующую
+        // "skin_mc_jacket". Набор символов согласован со SkinRegistry.sanitize.
+        String cleaned = raw.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.\\-]", "_");
+        return cleaned.isBlank() ? DEFAULT_SKIN : cleaned;
     }
 }

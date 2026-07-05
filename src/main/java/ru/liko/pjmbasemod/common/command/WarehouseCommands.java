@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import ru.liko.pjmbasemod.common.customization.SkinRegistry;
 import ru.liko.pjmbasemod.common.entity.QuartermasterEntity;
 import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.init.PjmEntities;
@@ -37,9 +38,8 @@ import java.util.concurrent.CompletableFuture;
 public final class WarehouseCommands {
 
     private static final int NPC_SEARCH_RADIUS = 12;
-    private static final List<String> KNOWN_SKINS = List.of(
-            "skin_emr", "skin_mc", "skin_atacsfg", "skin_m05",
-            "skin_emr+multicam", "skin_emr+atacsfg", "skin_emr+jaket", "skin_mc+jacket");
+    // Единый источник истины — имена валидны для ResourceLocation (без '+'), совпадают с текстурами.
+    private static final List<String> KNOWN_SKINS = SkinRegistry.KNOWN_SKINS;
 
     private WarehouseCommands() {}
 
