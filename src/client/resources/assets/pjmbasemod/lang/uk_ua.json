@@ -301,5 +301,10 @@
   "pjmbasemod.moderation.cmd.invalid_duration": "Невірна тривалість: '%s'. Приклади: 30m, 1d, permanent",
   "pjmbasemod.moderation.cmd.invalid_duration.short": "Невірна тривалість: '%s'",
   "pjmbasemod.moderation.cmd.yes": "так",
-  "pjmbasemod.moderation.cmd.no": "ні"
+  "pjmbasemod.moderation.cmd.no": "ні",
+  "pjmbasemod.web.login.header": "Код входу до веб-панелі: %s (діє 5 хвилин, клік — скопіювати)",
+  "pjmbasemod.web.login.link": "Відкрити веб-панель",
+  "pjmbasemod.web.login.copy": "Скопіювати код",
+  "pjmbasemod.web.login.disabled": "Веб-панель вимкнена в конфігурації (web.enabled)",
+  "pjmbasemod.web.logout.done": "Завершено сесій веб-панелі: %s"
 }
