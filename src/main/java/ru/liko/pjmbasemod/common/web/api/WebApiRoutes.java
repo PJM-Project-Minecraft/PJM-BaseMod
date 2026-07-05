@@ -16,6 +16,7 @@ import ru.liko.pjmbasemod.common.web.WebSessions;
 import ru.liko.pjmbasemod.common.web.WebState;
 import ru.liko.pjmbasemod.common.web.metrics.EntityProfiler;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -120,7 +121,9 @@ public final class WebApiRoutes {
                 ctx.status(400).json(Map.of("ok", false, "error", "bad_uuid"));
                 return;
             }
-            ctx.json(await(WebActions.moderationHistory(server, target), ctx));
+            List<WebActions.HistoryDto> history = await(WebActions.moderationHistory(server, target), ctx);
+            if (history == null) return; // ответ уже записан await()
+            ctx.json(history);
         });
 
         // ---- действия ----
@@ -227,11 +230,17 @@ public final class WebApiRoutes {
         }
     }
 
+    /** Ждёт результат чтения с таймаутом; таймаут → 504, прочее → 500. Пишет ответ сам и прерывает хендлер. */
+    @Nullable
     private static <T> T await(CompletableFuture<T> future, Context ctx) {
         try {
             return future.get(ACTION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            ctx.status(504).json(Map.of("ok", false, "error", "server_busy"));
+            return null;
         } catch (Exception e) {
-            throw new RuntimeException("server_busy", e);
+            ctx.status(500).json(Map.of("ok", false, "error", "internal_error"));
+            return null;
         }
     }
 
