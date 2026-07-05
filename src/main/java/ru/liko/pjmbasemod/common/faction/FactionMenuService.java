@@ -211,6 +211,10 @@ public final class FactionMenuService {
                     target.getName().getString()), true);
         }
         FactionCommanderService.refreshTabName(target);
+        // Синхронизируем цели её право открыть управление (кнопка радиалки) и обновляем
+        // дерево команд, чтобы /pjm faction manage стал доступен/недоступен без релога.
+        FactionCommanderService.sync(target);
+        server.getCommands().sendCommands(target);
         resync(actor);
     }
 

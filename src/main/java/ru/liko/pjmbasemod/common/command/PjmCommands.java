@@ -521,7 +521,7 @@ public final class PjmCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> factionCommand() {
         return Commands.literal("faction")
                 .then(Commands.literal("manage")
-                        .requires(PjmCommands::canManageRoles)
+                        .requires(PjmCommands::canOpenFactionManagement)
                         .executes(ctx -> factionManage(ctx.getSource())))
                 .then(Commands.literal("commander")
                         .then(Commands.literal("set")
@@ -1357,6 +1357,14 @@ public final class PjmCommands {
         if (source.getEntity() instanceof ServerPlayer player) {
             return RolePermissions.can(player, RolePermissions.ADMIN)
                     || FactionCommanderService.isActiveCommander(player);
+        }
+        return source.hasPermission(2);
+    }
+
+    /** Открыть экран управления фракцией вправе админ, командир и заместитель с правом OPEN_GUI. */
+    private static boolean canOpenFactionManagement(CommandSourceStack source) {
+        if (source.getEntity() instanceof ServerPlayer player) {
+            return FactionMenuService.authority(player).canOpen();
         }
         return source.hasPermission(2);
     }

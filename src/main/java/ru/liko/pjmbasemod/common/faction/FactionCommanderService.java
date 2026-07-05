@@ -128,7 +128,8 @@ public final class FactionCommanderService {
     public static void sync(ServerPlayer player) {
         if (player == null || player.getServer() == null) return;
         String team = activeCommanderTeam(player);
-        PjmNetworking.sendToPlayer(player, FactionCommanderSyncPacket.from(player, team));
+        boolean canManage = FactionMenuService.authority(player).canOpen();
+        PjmNetworking.sendToPlayer(player, FactionCommanderSyncPacket.from(player, team, canManage));
     }
 
     public static void syncAll(MinecraftServer server) {

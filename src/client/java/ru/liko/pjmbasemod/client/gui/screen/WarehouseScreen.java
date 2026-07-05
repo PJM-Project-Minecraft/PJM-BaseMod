@@ -150,9 +150,10 @@ public class WarehouseScreen extends PjmBaseScreen {
                 : item.displayName();
     }
 
-    /** Доступен ли предмет к выдаче прямо сейчас (роль + ранг + хватает очков). */
+    /** Доступен ли предмет к выдаче прямо сейчас (роль + ранг + донат + хватает очков). */
     private boolean isAvailable(WarehouseSnapshot.ItemEntry item) {
-        return item.roleAllowed() && item.rankAllowed() && item.affordable() && snapshot.canWithdraw();
+        return item.roleAllowed() && item.rankAllowed() && item.donateAllowed()
+                && item.affordable() && snapshot.canWithdraw();
     }
 
     private void sortItems(List<WarehouseSnapshot.ItemEntry> items) {
@@ -347,14 +348,17 @@ public class WarehouseScreen extends PjmBaseScreen {
             WarehouseSnapshot.ItemEntry item = items.get(i);
 
             if (withdrawRect(y).contains(mouseX, mouseY) && snapshot.canWithdraw() && item.affordable()
-                    && item.roleAllowed() && item.rankAllowed()) {
+                    && item.roleAllowed() && item.rankAllowed() && item.donateAllowed()) {
                 PjmUiSounds.playClick();
                 PjmNetworking.sendToServer(new WithdrawItemPacket(item.defId(), 1));
                 return true;
             }
 
             if (depositRect(y).contains(mouseX, mouseY) && item.depositable() && item.inventoryCount() > 0) {
-                int amount = hasShiftDown() ? Math.min(64, item.inventoryCount()) : 1;
+                // amount — число ПАЧЕК (сервер сдаёт целыми пачками по quantity штук). Клик = 1 пачка,
+                // Shift = все доступные пачки. Сервер всё равно ограничит по фактическому инвентарю.
+                int quantity = Math.max(1, item.quantity());
+                int amount = hasShiftDown() ? Math.max(1, item.inventoryCount() / quantity) : 1;
                 PjmUiSounds.playClick();
                 PjmNetworking.sendToServer(new DepositItemPacket(item.defId(), amount));
                 return true;
@@ -479,7 +483,8 @@ public class WarehouseScreen extends PjmBaseScreen {
             WarehouseSnapshot.ItemEntry item = items.get(i);
             boolean roleLocked = !item.roleAllowed();
             boolean rankLocked = item.roleAllowed() && !item.rankAllowed();
-            boolean locked = roleLocked || rankLocked;
+            boolean donateLocked = item.roleAllowed() && item.rankAllowed() && !item.donateAllowed();
+            boolean locked = roleLocked || rankLocked || donateLocked;
             graphics.fill(contentLeft, y, contentLeft + contentWidth, y + ROW_HEIGHT - 3,
                     locked ? 0xFF1D1D22 : 0xFF222229);
 
@@ -522,13 +527,15 @@ public class WarehouseScreen extends PjmBaseScreen {
             } else if (rankLocked) {
                 cost = Component.translatable("gui.pjmbasemod.rank.required",
                         item.requiredRankName()).getString();
+            } else if (donateLocked) {
+                cost = Component.translatable("gui.pjmbasemod.donate.required").getString();
             }
             graphics.drawString(this.font, ellipsize(cost, Math.max(20, depositX - contentLeft - 32)),
                     contentLeft + 26, y + 15, locked ? 0xFFD8B15F : 0xFF9AA0A6, false);
 
             // Кнопка «Получить»
             boolean withdrawEnabled = snapshot.canWithdraw() && item.affordable()
-                    && item.roleAllowed() && item.rankAllowed();
+                    && item.roleAllowed() && item.rankAllowed() && item.donateAllowed();
             boolean withdrawHovered = withdraw.contains(mouseX, mouseY);
             int withdrawColor = !withdrawEnabled ? 0xFF33333A : withdrawHovered ? 0xFF3E7A46 : 0xFF2E5A34;
             graphics.fill(withdrawX, buttonY, withdrawX + BUTTON_WIDTH, buttonY + BUTTON_HEIGHT, withdrawColor);
@@ -536,6 +543,8 @@ public class WarehouseScreen extends PjmBaseScreen {
                     ? Component.translatable("gui.pjmbasemod.role.locked_short")
                     : !item.rankAllowed()
                     ? Component.translatable("gui.pjmbasemod.rank.locked_short")
+                    : !item.donateAllowed()
+                    ? Component.translatable("gui.pjmbasemod.donate.locked_short")
                     : item.affordable()
                     ? Component.translatable("gui.pjmbasemod.warehouse.withdraw")
                     : Component.translatable("gui.pjmbasemod.warehouse.no_points_short");
