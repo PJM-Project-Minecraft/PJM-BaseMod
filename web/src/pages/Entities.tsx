@@ -6,6 +6,15 @@ import ConfirmButton from '../components/ConfirmButton'
 
 interface EntitiesResponse { total: number; entities: EntityDto[] }
 
+function categoryColor(category: string): string {
+  switch (category) {
+    case 'mob': return 'var(--warn)'
+    case 'item': return 'var(--info)'
+    case 'projectile': return 'var(--purple)'
+    default: return 'var(--muted)'
+  }
+}
+
 export default function Entities({ live, profilerAllowed }: { live: LiveState; profilerAllowed: boolean }) {
   const [dim, setDim] = useState('')
   const [type, setType] = useState('')
@@ -93,22 +102,37 @@ export default function Entities({ live, profilerAllowed }: { live: LiveState; p
             <ConfirmButton danger label="Массовое удаление по фильтру" onConfirm={removeBulk} />
           </div>
         </div>
-        {status && <p className="mono">{status}</p>}
+        {status && (
+          <p className="mono" style={{
+            fontSize: 12, padding: '8px 12px', borderRadius: 8, marginBottom: 10,
+            background: status.startsWith('✓') ? 'rgba(48,209,88,0.1)' : 'rgba(255,69,58,0.1)',
+            color: status.startsWith('✓') ? 'var(--ok)' : 'var(--danger)',
+          }}>{status}</p>
+        )}
         <div style={{ maxHeight: 480, overflowY: 'auto' }}>
           <table className="table">
             <thead>
               <tr><th></th><th>Тип</th><th>Имя</th><th>Категория</th><th>Дименшен</th><th>Координаты</th></tr>
             </thead>
             <tbody>
-              {data.entities.map(e => (
-                <tr key={e.uuid} onClick={() => toggle(e.uuid)}
-                  className={checked.has(e.uuid) ? 'selected' : ''}>
-                  <td><input type="checkbox" readOnly checked={checked.has(e.uuid)} /></td>
-                  <td className="mono">{e.type}</td>
-                  <td>{e.name}</td>
-                  <td><span className="chip">{e.category}</span></td>
-                  <td className="mono muted">{e.dim}</td>
-                  <td className="mono">{e.x} {e.y} {e.z}</td>
+              {data.entities.map(ent => (
+                <tr key={ent.uuid} onClick={() => toggle(ent.uuid)}
+                  className={checked.has(ent.uuid) ? 'selected' : ''}>
+                  <td>
+                    <span className="switch sm" onClick={(ev) => { ev.stopPropagation(); toggle(ent.uuid) }}>
+                      <input type="checkbox" readOnly checked={checked.has(ent.uuid)} />
+                      <span className="switch-slider" style={{ borderRadius: 999 }} />
+                    </span>
+                  </td>
+                  <td className="mono">{ent.type}</td>
+                  <td>{ent.name}</td>
+                  <td><span className="chip" style={{
+                    color: categoryColor(ent.category),
+                    borderColor: categoryColor(ent.category) + '40',
+                    background: categoryColor(ent.category) + '14',
+                  }}>{ent.category}</span></td>
+                  <td className="mono muted">{ent.dim}</td>
+                  <td className="mono">{ent.x} {ent.y} {ent.z}</td>
                 </tr>
               ))}
             </tbody>
@@ -137,7 +161,7 @@ function ProfilerPanel({ live }: { live: LiveState }) {
           disabled={busy} onClick={toggleProfiler}>
           {live.profilerActive ? 'Выключить' : 'Включить'}
         </button>
-        <span className="muted">окно 30 с, отчёт обновляется автоматически</span>
+        <span className="muted" style={{ fontSize: 12 }}>окно 30 с, отчёт обновляется автоматически</span>
       </div>
 
       {live.profilerActive && report && report.topEntities.length > 0 && (

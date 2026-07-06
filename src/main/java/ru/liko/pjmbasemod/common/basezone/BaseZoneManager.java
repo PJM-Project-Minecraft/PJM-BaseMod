@@ -88,7 +88,7 @@ public final class BaseZoneManager {
         player.connection.send(new ClientboundSetTitlesAnimationPacket(0, 30, 5));
         player.connection.send(new ClientboundSetTitleTextPacket(
                 Component.translatable("basezone.warning.title")
-                        .withStyle(ChatFormatting.RED, ChatFormatting.BOLD)));
+                        .withStyle(ChatFormatting.RED)));
         player.connection.send(new ClientboundSetSubtitleTextPacket(
                 Component.translatable("basezone.warning.subtitle", secondsLeft)
                         .withStyle(ChatFormatting.YELLOW)));

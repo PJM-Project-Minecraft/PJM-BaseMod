@@ -37,18 +37,20 @@ export default function Players({ live }: { live: LiveState }) {
             {players.map(p => (
               <tr key={p.uuid} className={p.uuid === selected ? 'selected' : ''}
                 onClick={() => setSelected(p.uuid === selected ? null : p.uuid)}>
-                <td>{p.name}</td>
+                <td className="mono">{p.name}</td>
                 <td>{p.team
-                  ? <span className="chip" style={{ color: hashColor(p.team) }}>{p.team}</span>
+                  ? <span className="chip" style={{ color: hashColor(p.team), borderColor: hashColor(p.team) + '55' }}>{p.team}</span>
                   : <span className="muted">—</span>}</td>
                 <td className="muted">{p.role || '—'}</td>
                 <td className="mono muted">{p.dim}</td>
-                <td className="mono">{p.x} {p.y} {p.z}</td>
-                <td className="mono">{p.ping} мс</td>
+                <td className="mono tnum">{p.x} {p.y} {p.z}</td>
+                <td className="mono tnum">{p.ping} мс</td>
                 <td>
-                  {p.warns > 0 && <span className="chip chip-danger">варны: {p.warns}</span>}{' '}
-                  {p.textMuted && <span className="chip chip-danger">текст</span>}{' '}
-                  {p.voiceMuted && <span className="chip chip-danger">войс</span>}
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {p.warns > 0 && <span className="chip chip-warn">варны: {p.warns}</span>}
+                    {p.textMuted && <span className="chip chip-danger">текст</span>}
+                    {p.voiceMuted && <span className="chip chip-danger">войс</span>}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -99,73 +101,99 @@ function PlayerCard({ player, players, onClose }: {
   }
 
   return (
-    <div className="panel" style={{ position: 'sticky', top: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>{player.name}</h3>
-        <button className="btn" onClick={onClose}>✕</button>
-      </div>
-      <p className="mono muted" style={{ fontSize: 12 }}>{player.uuid}</p>
-
-      <h4>Наказание</h4>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <select className="input" value={punishType}
-          onChange={e => setPunishType(e.target.value as PunishType)}>
-          {Object.entries(PUNISH_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        {punishType !== 'warn' && (
-          <input className="input mono" value={duration} onChange={e => setDuration(e.target.value)}
-            placeholder="Срок: 30m / 1d / permanent" />
-        )}
-        <input className="input" value={reason} onChange={e => setReason(e.target.value)}
-          placeholder="Причина" />
-        <ConfirmButton danger label={PUNISH_LABELS[punishType]}
-          disabled={!reason.trim()}
-          onConfirm={() => run(api.post('/api/actions/punish', {
-            uuid: player.uuid, name: player.name, type: punishType,
-            duration: punishType === 'warn' ? '' : duration, reason,
-          }))} />
+    <div className="panel" style={{ position: 'sticky', top: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h3 style={{ fontSize: 18 }}>{player.name}</h3>
+          <p className="mono muted" style={{ fontSize: 11, marginTop: 4 }}>{player.uuid}</p>
+        </div>
+        <button className="btn btn-icon" onClick={onClose} aria-label="Закрыть">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
 
-      <h4>Снять наказание</h4>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn" onClick={() => run(api.post('/api/actions/pardon',
-          { uuid: player.uuid, name: player.name, type: 'ban' }))}>Разбан</button>
-        <button className="btn" onClick={() => run(api.post('/api/actions/pardon',
-          { uuid: player.uuid, name: player.name, type: 'mute_voice' }))}>Снять мут войса</button>
-        <button className="btn" onClick={() => run(api.post('/api/actions/pardon',
-          { uuid: player.uuid, name: player.name, type: 'mute_text' }))}>Снять мут текста</button>
-      </div>
-
-      <h4>Действия</h4>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <ConfirmButton danger label="Кикнуть"
-          onConfirm={() => run(api.post('/api/actions/kick',
-            { uuid: player.uuid, reason: reason || 'Кик через панель' }))} />
-        <div style={{ display: 'flex', gap: 8 }}>
-          <select className="input" style={{ flex: 1 }} value={tpTarget}
-            onChange={e => setTpTarget(e.target.value)}>
-            <option value="">Телепорт к игроку…</option>
-            {players.filter(p => p.uuid !== player.uuid).map(p =>
-              <option key={p.uuid} value={p.uuid}>{p.name}</option>)}
+      <div>
+        <h4 style={{ marginBottom: 8 }}>Наказание</h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <select className="input" value={punishType}
+            onChange={e => setPunishType(e.target.value as PunishType)}>
+            {Object.entries(PUNISH_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
-          <button className="btn" disabled={!tpTarget}
-            onClick={() => run(api.post('/api/actions/teleport',
-              { uuid: player.uuid, toPlayer: tpTarget }))}>ТП</button>
+          {punishType !== 'warn' && (
+            <input className="input mono" value={duration} onChange={e => setDuration(e.target.value)}
+              placeholder="Срок: 30m / 1d / permanent" />
+          )}
+          <input className="input" value={reason} onChange={e => setReason(e.target.value)}
+            placeholder="Причина" />
+          <ConfirmButton danger label={PUNISH_LABELS[punishType]}
+            disabled={!reason.trim()}
+            onConfirm={() => run(api.post('/api/actions/punish', {
+              uuid: player.uuid, name: player.name, type: punishType,
+              duration: punishType === 'warn' ? '' : duration, reason,
+            }))} />
         </div>
       </div>
 
-      {status && <p className="mono" style={{ marginTop: 10 }}>{status}</p>}
+      <div>
+        <h4 style={{ marginBottom: 8 }}>Снять наказание</h4>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn" onClick={() => run(api.post('/api/actions/pardon',
+            { uuid: player.uuid, name: player.name, type: 'ban' }))}>Разбан</button>
+          <button className="btn" onClick={() => run(api.post('/api/actions/pardon',
+            { uuid: player.uuid, name: player.name, type: 'mute_voice' }))}>Снять мут войса</button>
+          <button className="btn" onClick={() => run(api.post('/api/actions/pardon',
+            { uuid: player.uuid, name: player.name, type: 'mute_text' }))}>Снять мут текста</button>
+        </div>
+      </div>
 
-      <h4>История наказаний</h4>
-      <div style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {history.length === 0 && <span className="muted">Пусто</span>}
-        {[...history].reverse().map((h, i) => (
-          <div key={i} style={{ fontSize: 12, borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
-            <span className={`chip ${h.action === 'apply' ? 'chip-danger' : ''}`}>{h.type}/{h.action}</span>{' '}
-            <span className="muted">{new Date(h.ts).toLocaleString('ru-RU')} · {h.moderator}</span>
-            {h.reason && <div className="muted">{h.reason}</div>}
+      <div>
+        <h4 style={{ marginBottom: 8 }}>Действия</h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <ConfirmButton danger label="Кикнуть"
+            onConfirm={() => run(api.post('/api/actions/kick',
+              { uuid: player.uuid, reason: reason || 'Кик через панель' }))} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select className="input" style={{ flex: 1 }} value={tpTarget}
+              onChange={e => setTpTarget(e.target.value)}>
+              <option value="">Телепорт к игроку…</option>
+              {players.filter(p => p.uuid !== player.uuid).map(p =>
+                <option key={p.uuid} value={p.uuid}>{p.name}</option>)}
+            </select>
+            <button className="btn" disabled={!tpTarget}
+              onClick={() => run(api.post('/api/actions/teleport',
+                { uuid: player.uuid, toPlayer: tpTarget }))}>ТП</button>
           </div>
-        ))}
+        </div>
+      </div>
+
+      {status && (
+        <p className="mono" style={{
+          fontSize: 12, padding: '8px 12px', borderRadius: 8,
+          background: status.startsWith('✓') ? 'rgba(48,209,88,0.1)' : 'rgba(255,69,58,0.1)',
+          color: status.startsWith('✓') ? 'var(--ok)' : 'var(--danger)',
+        }}>{status}</p>
+      )}
+
+      <div>
+        <h4 style={{ marginBottom: 8 }}>История наказаний</h4>
+        <div style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {history.length === 0 && <span className="muted">Пусто</span>}
+          {[...history].reverse().map((h, i) => (
+            <div key={i} style={{
+              fontSize: 12, padding: '8px 10px', borderRadius: 8,
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid var(--glass-2-border)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span className={`chip ${h.action === 'apply' ? 'chip-danger' : 'chip-ok'}`}>{h.type}/{h.action}</span>
+                <span className="muted">{new Date(h.ts).toLocaleString('ru-RU')} · {h.moderator}</span>
+              </div>
+              {h.reason && <div className="muted" style={{ marginTop: 4 }}>{h.reason}</div>}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

@@ -181,6 +181,20 @@ public class QuartermasterEntity extends Mob {
     }
 
     @Override
+    public void push(double x, double y, double z) {
+        // Полностью игнорируем внешние импульсы (толчок игроком при коллизии, толпа,
+        // поток жидкости, взрыв): через push() все внешние силы добавляют скорость.
+        // isPushable()==false не перехватывает толчок игрока в этой версии, поэтому глушим здесь.
+        // Гравитация идёт мимо push() (через deltaMovement в travel()), так что NPC стоит на земле.
+    }
+
+    @Override
+    public boolean isPushedByFluid() {
+        // Кладовщик не сносится течением воды/лавы.
+        return false;
+    }
+
+    @Override
     public boolean removeWhenFarAway(double distance) {
         return false;
     }

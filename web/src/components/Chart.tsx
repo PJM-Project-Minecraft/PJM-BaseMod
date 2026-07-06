@@ -15,6 +15,9 @@ interface Props {
   unit?: string
 }
 
+const AXIS_COLOR = '#636366'
+const GRID_COLOR = 'rgba(255,255,255,0.04)'
+
 /** Обёртка uPlot: пересоздание при смене состава серий, setData при обновлении данных. */
 export default function Chart({ timestamps, series, height = 220, unit = '' }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -32,16 +35,19 @@ export default function Chart({ timestamps, series, height = 220, unit = '' }: P
         ...series.map(s => ({
           label: s.label,
           stroke: s.color,
-          width: 1.5,
-          fill: `${s.color}22`,
+          width: 2,
+          fill: `${s.color}1f`,
+          points: { show: false },
           value: (_u: uPlot, v: number | null) => (v == null ? '—' : `${v}${unit}`),
         })),
       ],
       axes: [
-        { stroke: '#7d8fa0', grid: { stroke: '#1a2430' }, ticks: { stroke: '#1a2430' } },
-        { stroke: '#7d8fa0', grid: { stroke: '#1a2430' }, ticks: { stroke: '#1a2430' } },
+        { stroke: AXIS_COLOR, grid: { stroke: GRID_COLOR }, ticks: { stroke: GRID_COLOR } },
+        { stroke: AXIS_COLOR, grid: { stroke: GRID_COLOR }, ticks: { stroke: GRID_COLOR } },
       ],
-      cursor: { points: { size: 6 } },
+      cursor: {
+        points: { size: 6, stroke: '#fff', width: 1.5 },
+      },
       legend: { live: true },
     }
     const plot = new uPlot(opts, [[], ...series.map(() => [])], root)
@@ -56,7 +62,6 @@ export default function Chart({ timestamps, series, height = 220, unit = '' }: P
       plot.destroy()
       plotRef.current = null
     }
-    // Пересоздаём график только при смене состава серий.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seriesKey, height])
 

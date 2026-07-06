@@ -10,7 +10,6 @@ import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.sounds.SoundManager;
@@ -59,16 +58,11 @@ public class TacticalMainMenuScreen extends Screen {
     private long slideshowStartTime = 0L;
 
     // --- State ---
-    private boolean isPlayMenuOpen = false;
     private long devMessageUntil = 0L;
 
     // --- Widgets ---
     private final List<TacticalButton> mainButtons = new ArrayList<>();
-    private final List<TacticalButton> playSubMenuButtons = new ArrayList<>();
     private TacticalButton btnPlay;
-
-    // --- Animation State ---
-    private float playMenuAnim = 0.0f;
 
     public TacticalMainMenuScreen() {
         super(Component.literal("Tactical Main Menu"));
@@ -90,42 +84,18 @@ public class TacticalMainMenuScreen extends Screen {
     protected void init() {
         super.init();
         this.mainButtons.clear();
-        this.playSubMenuButtons.clear();
 
         int startX = 40;
 
-        // 1. PLAY Button
+        // 1. PLAY Button — прямой коннект на основной сервер
         btnPlay = new TacticalButton(startX, 0, PANEL_WIDTH - 80, BUTTON_HEIGHT, Component.translatable("menu.pjm.play"), button -> {
-            togglePlayMenu();
+            ServerData serverData = new ServerData("Project Minecraft Server", "minecraft.likonchik.xyz", ServerData.Type.OTHER);
+            ConnectScreen.startConnecting(this, this.minecraft, ServerAddress.parseString(serverData.ip), serverData, false, null);
         }, false, true, false);
         addRenderableWidget(btnPlay);
         mainButtons.add(btnPlay);
 
-        // 2. Sub-Menu Buttons (Connect Main, Alt 1, Alt 2, Singleplayer)
-        TacticalButton btnConnectMain = new TacticalButton(startX + 20, 0, PANEL_WIDTH - 100, SUB_BUTTON_HEIGHT, Component.translatable("menu.pjm.connect_main"),
-                button -> {
-                    ServerData serverData = new ServerData("Project Minecraft Server", "81.88.221.192:30000", ServerData.Type.OTHER);
-                    ConnectScreen.startConnecting(this, this.minecraft, ServerAddress.parseString(serverData.ip), serverData, false, null);
-                }, false, false, true);
-        addRenderableWidget(btnConnectMain);
-        playSubMenuButtons.add(btnConnectMain);
-
-        TacticalButton btnConnectAlt1 = new TacticalButton(startX + 20, 0, PANEL_WIDTH - 100, SUB_BUTTON_HEIGHT, Component.translatable("menu.pjm.connect_alt1"),
-                button -> {
-                    ServerData serverData = new ServerData("Project Minecraft Alt 1", "pl1.hoxen.one:25569", ServerData.Type.OTHER);
-                    ConnectScreen.startConnecting(this, this.minecraft, ServerAddress.parseString(serverData.ip), serverData, false, null);
-                }, false, false, true);
-        addRenderableWidget(btnConnectAlt1);
-        playSubMenuButtons.add(btnConnectAlt1);
-
-        TacticalButton btnSingle = new TacticalButton(startX + 20, 0, PANEL_WIDTH - 100, SUB_BUTTON_HEIGHT, Component.translatable("menu.pjm.singleplayer"),
-                button -> {
-                    this.minecraft.setScreen(new SelectWorldScreen(this));
-                }, false, false, true);
-        addRenderableWidget(btnSingle);
-        playSubMenuButtons.add(btnSingle);
-
-        // 3. MULTIPLAYER Button
+        // 2. MULTIPLAYER Button
         TacticalButton btnMulti = new TacticalButton(startX, 0, PANEL_WIDTH - 80, BUTTON_HEIGHT, Component.translatable("menu.pjm.multiplayer"), button -> {
             this.minecraft.setScreen(new JoinMultiplayerScreen(this));
         }, false, false, false);
@@ -156,52 +126,21 @@ public class TacticalMainMenuScreen extends Screen {
         updateButtonPositions();
     }
 
-    private void togglePlayMenu() {
-        isPlayMenuOpen = !isPlayMenuOpen;
-    }
-
     private void updateButtonPositions() {
         int vHeight = getVHeight();
         int totalBaseHeight = mainButtons.size() * (BUTTON_HEIGHT + BUTTON_SPACING);
-        int subMenuTotalHeight = playSubMenuButtons.size() * (SUB_BUTTON_HEIGHT + SUB_BUTTON_SPACING);
-        int maxTotalHeight = totalBaseHeight + subMenuTotalHeight;
-        
-        // Calculate dynamic starting Y centered around the maximum expanded height
-        // This ensures the menu doesn't push into the bottom status text on 3x/4x scales
-        int startY = (vHeight - maxTotalHeight) / 2;
-        
+
+        // Calculate dynamic starting Y centered vertically
+        int startY = (vHeight - totalBaseHeight) / 2;
+
         // Push startY down to ensure it stays below the logo (logo takes ~60-70px)
         if (startY < 75) startY = 75;
-        
+
         int currentY = startY;
 
-        for (int i = 0; i < mainButtons.size(); i++) {
-            TacticalButton btn = mainButtons.get(i);
+        for (TacticalButton btn : mainButtons) {
             btn.setY(currentY);
-
-            if (btn == btnPlay) {
-                currentY += BUTTON_HEIGHT + BUTTON_SPACING;
-                
-                // Sub-buttons space based on animation
-                int animatedOffset = (int) (subMenuTotalHeight * playMenuAnim);
-
-                for (int j = 0; j < playSubMenuButtons.size(); j++) {
-                    TacticalButton subBtn = playSubMenuButtons.get(j);
-                    // Base Y offset for each sub-button
-                    int subY = btnPlay.getY() + BUTTON_HEIGHT + BUTTON_SPACING + j * (SUB_BUTTON_HEIGHT + SUB_BUTTON_SPACING);
-                    subBtn.setY(subY);
-                    
-                    // Visibility & Activity
-                    boolean visible = playMenuAnim > 0.01f;
-                    subBtn.visible = visible;
-                    subBtn.active = isPlayMenuOpen; // Only clickable if fully open or opening
-                    subBtn.setAlpha(playMenuAnim);
-                }
-
-                currentY += animatedOffset;
-            } else {
-                currentY += BUTTON_HEIGHT + BUTTON_SPACING;
-            }
+            currentY += BUTTON_HEIGHT + BUTTON_SPACING;
         }
     }
 
@@ -239,16 +178,6 @@ public class TacticalMainMenuScreen extends Screen {
         guiGraphics.pose().pushPose();
         guiGraphics.pose().scale(scale, scale, 1.0f);
 
-        // Update Animation
-        float targetAnim = isPlayMenuOpen ? 1.0f : 0.0f;
-        float diff = targetAnim - this.playMenuAnim;
-        if (Math.abs(diff) < 0.001f) {
-            this.playMenuAnim = targetAnim;
-        } else {
-            // Scale lerp speed based on framerate to keep it consistent
-            this.playMenuAnim += diff * 0.2f;
-        }
-
         updateButtonPositions();
 
         // Left Panel Background (Semi-transparent overlay to tint the blur)
@@ -277,28 +206,6 @@ public class TacticalMainMenuScreen extends Screen {
         guiGraphics.drawString(this.font, "PROJECT", 0, 0, COLOR_ACCENT, true);
         guiGraphics.drawString(this.font, "MINECRAFT", 0, 10, 0xFFFFFFFF, true);
         guiGraphics.pose().popPose();
-
-        // Render Sub-menu buttons with Scissor for smooth accordion reveal
-        if (playMenuAnim > 0.01f) {
-            int subMenuTotalHeight = playSubMenuButtons.size() * (SUB_BUTTON_HEIGHT + SUB_BUTTON_SPACING);
-            int animatedHeight = (int) (subMenuTotalHeight * playMenuAnim);
-            
-            int scissorX = 0;
-            int scissorY = btnPlay.getY() + BUTTON_HEIGHT + BUTTON_SPACING;
-            
-            guiGraphics.enableScissor(
-                (int)(scissorX * scale), 
-                (int)(scissorY * scale), 
-                (int)((scissorX + PANEL_WIDTH) * scale), 
-                (int)((scissorY + animatedHeight) * scale)
-            );
-            
-            for (TacticalButton subBtn : playSubMenuButtons) {
-                subBtn.render(guiGraphics, vMouseX, vMouseY, partialTick);
-            }
-            
-            guiGraphics.disableScissor();
-        }
 
         // Render Main Buttons
         for (TacticalButton btn : mainButtons) {
@@ -360,9 +267,8 @@ public class TacticalMainMenuScreen extends Screen {
         public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             this.isHovered = mouseX >= getX() && mouseY >= getY() && mouseX < getX() + width && mouseY < getY() + height;
             boolean hovered = this.isHovered;
-            boolean activeState = hovered || (isPlay && isPlayMenuOpen);
 
-            float target = activeState ? 1.0f : 0.0f;
+            float target = hovered ? 1.0f : 0.0f;
             this.hoverAnim += (target - this.hoverAnim) * 0.3f;
 
             int targetColor = isExit ? 0xFFFF4444 : (isPlay ? 0xFF44FF44 : COLOR_ACCENT);
@@ -404,13 +310,6 @@ public class TacticalMainMenuScreen extends Screen {
             int textColor = (finalAlpha << 24) | (r << 16) | (g << 8) | b;
 
             guiGraphics.drawString(Minecraft.getInstance().font, getMessage(), getX() + 15 + textXOffset, getY() + (height - 8) / 2, textColor, true);
-            
-            // Play button indicator (arrow)
-            if (isPlay) {
-                String arrow = isPlayMenuOpen ? "▼" : "▶";
-                int arrowW = Minecraft.getInstance().font.width(arrow);
-                guiGraphics.drawString(Minecraft.getInstance().font, arrow, getX() + width - arrowW - 10, getY() + (height - 8) / 2, textColor, true);
-            }
         }
     }
 
