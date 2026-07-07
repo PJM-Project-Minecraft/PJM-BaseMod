@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.neoforged.fml.loading.FMLPaths;
 
-import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -23,8 +22,13 @@ import java.util.Set;
  * <p>Раньше использовался NeoForge {@link net.neoforged.fml.config.ModConfig ModConfigSpec} (TOML
  * в корне {@code config/}), который при каждой нормализации значений перезаписывал файл и лежал
  * отдельно от остальных JSON-реестров мода. Теперь конфиг — обычный Gson-JSON рядом с прочими
- * (ranks.json, roles/, vehicles.json …): пишется только при отсутствии файла, перезагружается
- * через {@code /pjm config reload}.</p>
+ * (ranks.json, roles/, vehicles.json …), перезагружается через {@code /pjm config reload}.</p>
+ *
+ * <p><b>Миграция при обновлении мода.</b> При загрузке уже существующего файла новые поля/секции
+ * (добавленные в новой версии мода) домёрдживаются в файл с дефолтными значениями, а всё, что
+ * администратор уже вписал, сохраняется — Gson оставляет отсутствующие ключи дефолтными, после
+ * чего модель пишется обратно. Файл переписывается только если состав/значения реально изменились
+ * (иначе диск не трогается). Незнакомые (удалённые из модели) ключи при этом отбрасываются.</p>
  *
  * <p>Публичный API (статические геттеры) сохранён один-в-один — места вызова не меняются.</p>
  */
@@ -55,13 +59,21 @@ public final class Config {
                 Pjmbasemod.LOGGER.info("Config: создан конфиг по умолчанию {}", file);
                 return true;
             }
-            try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-                ConfigData loaded = GSON.fromJson(reader, ConfigData.class);
-                data = loaded == null ? new ConfigData() : loaded;
-                data.normalize();
+            String original = Files.readString(file, StandardCharsets.UTF_8);
+            ConfigData loaded = GSON.fromJson(original, ConfigData.class);
+            data = loaded == null ? new ConfigData() : loaded;
+            data.normalize();
+            // Домёрдживаем новые поля/секции, не теряя внесённых значений: сериализуем актуальную
+            // модель (загруженные значения + дефолты для отсутствовавших ключей) и переписываем файл,
+            // только если результат отличается от того, что на диске.
+            String merged = GSON.toJson(data);
+            if (!merged.strip().equals(original.strip())) {
+                write(file, data);
+                Pjmbasemod.LOGGER.info("Config: обновлён (домёрджены новые поля) {}", file);
+            } else {
                 Pjmbasemod.LOGGER.info("Config: загружен {}", file);
-                return true;
             }
+            return true;
         } catch (Exception e) {
             data = new ConfigData();
             data.normalize();
@@ -132,6 +144,7 @@ public final class Config {
     public static List<? extends String> getAntiGriefAllowedPlaceBlocks()    { return data().antigrief.allowedPlaceBlocks; }
     public static boolean isBaseZoneEnabled()          { return data().baseZone.enabled; }
     public static int     getBaseZoneCountdownSeconds() { return data().baseZone.countdownSeconds; }
+    public static boolean isBaseZoneBlockExplosions()   { return data().baseZone.blockExplosions; }
 
     public static boolean isModerationOverrideVanilla()      { return data().moderation.overrideVanillaCommands; }
     public static int  getModerationDefaultTempBanMinutes()  { return data().moderation.defaultTempBanMinutes; }
@@ -151,6 +164,10 @@ public final class Config {
     public static List<ConfiguredTeam> getTeams() {
         return parseTeams(data().teams.definitions);
     }
+
+    public static boolean isTeamBalancerEnabled()      { return data().teams.balancer.enabled; }
+    public static int     getTeamBalancerMaxShare()    { return data().teams.balancer.maxSharePercent; }
+    public static int     getTeamBalancerMinPlayers()  { return data().teams.balancer.minPlayers; }
 
     public static List<ConfiguredTeam> getFrontlineTeams() {
         return getTeams();
@@ -320,6 +337,9 @@ public final class Config {
 
             if (teams.definitions == null) teams.definitions = new ArrayList<>();
             if (teams.joinCommands == null) teams.joinCommands = new ArrayList<>();
+            if (teams.balancer == null) teams.balancer = new Balancer();
+            teams.balancer.maxSharePercent = clamp(teams.balancer.maxSharePercent, 50, 100);
+            teams.balancer.minPlayers = clamp(teams.balancer.minPlayers, 0, 256);
             if (commands.startup == null) commands.startup = new ArrayList<>();
 
             hud.itemSwitchDisplayMs = clamp(hud.itemSwitchDisplayMs, 0L, 60_000L);
@@ -343,6 +363,16 @@ public final class Config {
     static final class Teams {
         List<String> definitions = new ArrayList<>(List.of("team1", "team2"));
         List<String> joinCommands = new ArrayList<>();
+        Balancer balancer = new Balancer();
+    }
+
+    /** Автобалансер команд: мягкий блок вступления в перегруженную команду при выборе фракции. */
+    static final class Balancer {
+        boolean enabled = true;
+        /** Команда не может превышать этот % от всех боевых игроков онлайн (50 — идеальный паритет). */
+        int maxSharePercent = 60;
+        /** Порог не действует, пока боевых игроков онлайн меньше этого числа (защита от тупика). */
+        int minPlayers = 4;
     }
 
     static final class Region {
@@ -490,6 +520,8 @@ public final class Config {
     static final class BaseZone {
         boolean enabled = true;
         int countdownSeconds = 5;
+        /** Отключать урон от взрывов (SBW) и гранат (WarBorn) внутри зоны базы. */
+        boolean blockExplosions = true;
     }
 
     static final class Commands {
