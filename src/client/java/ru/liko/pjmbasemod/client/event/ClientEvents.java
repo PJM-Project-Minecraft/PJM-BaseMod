@@ -72,6 +72,13 @@ public final class ClientEvents {
 
         RadioManager.get().tick();
         VoiceChatActionBarHud.tick(mc);
+
+        // F1 (скрытие HUD) — только для OP. У обычных игроков сразу возвращаем HUD,
+        // чтобы нельзя было спрятать интерфейс (уровень прав синкается с сервера).
+        if (mc.options.hideGui && !mc.player.hasPermissions(2)) {
+            mc.options.hideGui = false;
+        }
+
         if (mc.screen != null) return;
 
         while (ModKeyBindings.OPEN_RADIAL_MENU.consumeClick()) {
