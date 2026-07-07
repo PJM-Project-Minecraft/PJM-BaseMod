@@ -224,7 +224,7 @@
   "access.pjmbasemod.uav": "Доступ к БПЛА",
   "access.pjmbasemod.sso": "Доступ ССО",
   "role.pjmbasemod.marksman": "Марксман",
-  "role.pjmbasemod.ew_specialist": "Специалист РЭБ",
+  "access.pjmbasemod.ew": "Доступ РЭБ",
   "role.pjmbasemod.crew": "Экипаж",
   "pjmbasemod.command.inventory.reloaded": "Лимит инвентаря перезагружен: заблокировано слотов — %s",
   "pjmbasemod.command.inventory.reload_failed": "Ошибка загрузки конфига лимита инвентаря",

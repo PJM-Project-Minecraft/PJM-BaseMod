@@ -16,8 +16,6 @@ public enum CombatRole {
             "снайпер"),
     MARKSMAN("marksman", "Марксман", 0x4CD87A,
             "dmr", "марксман"),
-    EW_SPECIALIST("ew_specialist", "Специалист РЭБ", 0xD84CA5,
-            "ew", "reb", "рэб", "специалист_рэб", "специалист рэб"),
     CREW("crew", "Экипаж", 0xD8C34C,
             "vehicle_crew", "экипаж");
 

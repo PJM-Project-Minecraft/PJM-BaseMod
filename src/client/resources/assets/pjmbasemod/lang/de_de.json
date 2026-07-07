@@ -224,7 +224,7 @@
   "access.pjmbasemod.uav": "UAV-Zugang",
   "access.pjmbasemod.sso": "SSO-Zugang",
   "role.pjmbasemod.marksman": "Marksman",
-  "role.pjmbasemod.ew_specialist": "EW-Spezialist",
+  "access.pjmbasemod.ew": "EW-Zugang",
   "role.pjmbasemod.crew": "Besatzung",
   "pjmbasemod.command.inventory.reloaded": "Inventarlimit neu geladen: gesperrte Slots — %s",
   "pjmbasemod.command.inventory.reload_failed": "Inventarlimit-Konfiguration konnte nicht geladen werden",

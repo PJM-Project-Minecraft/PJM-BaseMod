@@ -17,7 +17,9 @@ public enum AccessType {
     UAV("uav", "Доступ к БПЛА", 0x4CC4D8,
             "drone", "drone_operator", "bpla", "бпла", "оператор бпла", "uav_operator"),
     SSO("sso", "Доступ ССО", 0x8D4CD8,
-            "sof", "special_forces", "ссо");
+            "sof", "special_forces", "ссо"),
+    EW("ew", "Доступ РЭБ", 0xD84CA5,
+            "reb", "рэб", "ew_specialist", "специалист рэб");
 
     private final String id;
     private final String displayName;

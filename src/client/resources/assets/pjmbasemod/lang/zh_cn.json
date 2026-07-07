@@ -224,7 +224,7 @@
   "access.pjmbasemod.uav": "无人机权限",
   "access.pjmbasemod.sso": "特种作战权限",
   "role.pjmbasemod.marksman": "精确射手",
-  "role.pjmbasemod.ew_specialist": "电子战专家",
+  "access.pjmbasemod.ew": "电子战权限",
   "role.pjmbasemod.crew": "载具乘员",
   "pjmbasemod.command.inventory.reloaded": "已重新加载背包限制：锁定槽位 — %s",
   "pjmbasemod.command.inventory.reload_failed": "加载背包限制配置失败",

@@ -604,7 +604,6 @@ public class RadialMenuScreen extends Screen {
             case MACHINE_GUNNER -> new ItemStack(Items.CROSSBOW);
             case SNIPER -> new ItemStack(Items.SPYGLASS);
             case MARKSMAN -> new ItemStack(Items.BOW);
-            case EW_SPECIALIST -> new ItemStack(Items.REDSTONE);
             case CREW -> new ItemStack(Items.MINECART);
         };
     }

@@ -1541,7 +1541,7 @@ public final class PjmCommands {
     private static CombatRole parseRole(CommandSourceStack source, String raw) {
         CombatRole role = CombatRole.byIdOrAlias(raw);
         if (role == null) {
-            source.sendFailure(Component.literal("Неизвестная роль '" + raw + "'. Используй assault, machine_gunner, sniper, marksman, ew_specialist или crew."));
+            source.sendFailure(Component.literal("Неизвестная роль '" + raw + "'. Используй assault, machine_gunner, sniper, marksman или crew."));
             return null;
         }
         return role;

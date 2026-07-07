@@ -224,7 +224,7 @@
   "access.pjmbasemod.uav": "UAV Access",
   "access.pjmbasemod.sso": "SSO Access",
   "role.pjmbasemod.marksman": "Marksman",
-  "role.pjmbasemod.ew_specialist": "EW Specialist",
+  "access.pjmbasemod.ew": "EW Access",
   "role.pjmbasemod.crew": "Crew",
   "pjmbasemod.command.inventory.reloaded": "Inventory limit reloaded: locked slots — %s",
   "pjmbasemod.command.inventory.reload_failed": "Failed to load inventory limit config",
