@@ -288,9 +288,8 @@ public final class PjmCommands {
         }
         if (all || section.equalsIgnoreCase("roles")) {
             int count = ru.liko.pjmbasemod.common.role.RoleLimitRegistry.get().reload();
-            int access = ru.liko.pjmbasemod.common.role.RoleAccessRegistry.get().reload();
             RoleService.syncAll(server);
-            report.append("лимиты ролей ").append(count).append(", донат-ролей ").append(access).append("; ");
+            report.append("лимиты ролей ").append(count).append("; ");
             sections++;
         }
         if (all || section.equalsIgnoreCase("inventory")) {
@@ -1542,7 +1541,7 @@ public final class PjmCommands {
     private static CombatRole parseRole(CommandSourceStack source, String raw) {
         CombatRole role = CombatRole.byIdOrAlias(raw);
         if (role == null) {
-            source.sendFailure(Component.literal("Неизвестная роль '" + raw + "'. Используй assault, machine_gunner, sniper, uav_operator, sso, marksman, ew_specialist или crew."));
+            source.sendFailure(Component.literal("Неизвестная роль '" + raw + "'. Используй assault, machine_gunner, sniper, marksman, ew_specialist или crew."));
             return null;
         }
         return role;

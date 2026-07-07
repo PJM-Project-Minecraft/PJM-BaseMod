@@ -16,6 +16,7 @@ import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.OpenWarehousePacket;
 import ru.liko.pjmbasemod.common.network.packet.WarehouseSyncPacket;
 import ru.liko.pjmbasemod.common.rank.RankService;
+import ru.liko.pjmbasemod.common.access.AccessPermissions;
 import ru.liko.pjmbasemod.common.role.RoleService;
 
 import java.util.ArrayList;
@@ -103,6 +104,10 @@ public final class WarehouseManager {
         }
         if (!WarehouseDonorPermissions.canAccess(player, def)) {
             player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.donate_restricted"), true);
+            return;
+        }
+        if (!accessAllows(player, def)) {
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.access_required"), true);
             return;
         }
 
@@ -415,7 +420,9 @@ public final class WarehouseManager {
             boolean roleAllowed = RoleService.hasAllowedRole(player, def.allowedRoles());
             boolean rankAllowed = RankService.meetsMinRank(player, def.minRank());
             String requiredRankName = RankService.rankDisplayName(def.minRank());
-            boolean donateAllowed = WarehouseDonorPermissions.canAccess(player, def);
+            // Донат-«Доступ» сворачивается в общий флаг доната: GUI гасит предмет так же, как донатный,
+            // а точную причину («нужен Доступ») сервер сообщает при попытке выдачи.
+            boolean donateAllowed = WarehouseDonorPermissions.canAccess(player, def) && accessAllows(player, def);
             items.add(new WarehouseSnapshot.ItemEntry(def.id(), def.rawDisplayName(), def.iconId(),
                     def.displayCategory(), def.pool(), def.pointCost(), def.maxPerWithdraw(), def.quantity(),
                     def.refundValue(), inInventory, available, affordable,
@@ -466,6 +473,12 @@ public final class WarehouseManager {
         if (!def.teamRestricted()) return true;
         String team = FrontlineTeams.resolvePlayerTeamId(player);
         return team != null && def.allowedTeams().contains(team);
+    }
+
+    /** Есть ли у игрока донат-«Доступ» на предмет (true, если ограничения по Доступу нет). */
+    private static boolean accessAllows(ServerPlayer player, WarehouseItemDefinition def) {
+        if (!def.accessRestricted()) return true;
+        return AccessPermissions.has(player, def.access());
     }
 
     private static void giveItem(ServerPlayer player, WarehouseItemDefinition def, int amount) {

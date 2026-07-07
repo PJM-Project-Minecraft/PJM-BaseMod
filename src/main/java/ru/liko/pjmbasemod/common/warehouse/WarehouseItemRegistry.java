@@ -396,14 +396,19 @@ public final class WarehouseItemRegistry {
         svdm.setAllowedTeams(List.of("team1"));
         // Пример компонентов (NBT) в синтаксисе команды /give: применяются поверх выданного стека.
         WarehouseItemDefinition ak74m = new WarehouseItemDefinition("ak74m", "АК-74М", "superbwarfare:ak_47",
-                WarehousePoolCategory.WEAPON, "weapon", 1, 8, List.of("assault", "sso"));
+                WarehousePoolCategory.WEAPON, "weapon", 1, 8, List.of("assault"));
         ak74m.setComponents("[minecraft:custom_name='АК-74М',minecraft:max_stack_size=1]");
+        // Пример донат-«Доступа»: предмет выдаётся только владельцу ноды pjmbasemod.access.uav.
+        WarehouseItemDefinition uavTerminal = new WarehouseItemDefinition("uav_terminal", "Пульт БПЛА",
+                "minecraft:compass", WarehousePoolCategory.EQUIPMENT, "equipment", 5, 1);
+        uavTerminal.setAccess("uav");
         // Пример quantity: за 1 очко выдаётся сразу 64 патрона.
         WarehouseItemDefinition ammo545 = new WarehouseItemDefinition("ammo_545", "Патроны 5.45",
                 "superbwarfare:rifle_ammo", WarehousePoolCategory.SUPPLY, "ammo", 1, 64);
         ammo545.setQuantity(64);
         return List.of(
                 ak74m,
+                uavTerminal,
                 svdm,
                 new WarehouseItemDefinition("pistol", "Пистолет", "superbwarfare:glock_17",
                         WarehousePoolCategory.WEAPON, "weapon", 1, 8),

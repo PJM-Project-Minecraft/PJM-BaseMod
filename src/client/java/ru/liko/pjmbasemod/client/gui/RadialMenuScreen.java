@@ -32,7 +32,6 @@ import ru.liko.pjmbasemod.common.customization.CustomizationType;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
 import ru.liko.pjmbasemod.common.network.packet.RequestFactionManagementPacket;
-import ru.liko.pjmbasemod.common.network.packet.RequestTargetRoleAccessPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectCustomizationPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectRolePacket;
 import ru.liko.pjmbasemod.common.role.CombatRole;
@@ -185,23 +184,12 @@ public class RadialMenuScreen extends Screen {
         hoveredProgress = 0f;
         actions = new ArrayList<>();
 
+        // Роли назначает только командир/зам/админ (по цели наведения). Само-выдача удалена вместе
+        // с донат-ролями — вне commander-режима роли показываются погашенными.
         boolean commanderMode = ClientRoleState.canAssignRoles() && roleTargetId != null;
-        UUID selfId = Minecraft.getInstance().player != null
-                ? Minecraft.getInstance().player.getUUID()
-                : null;
 
         for (CombatRole role : CombatRole.values()) {
-            boolean enabled;
-            UUID assignTarget;
-            if (commanderMode) {
-                // Платные роли, которыми цель не владеет, гасим (сервер всё равно отклонит назначение).
-                enabled = ClientRoleState.isTargetAssignable(roleTargetId, role);
-                assignTarget = roleTargetId;
-            } else {
-                enabled = ClientRoleState.isSelfAssignable(role);
-                assignTarget = selfId;
-            }
-            final UUID target = assignTarget;
+            final UUID target = roleTargetId;
             actions.add(new RadialAction(
                     Component.translatable(role.translationKey()),
                     0xFF000000 | role.color(),
@@ -209,7 +197,7 @@ public class RadialMenuScreen extends Screen {
                     null,
                     null,
                     role.id(),
-                    enabled,
+                    commanderMode,
                     p -> {
                         if (target != null) {
                             PjmNetworking.sendToServer(new SelectRolePacket(target, role.id()));
@@ -608,18 +596,6 @@ public class RadialMenuScreen extends Screen {
                 roleTargetName = player.getName().getString();
             }
         }
-        // Командир: запросить у сервера, какие роли можно назначить этой цели (для гашения недоступных).
-        ClientRoleState.clearTargetAccess();
-        if (roleTargetId != null && ClientRoleState.canAssignRoles()) {
-            PjmNetworking.sendToServer(new RequestTargetRoleAccessPacket(roleTargetId));
-        }
-    }
-
-    /** Вызывается из сетевого обработчика при получении владения цели — перестраивает меню ролей, если оно открыто. */
-    public void onTargetRoleAccessUpdated() {
-        if (page == Page.ROLE) {
-            openRoleSubmenu();
-        }
     }
 
     private ItemStack iconFor(CombatRole role) {
@@ -627,8 +603,6 @@ public class RadialMenuScreen extends Screen {
             case ASSAULT -> new ItemStack(Items.IRON_SWORD);
             case MACHINE_GUNNER -> new ItemStack(Items.CROSSBOW);
             case SNIPER -> new ItemStack(Items.SPYGLASS);
-            case UAV_OPERATOR -> new ItemStack(Items.COMPASS);
-            case SSO -> new ItemStack(Items.NETHERITE_SWORD);
             case MARKSMAN -> new ItemStack(Items.BOW);
             case EW_SPECIALIST -> new ItemStack(Items.REDSTONE);
             case CREW -> new ItemStack(Items.MINECART);

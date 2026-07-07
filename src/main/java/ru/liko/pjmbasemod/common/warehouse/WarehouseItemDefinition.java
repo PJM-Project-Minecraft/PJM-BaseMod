@@ -62,6 +62,13 @@ public final class WarehouseItemDefinition {
      * у нескольких предметов = общая нода («пакет доната»). См. {@link WarehouseDonorPermissions}.
      */
     private String permission;
+    /**
+     * Донат-«Доступ» ({@link ru.liko.pjmbasemod.common.access.AccessType}). Пусто/null — без ограничения.
+     * Иначе выдача требует permission-ноду {@code pjmbasemod.access.<access>} (напр. {@code uav} — доступ
+     * к БПЛА). Отдельно от {@link #permission}: {@code permission} — генерик-«пакет доната», {@code access} —
+     * именованный Доступ. См. {@link ru.liko.pjmbasemod.common.access.AccessPermissions}.
+     */
+    private String access;
     /** Сколько штук предмета выдаётся за одну покупку (за {@link #pointCost} очков). По умолчанию 1. */
     private int quantity = 1;
     /**
@@ -301,6 +308,18 @@ public final class WarehouseItemDefinition {
     /** Требует ли предмет донат-пермишен для выдачи. */
     public boolean donateRestricted() {
         return permission != null && !permission.isBlank();
+    }
+
+    /** id донат-«Доступа» или "" если ограничения нет. */
+    public String access() {
+        return access == null ? "" : access;
+    }
+
+    public void setAccess(String access) { this.access = access; }
+
+    /** Требует ли предмет донат-«Доступ» для выдачи. */
+    public boolean accessRestricted() {
+        return access != null && !access.isBlank();
     }
 
     public void setPermission(String permission) { this.permission = permission; }

@@ -46,11 +46,8 @@ import ru.liko.pjmbasemod.common.network.packet.RadioEventPacket;
 import ru.liko.pjmbasemod.common.network.packet.RegionMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankXpPacket;
-import ru.liko.pjmbasemod.common.network.packet.RoleAccessSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RoleSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.SyncPjmDataPacket;
-import ru.liko.pjmbasemod.common.network.packet.TargetRoleAccessPacket;
-import ru.liko.pjmbasemod.client.gui.RadialMenuScreen;
 
 public final class ClientPacketHandlersImpl implements ClientPacketProxy {
 
@@ -161,21 +158,6 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
         var localPlayer = Minecraft.getInstance().player;
         if (localPlayer != null && payload.playerId().equals(localPlayer.getUUID())) {
             ClientRoleState.update(payload);
-        }
-    }
-
-    @Override
-    public void roleAccessSync(RoleAccessSyncPacket payload) {
-        // UUID-фильтр не нужен: пакет без playerId, шлётся только владельцу (sendToPlayer) и описывает его собственные роли.
-        ClientRoleState.updateAccess(payload);
-    }
-
-    @Override
-    public void targetRoleAccess(TargetRoleAccessPacket payload) {
-        ClientRoleState.updateTargetAccess(payload);
-        // Если открыто радиальное меню — перестроить, чтобы погасить недоступные цели роли.
-        if (Minecraft.getInstance().screen instanceof RadialMenuScreen radial) {
-            radial.onTargetRoleAccessUpdated();
         }
     }
 

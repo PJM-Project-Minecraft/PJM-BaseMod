@@ -13,6 +13,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.util.TriState;
 import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -50,7 +51,6 @@ import ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers;
 import ru.liko.pjmbasemod.common.network.packet.SyncPjmDataPacket;
 import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.region.RegionManager;
-import ru.liko.pjmbasemod.common.role.RoleAccessRegistry;
 import ru.liko.pjmbasemod.common.role.RoleLimitRegistry;
 import ru.liko.pjmbasemod.common.role.RoleService;
 import ru.liko.pjmbasemod.common.voice.VoicechatBridge;
@@ -142,6 +142,18 @@ public final class PjmServerEvents {
         }
         if (!Config.isDisableHunger()) return;
         disableHunger(player);
+    }
+
+    @SubscribeEvent
+    public static void onIncomingDamage(LivingIncomingDamageEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer victim)) return;
+        if (BaseZoneManager.shouldCancelFriendlyFire(event.getSource().getEntity(), victim)) {
+            event.setCanceled(true);
+            return;
+        }
+        if (BaseZoneManager.shouldCancelExplosion(event.getSource(), victim)) {
+            event.setCanceled(true);
+        }
     }
 
     @SubscribeEvent
@@ -253,7 +265,6 @@ public final class PjmServerEvents {
         ru.liko.pjmbasemod.common.inventory.EquipmentRoleIndex.get().rebuild();
         CrateRegistry.get().reload();
         RoleLimitRegistry.get().reload();
-        RoleAccessRegistry.get().reload();
         InventoryLimitRegistry.get().reload();
         SkinRegistry.get().reload();
         RankService.onServerStarted(event.getServer());

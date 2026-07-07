@@ -3,14 +3,14 @@ package ru.liko.pjmbasemod.common.role;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import ru.liko.pjmbasemod.common.faction.DeputyPermission;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
+import ru.liko.pjmbasemod.common.faction.FactionDeputySavedData;
 import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
-import ru.liko.pjmbasemod.common.network.packet.RoleAccessSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RoleSyncPacket;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -48,16 +48,24 @@ public final class RoleService {
 
     public static boolean canAssignAny(ServerPlayer actor) {
         return RolePermissions.can(actor, RolePermissions.ADMIN)
-                || FactionCommanderService.isActiveCommander(actor);
+                || FactionCommanderService.isActiveCommander(actor)
+                || isRoleDeputy(actor, FrontlineTeams.resolvePlayerTeamId(actor));
     }
 
     public static boolean canAssign(@Nullable ServerPlayer actor, ServerPlayer target) {
         if (actor == null) return true;
         if (RolePermissions.can(actor, RolePermissions.ADMIN)) return true;
-        String commanderTeam = FactionCommanderService.activeCommanderTeam(actor);
-        if (commanderTeam == null) return false;
         String targetTeam = FrontlineTeams.resolvePlayerTeamId(target);
-        return commanderTeam.equals(targetTeam);
+        String commanderTeam = FactionCommanderService.activeCommanderTeam(actor);
+        if (commanderTeam != null && commanderTeam.equals(targetTeam)) return true;
+        return isRoleDeputy(actor, targetTeam);
+    }
+
+    /** Заместитель фракции с правом {@link DeputyPermission#ASSIGN_ROLES} на указанной команде. */
+    public static boolean isRoleDeputy(@Nullable ServerPlayer actor, @Nullable String teamId) {
+        if (actor == null || actor.getServer() == null || teamId == null || teamId.isBlank()) return false;
+        int perms = FactionDeputySavedData.get(actor.getServer()).permissions(teamId, actor.getUUID());
+        return DeputyPermission.has(perms, DeputyPermission.ASSIGN_ROLES);
     }
 
     public static AssignmentResult assignRole(@Nullable ServerPlayer actor, ServerPlayer target,
@@ -75,17 +83,19 @@ public final class RoleService {
             return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.target_no_team"));
         }
 
-        boolean selfAssignPaid = actor != null && actor == target && role != null
-                && RoleAccessRegistry.get().isPaid(role)
-                && RolePermissions.canUseRole(target, role);
-
-        if (actor != null && !selfAssignPaid && !RolePermissions.can(actor, RolePermissions.ADMIN)) {
+        // Боевую роль назначает только ADMIN | командир целевой фракции | заместитель с ASSIGN_ROLES.
+        // Само-выдача роли игроком удалена вместе с донат-ролями (донат теперь — «Доступ», см. common/access).
+        if (actor != null && !RolePermissions.can(actor, RolePermissions.ADMIN)) {
             String commanderTeam = FactionCommanderService.activeCommanderTeam(actor);
-            if (commanderTeam == null) {
+            boolean commanderOfTarget = commanderTeam != null && commanderTeam.equals(targetTeam);
+            // Заместитель с правом ASSIGN_ROLES выдаёт роли своей фракции наравне с командиром.
+            boolean deputyOfTarget = isRoleDeputy(actor, targetTeam);
+            if (!commanderOfTarget && !deputyOfTarget) {
+                // Командир чужой фракции — уточняем причину; иначе прав на выдачу нет вовсе.
+                if (commanderTeam != null) {
+                    return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.target_wrong_faction"));
+                }
                 return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.no_assign_permission"));
-            }
-            if (!commanderTeam.equals(targetTeam)) {
-                return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.target_wrong_faction"));
             }
         }
 
@@ -98,11 +108,6 @@ public final class RoleService {
             }
             return AssignmentResult.success(Component.translatable("gui.pjmbasemod.role.cleared",
                     target.getName().getString()));
-        }
-
-        if (!RolePermissions.canUseRole(target, role)) {
-            return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.not_unlocked",
-                    Component.translatable(role.translationKey())));
         }
 
         AssignmentResult capResult = validateRoleCap(target.getServer(), target.getUUID(), targetTeam, role);
@@ -162,34 +167,6 @@ public final class RoleService {
         if (player == null || player.getServer() == null) return;
         PjmNetworking.sendToPlayer(player, new RoleSyncPacket(player.getUUID(),
                 currentRoleId(player), canAssignAny(player)));
-        PjmNetworking.sendToPlayer(player, new RoleAccessSyncPacket(selfAssignableRoleIds(player)));
-    }
-
-    /** id донат-ролей, которыми игрок владеет (может назначить себе сам). */
-    private static List<String> selfAssignableRoleIds(ServerPlayer player) {
-        List<String> ids = new ArrayList<>();
-        for (CombatRole role : CombatRole.values()) {
-            if (RoleAccessRegistry.get().isPaid(role) && RolePermissions.canUseRole(player, role)) {
-                ids.add(role.id());
-            }
-        }
-        return ids;
-    }
-
-    /**
-     * id ролей, которые можно назначить указанной цели: бесплатные (всегда) + платные, которыми цель владеет.
-     * Зеркалит серверный гейт {@link RolePermissions#canUseRole} в {@link #assignRole}, чтобы клиент-командир
-     * мог погасить недоступные роли в меню.
-     */
-    public static List<String> assignableRoleIdsFor(ServerPlayer target) {
-        List<String> ids = new ArrayList<>();
-        if (target == null) return ids;
-        for (CombatRole role : CombatRole.values()) {
-            if (RolePermissions.canUseRole(target, role)) {
-                ids.add(role.id());
-            }
-        }
-        return ids;
     }
 
     public static void syncAll(MinecraftServer server) {
