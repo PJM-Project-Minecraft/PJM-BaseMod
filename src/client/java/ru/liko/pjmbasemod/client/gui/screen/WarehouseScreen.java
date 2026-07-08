@@ -15,6 +15,7 @@ import ru.liko.pjmbasemod.common.network.packet.WithdrawItemPacket;
 import ru.liko.pjmbasemod.common.warehouse.WarehousePoolCategory;
 import ru.liko.pjmbasemod.common.warehouse.WarehouseSnapshot;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -38,6 +39,10 @@ public class WarehouseScreen extends PjmBaseScreen {
     private static final int BUTTON_GAP = 4;
     private static final int CATEGORY_ROW_HEIGHT = 22;
     private static final int CATEGORY_ROW_STEP = 26;
+    /** Скроллбар списка предметов: ширина бегунка и полный зарезервированный справа gutter. */
+    private static final int SCROLLBAR_WIDTH = 4;
+    private static final int SCROLLBAR_GUTTER = 10;
+    private static final int SCROLLBAR_MIN_THUMB = 16;
     /** Строка поиска + сортировки между панелью очков и списком предметов. */
     private static final int SEARCH_ROW_HEIGHT = 20;
     private static final int SORT_BUTTON_WIDTH = 120;
@@ -70,6 +75,8 @@ public class WarehouseScreen extends PjmBaseScreen {
     private final List<String> categories = new ArrayList<>();
     private int selectedCategory;
     private int scroll;
+    /** Активно ли перетаскивание бегунка скроллбара мышью. */
+    private boolean draggingScrollbar;
 
     /** Текст поиска (глобальный — игнорирует выбранную категорию, когда не пуст). */
     private String searchQuery = "";
@@ -179,8 +186,51 @@ public class WarehouseScreen extends PjmBaseScreen {
     }
 
     // Единый источник зон кнопок строки — используется и в рендере, и в обработке клика.
+    // Справа зарезервирован SCROLLBAR_GUTTER под вертикальный скроллбар списка.
     private int contentLeft()  { return guiLeft() + SIDEBAR_WIDTH + 8; }
-    private int contentWidth() { return GUI_WIDTH - SIDEBAR_WIDTH - 16; }
+    private int contentWidth() { return GUI_WIDTH - SIDEBAR_WIDTH - 16 - SCROLLBAR_GUTTER; }
+
+    /** Максимально возможный скролл (0 — когда список умещается целиком). */
+    private int maxScroll() {
+        return Math.max(0, currentItems().size() - rowsVisible());
+    }
+
+    /** Вертикальный трек скроллбара — в зарезервированном gutter справа от списка. */
+    private Rect scrollbarTrackRect() {
+        int x = contentLeft() + contentWidth() + (SCROLLBAR_GUTTER - SCROLLBAR_WIDTH) / 2;
+        int y = listTop();
+        int h = guiTop() + GUI_HEIGHT - 8 - listTop();
+        return new Rect(x, y, SCROLLBAR_WIDTH, h);
+    }
+
+    /** Зона бегунка скроллбара; {@code null}, если список умещается целиком. */
+    @Nullable
+    private Rect scrollbarThumbRect() {
+        int max = maxScroll();
+        if (max <= 0) return null;
+        Rect track = scrollbarTrackRect();
+        int total = currentItems().size();
+        int visible = rowsVisible();
+        int thumbH = Math.max(SCROLLBAR_MIN_THUMB, (int) ((long) track.h() * visible / total));
+        int usable = track.h() - thumbH;
+        int thumbY = track.y() + (usable * scroll / max);
+        return new Rect(track.x(), thumbY, track.w(), thumbH);
+    }
+
+    /** Маппит Y мыши в позицию скролла так, чтобы бегунок центрировался под курсором. */
+    private void setScrollFromMouse(int mouseY) {
+        int max = maxScroll();
+        if (max <= 0) return;
+        Rect track = scrollbarTrackRect();
+        int total = currentItems().size();
+        int visible = rowsVisible();
+        int thumbH = Math.max(SCROLLBAR_MIN_THUMB, (int) ((long) track.h() * visible / total));
+        int usable = track.h() - thumbH;
+        if (usable <= 0) { scroll = 0; return; }
+        int rel = mouseY - track.y() - thumbH / 2;
+        scroll = Math.round((float) rel / usable * max);
+        clampScroll();
+    }
 
     private record Rect(int x, int y, int w, int h) {
         boolean contains(double mx, double my) {
@@ -255,6 +305,21 @@ public class WarehouseScreen extends PjmBaseScreen {
     }
 
     @Override
+    protected boolean mouseDraggedScaled(int mouseX, int mouseY, int button, double dragX, double dragY) {
+        if (draggingScrollbar && button == 0) {
+            setScrollFromMouse(mouseY);
+            return true;
+        }
+        return super.mouseDraggedScaled(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    protected boolean mouseReleasedScaled(int mouseX, int mouseY, int button) {
+        if (button == 0) draggingScrollbar = false;
+        return super.mouseReleasedScaled(mouseX, mouseY, button);
+    }
+
+    @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (searchFocused) {
             if (keyCode == 256) { // Esc — снять фокус, экран не закрываем
@@ -321,6 +386,17 @@ public class WarehouseScreen extends PjmBaseScreen {
             searchFocused = false;
             scroll = 0;
             clampScroll();
+            return true;
+        }
+
+        // Скроллбар: клик по бегунку — начать перетаскивание; клик по треку — прыжок к позиции.
+        if (maxScroll() > 0 && scrollbarTrackRect().contains(mouseX, mouseY)) {
+            Rect thumb = scrollbarThumbRect();
+            if (thumb == null || !thumb.contains(mouseX, mouseY)) {
+                setScrollFromMouse(mouseY);
+            }
+            draggingScrollbar = true;
+            searchFocused = false;
             return true;
         }
 
@@ -474,8 +550,8 @@ public class WarehouseScreen extends PjmBaseScreen {
                 sortRect.x() + 5, sortRect.y() + (sortRect.h() - 8) / 2, 0xFFC8C8C8, false);
 
         // Список предметов
-        int contentLeft = left + SIDEBAR_WIDTH + 8;
-        int contentWidth = GUI_WIDTH - SIDEBAR_WIDTH - 16;
+        int contentLeft = contentLeft();
+        int contentWidth = contentWidth();
         int rows = rowsVisible();
         List<WarehouseSnapshot.ItemEntry> items = currentItems();
         int y = listTop();
@@ -583,6 +659,21 @@ public class WarehouseScreen extends PjmBaseScreen {
             Component empty = Component.translatable("gui.pjmbasemod.warehouse.empty");
             graphics.drawString(this.font, empty, contentLeft + 4, listTop() + 8, 0xFF888888, false);
         }
+
+        renderScrollbar(graphics, mouseX, mouseY);
+    }
+
+    /** Рисует трек и перетаскиваемый бегунок скроллбара; скрыт, когда список умещается целиком. */
+    private void renderScrollbar(GuiGraphics graphics, int mouseX, int mouseY) {
+        Rect thumb = scrollbarThumbRect();
+        if (thumb == null) return; // всё влезает — скроллбар не нужен
+
+        Rect track = scrollbarTrackRect();
+        graphics.fill(track.x(), track.y(), track.x() + track.w(), track.y() + track.h(), 0xFF15151A);
+
+        boolean active = draggingScrollbar || thumb.contains(mouseX, mouseY);
+        int thumbColor = active ? 0xFF5A5A6A : 0xFF3A3A46;
+        graphics.fill(thumb.x(), thumb.y(), thumb.x() + thumb.w(), thumb.y() + thumb.h(), thumbColor);
     }
 
     private String roleNames(List<String> roleIds) {

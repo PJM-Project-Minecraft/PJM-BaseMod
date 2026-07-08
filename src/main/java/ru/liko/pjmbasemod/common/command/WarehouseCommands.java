@@ -78,6 +78,26 @@ public final class WarehouseCommands {
                                                                 StringArgumentType.getString(ctx, "id"),
                                                                 StringArgumentType.getString(ctx, "category"),
                                                                 IntegerArgumentType.getInteger(ctx, "amount")))))))
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("id", StringArgumentType.word())
+                                        .suggests((ctx, b) -> suggestWarehouses(ctx.getSource(), b))
+                                        .then(Commands.argument("category", StringArgumentType.word())
+                                                .suggests((ctx, b) -> suggestPoolsWithAll(b))
+                                                .then(Commands.argument("amount", IntegerArgumentType.integer(0, 100000))
+                                                        .executes(ctx -> setPoints(ctx.getSource(),
+                                                                StringArgumentType.getString(ctx, "id"),
+                                                                StringArgumentType.getString(ctx, "category"),
+                                                                IntegerArgumentType.getInteger(ctx, "amount")))))))
+                        .then(Commands.literal("clear")
+                                .then(Commands.argument("id", StringArgumentType.word())
+                                        .suggests((ctx, b) -> suggestWarehouses(ctx.getSource(), b))
+                                        .executes(ctx -> clearPoints(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "id"), "all"))
+                                        .then(Commands.argument("category", StringArgumentType.word())
+                                                .suggests((ctx, b) -> suggestPoolsWithAll(b))
+                                                .executes(ctx -> clearPoints(ctx.getSource(),
+                                                        StringArgumentType.getString(ctx, "id"),
+                                                        StringArgumentType.getString(ctx, "category"))))))
                         .then(Commands.literal("get")
                                 .then(Commands.argument("id", StringArgumentType.word())
                                         .suggests((ctx, b) -> suggestWarehouses(ctx.getSource(), b))
@@ -235,6 +255,53 @@ public final class WarehouseCommands {
         data.addPoints(wid, pool, amount);
         source.sendSuccess(() -> Component.literal("Складу '" + wid + "' добавлено " + amount
                 + " очков пула " + pool.id() + " (всего " + data.getPoints(wid, pool) + ")."), true);
+        return 1;
+    }
+
+    private static int setPoints(CommandSourceStack source, String id, String category, int amount) {
+        String wid = WarehouseItemRegistry.sanitizeId(id);
+        WarehouseSavedData data = WarehouseSavedData.get(source.getServer());
+        data.createWarehouse(wid);
+        if ("all".equalsIgnoreCase(category)) {
+            for (WarehousePoolCategory pool : WarehousePoolCategory.values()) {
+                data.setPoints(wid, pool, amount);
+            }
+            source.sendSuccess(() -> Component.literal("Складу '" + wid + "' выставлено "
+                    + amount + " очков во всех пулах."), true);
+            return 1;
+        }
+        WarehousePoolCategory pool = WarehousePoolCategory.byId(category);
+        if (pool == null) {
+            source.sendFailure(Component.literal("Неизвестный пул: " + category
+                    + ". Используй weapon, supply, equipment, raw, special или all."));
+            return 0;
+        }
+        data.setPoints(wid, pool, amount);
+        source.sendSuccess(() -> Component.literal("Складу '" + wid + "' выставлено "
+                + amount + " очков пула " + pool.id() + "."), true);
+        return 1;
+    }
+
+    private static int clearPoints(CommandSourceStack source, String id, String category) {
+        String wid = WarehouseItemRegistry.sanitizeId(id);
+        WarehouseSavedData data = WarehouseSavedData.get(source.getServer());
+        data.createWarehouse(wid);
+        if ("all".equalsIgnoreCase(category)) {
+            for (WarehousePoolCategory pool : WarehousePoolCategory.values()) {
+                data.setPoints(wid, pool, 0);
+            }
+            source.sendSuccess(() -> Component.literal("Очки склада '" + wid + "' обнулены (все пулы)."), true);
+            return 1;
+        }
+        WarehousePoolCategory pool = WarehousePoolCategory.byId(category);
+        if (pool == null) {
+            source.sendFailure(Component.literal("Неизвестный пул: " + category
+                    + ". Используй weapon, supply, equipment, raw, special или all."));
+            return 0;
+        }
+        data.setPoints(wid, pool, 0);
+        source.sendSuccess(() -> Component.literal("Очки пула " + pool.id()
+                + " склада '" + wid + "' обнулены."), true);
         return 1;
     }
 
@@ -630,6 +697,15 @@ public final class WarehouseCommands {
     }
 
     private static CompletableFuture<Suggestions> suggestPools(SuggestionsBuilder builder) {
+        for (WarehousePoolCategory pool : WarehousePoolCategory.values()) {
+            builder.suggest(pool.id());
+        }
+        return builder.buildFuture();
+    }
+
+    /** Подсказки пулов + спец-значение {@code all} (для set/clear по всем пулам сразу). */
+    private static CompletableFuture<Suggestions> suggestPoolsWithAll(SuggestionsBuilder builder) {
+        builder.suggest("all");
         for (WarehousePoolCategory pool : WarehousePoolCategory.values()) {
             builder.suggest(pool.id());
         }
