@@ -16,6 +16,11 @@ description = '''${mod_description}'''
 [[mixins]]
 config = "pjmbasemod.mixins.json"
 
+# Опциональный миксин в SuperbWarfare (логирование уничтожения техники). required=false —
+# без SuperbWarfare класс-таргет не загружается и миксин просто не применяется.
+[[mixins]]
+config = "pjmbasemod.sbw.mixins.json"
+
 [[dependencies.${mod_id}]]
 modId = "neoforge"
 type = "required"

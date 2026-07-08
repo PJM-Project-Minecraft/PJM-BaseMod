@@ -94,6 +94,24 @@ public final class ModerationService {
 
         broadcast(server, Component.translatable("pjmbasemod.moderation.ban.broadcast", targetName,
                 DurationParser.format(durationMs), reason));
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.MOD,
+                modName(moderator) + " забанил " + targetName + " (" + DurationParser.format(durationMs) + "): " + reason);
+    }
+
+    /**
+     * Сколько РАЗНЫХ онлайн-игроков сейчас подключены с этого IP. За прокси
+     * (BungeeCord/Velocity/NAT без ip-forwarding) {@link ServerPlayer#getIpAddress()} возвращает
+     * общий IP прокси для всех — значение &gt; 1 является его сигнатурой. Используется, чтобы
+     * запретить IP-бан общего адреса (иначе бан одного вычистит полсервера).
+     */
+    public static long onlinePlayersWithIp(MinecraftServer server, String ip) {
+        if (server == null || ip == null || ip.isBlank()) return 0L;
+        return server.getPlayerList().getPlayers().stream()
+                .filter(p -> ip.equals(p.getIpAddress()))
+                .map(ServerPlayer::getUUID)
+                .distinct()
+                .count();
     }
 
     public static void applyIpBan(MinecraftServer server, String ip, long durationMs,
@@ -109,6 +127,9 @@ public final class ModerationService {
             if (ip.equals(p.getIpAddress())) p.connection.disconnect(banScreen(ban));
         }
         broadcast(server, Component.translatable("pjmbasemod.moderation.ipban.broadcast", ip, reason));
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.MOD,
+                modName(moderator) + " забанил IP " + ip + ": " + reason);
     }
 
     /** @return true, если бан был снят. */
@@ -134,6 +155,9 @@ public final class ModerationService {
                         System.currentTimeMillis(), 0L));
         target.connection.disconnect(Component.translatable("pjmbasemod.moderation.disconnect.kick", reason));
         broadcast(server, Component.translatable("pjmbasemod.moderation.kick.broadcast", target.getGameProfile().getName(), reason));
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.MOD,
+                modName(moderator) + " кикнул " + target.getGameProfile().getName() + ": " + reason);
     }
 
     // ---------------------------------------------------------------- муты

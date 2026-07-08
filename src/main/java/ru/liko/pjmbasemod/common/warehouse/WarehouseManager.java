@@ -153,6 +153,10 @@ public final class WarehouseManager {
 
         giveItem(player, def, amount);
         LAST_WITHDRAW.put(player.getUUID(), now);
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.WAREHOUSE,
+                player.getGameProfile().getName() + " взял со склада " + def.displayName()
+                        + " ×" + amount + " (-" + cost + " очк.)");
         player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.withdrawn",
                 amount, def.displayName()), true);
         player.serverLevel().playSound(null, player.blockPosition(), SoundEvents.ITEM_PICKUP,
@@ -245,6 +249,10 @@ public final class WarehouseManager {
                     .refund(player.server, player.getUUID(), pointsGained, depositLimit.max(), depositLimit.regenPerHour());
         }
 
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.WAREHOUSE,
+                player.getGameProfile().getName() + " сдал на склад " + def.displayName()
+                        + " ×" + deposited + " (+" + pointsGained + " очк.)");
         player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.deposited",
                 deposited, def.displayName(), pointsGained), true);
         player.serverLevel().playSound(null, player.blockPosition(), SoundEvents.ITEM_PICKUP,
