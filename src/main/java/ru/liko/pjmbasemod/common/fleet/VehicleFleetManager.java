@@ -3,12 +3,19 @@ package ru.liko.pjmbasemod.common.fleet;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
 import ru.liko.pjmbasemod.common.garage.GarageType;
+import ru.liko.pjmbasemod.common.garage.VehicleDefinition;
+import ru.liko.pjmbasemod.common.garage.VehicleRegistry;
+import ru.liko.pjmbasemod.common.logging.LogCategory;
+import ru.liko.pjmbasemod.common.logging.PjmActionLogger;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -111,5 +118,76 @@ public final class VehicleFleetManager {
     public static void unregister(MinecraftServer server, UUID entityId) {
         if (server == null) return;
         VehicleFleetSavedData.get(server).remove(entityId);
+    }
+
+    private static int tickCounter = 0;
+
+    public static void onServerTick(MinecraftServer server) {
+        if (!Config.isFleetEnabled()) return;
+        if (++tickCounter < 20) return;
+        tickCounter = 0;
+
+        VehicleFleetSavedData data = VehicleFleetSavedData.get(server);
+        long now = server.overworld().getGameTime();
+        int timeoutTicks = Config.getFleetAbandonTimeoutSeconds() * 20;
+        int warnTicks = Config.getFleetAbandonWarningSeconds() * 20;
+
+        List<UUID> toRemove = new ArrayList<>();
+        for (FleetRecord record : data.all()) {
+            ServerLevel level = server.getLevel(record.dimension);
+            Entity entity = level == null ? null : level.getEntity(record.entityId);
+
+            // Сущности нет / удалена (в т.ч. уничтожена и снята миксином) → снять запись тихо.
+            if (entity == null || entity.isRemoved()) {
+                toRemove.add(record.entityId);
+                continue;
+            }
+            // Есть водитель/пассажир → техника «живая», сбросить отсчёт и предупреждение.
+            if (!entity.getPassengers().isEmpty()) {
+                if (record.lastOccupiedGameTime != now || record.warned) {
+                    record.lastOccupiedGameTime = now;
+                    record.warned = false;
+                    data.setDirty();
+                }
+                continue;
+            }
+            long idle = now - record.lastOccupiedGameTime;
+            if (idle > timeoutTicks + warnTicks) {
+                entity.discard();
+                toRemove.add(record.entityId);
+                PjmActionLogger.instance().logSubsystem(LogCategory.GARAGE,
+                        "Брошенная техника удалена: " + displayName(record)
+                                + " @ " + record.dimension.location());
+            } else if (idle > timeoutTicks && !record.warned) {
+                record.warned = true;
+                data.setDirty();
+                warnAbandon(server, entity, record, warnTicks);
+            }
+        }
+        for (UUID id : toRemove) {
+            data.remove(id);
+        }
+    }
+
+    private static String displayName(FleetRecord record) {
+        VehicleDefinition def = VehicleRegistry.get().get(record.defId);
+        return def != null ? def.displayName() : record.defId;
+    }
+
+    private static void warnAbandon(MinecraftServer server, Entity entity, FleetRecord record, int warnTicks) {
+        int seconds = Math.max(1, warnTicks / 20);
+        String name = displayName(record);
+        // Владельцу — системное сообщение, если онлайн.
+        ServerPlayer owner = server.getPlayerList().getPlayer(record.ownerId);
+        if (owner != null) {
+            owner.sendSystemMessage(Component.translatable("gui.pjmbasemod.fleet.abandon_warning", name, seconds));
+        }
+        // Игрокам рядом — actionbar.
+        if (entity.level() instanceof ServerLevel level) {
+            for (ServerPlayer near : level.getPlayers(p -> p.distanceToSqr(entity) <= 32.0 * 32.0)) {
+                near.displayClientMessage(
+                        Component.translatable("gui.pjmbasemod.fleet.abandon_warning", name, seconds), true);
+            }
+        }
     }
 }
