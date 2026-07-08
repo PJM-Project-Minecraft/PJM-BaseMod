@@ -113,6 +113,7 @@ public final class Config {
     public static boolean isFrontlineContestedFreeze() { return data().frontline.capture.contestedFreeze; }
     public static boolean isFrontlineRequireAdjacentOwner() { return data().frontline.capture.requireAdjacentOwnedChunk; }
     public static boolean isFrontlineAllowNeutralOpening() { return data().frontline.capture.allowNeutralOpeningCapture; }
+    public static boolean isFrontlineEncirclementEnabled() { return data().frontline.capture.encirclementEnabled; }
     public static int     getRegionMaxChunks(){ return data().region.maxChunks; }
     public static boolean isFrontlineBlueMapEnabled() { return data().frontline.bluemap.enabled; }
     public static int getFrontlineBlueMapSyncDebounceTicks() { return data().frontline.bluemap.syncDebounceTicks; }
@@ -449,6 +450,8 @@ public final class Config {
         boolean contestedFreeze = true;
         boolean requireAdjacentOwnedChunk = true;
         boolean allowNeutralOpeningCapture = true;
+        /** Котёл: территория, отрезанная от границы региона кольцом одной команды, переходит к ней. */
+        boolean encirclementEnabled = true;
     }
 
     static final class BlueMap {

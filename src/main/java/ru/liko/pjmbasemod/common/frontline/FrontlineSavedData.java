@@ -11,6 +11,7 @@ import ru.liko.pjmbasemod.common.region.Region;
 import ru.liko.pjmbasemod.common.region.RegionSavedData;
 
 import javax.annotation.Nullable;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -21,6 +22,8 @@ import java.util.Map;
 import java.util.Set;
 
 public final class FrontlineSavedData extends SavedData {
+
+    private static final int[][] NEIGHBOR_DELTAS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
     private static final String DATA_NAME = "pjmbasemod_frontline_state";
     private static final SavedData.Factory<FrontlineSavedData> FACTORY = new SavedData.Factory<>(
@@ -224,6 +227,76 @@ public final class FrontlineSavedData extends SavedData {
             }
         }
         return false;
+    }
+
+    /**
+     * Котёл: находит связные области чанков, не принадлежащих {@code teamId}, которые
+     * полностью окружены её территорией и не касаются границы региона. Такие «карманы»
+     * целиком переходят к {@code teamId} — вместе с нейтралью и серой зоной внутри кольца.
+     * Прогресс захвата секторов, пересекающихся с котлом, сбрасывается.
+     * Возвращает перешедшие чанки.
+     */
+    public Set<FrontlineChunkKey> captureEncircledPockets(Region region, String teamId) {
+        if (region == null || !region.isComplete() || !FrontlineTeams.isCombatTeam(teamId)) return Set.of();
+
+        int minX = region.minX();
+        int maxX = region.maxX();
+        int minZ = region.minZ();
+        int maxZ = region.maxZ();
+        int depth = maxZ - minZ + 1;
+        boolean[] visited = new boolean[(maxX - minX + 1) * depth];
+        Set<FrontlineChunkKey> transferred = new LinkedHashSet<>();
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                int startIndex = (x - minX) * depth + (z - minZ);
+                if (visited[startIndex]) continue;
+                if (teamId.equals(ownerOf(new FrontlineChunkKey(region.dimension(), x, z)))) continue;
+
+                // Флуд-филл связной области «не наших» чанков (враг/нейтраль/серая зона).
+                List<FrontlineChunkKey> pocket = new ArrayList<>();
+                boolean touchesBorder = false;
+                ArrayDeque<int[]> queue = new ArrayDeque<>();
+                visited[startIndex] = true;
+                queue.add(new int[]{x, z});
+                while (!queue.isEmpty()) {
+                    int[] cell = queue.poll();
+                    int cx = cell[0];
+                    int cz = cell[1];
+                    pocket.add(new FrontlineChunkKey(region.dimension(), cx, cz));
+                    if (cx == minX || cx == maxX || cz == minZ || cz == maxZ) touchesBorder = true;
+
+                    for (int[] delta : NEIGHBOR_DELTAS) {
+                        int nx = cx + delta[0];
+                        int nz = cz + delta[1];
+                        if (nx < minX || nx > maxX || nz < minZ || nz > maxZ) continue;
+                        int index = (nx - minX) * depth + (nz - minZ);
+                        if (visited[index]) continue;
+                        if (teamId.equals(ownerOf(new FrontlineChunkKey(region.dimension(), nx, nz)))) continue;
+                        visited[index] = true;
+                        queue.add(new int[]{nx, nz});
+                    }
+                }
+
+                if (!touchesBorder) transferred.addAll(pocket);
+            }
+        }
+
+        if (transferred.isEmpty()) return Set.of();
+
+        Set<FrontlineSectorKey> pocketSectors = new LinkedHashSet<>();
+        for (FrontlineChunkKey key : transferred) {
+            FrontlineChunkState chunk = getOrCreateChunk(key);
+            chunk.setOwnerTeamId(teamId);
+            chunk.clearCapture();
+            pocketSectors.add(FrontlineSectorKey.of(region, key.x(), key.z()));
+        }
+        for (FrontlineSectorKey sectorKey : pocketSectors) {
+            FrontlineSectorState sector = sectors.get(sectorKey);
+            if (sector != null) sector.clearCapture();
+        }
+        setDirty();
+        return transferred;
     }
 
     public int rebuildGrayZones(Region region, Collection<FrontlineChunkKey> preferredChunks) {

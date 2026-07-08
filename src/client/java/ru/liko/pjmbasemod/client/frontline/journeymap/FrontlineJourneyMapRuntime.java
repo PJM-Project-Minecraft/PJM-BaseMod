@@ -44,7 +44,11 @@ public final class FrontlineJourneyMapRuntime implements FrontlineJourneyMapBrid
     private static final int OWNER_DISPLAY_ORDER = 110;
     private static final int GRAY_ZONE_DISPLAY_ORDER = 115;
     private static final int REGION_BORDER_DISPLAY_ORDER = 120;
+    private static final int FRONT_LINE_DISPLAY_ORDER = 170;
     private static final int ACTIVE_SECTOR_DISPLAY_ORDER = 180;
+
+    // Ширина полосы линии фронта в блоках (рисуется внутрь своей территории).
+    private static final int FRONT_LINE_WIDTH_BLOCKS = 3;
 
     // Полная (тяжёлая) пересборка оверлеев не чаще одного раза в этот интервал.
     // Частые sync-пакеты во время боя коалесцируются в одну пересборку.
@@ -264,6 +268,7 @@ public final class FrontlineJourneyMapRuntime implements FrontlineJourneyMapBrid
         buildNeutralRegionOverlays(in, overlays);
         buildOwnerOverlays(in, overlays);
         buildRegionBorderOverlays(in, overlays);
+        buildFrontLineOverlays(in, overlays);
         buildActiveSectorOverlays(in, overlays, sectorOverlays);
 
         return BuildResult.ok(in, overlays, sectorOverlays);
@@ -302,12 +307,13 @@ public final class FrontlineJourneyMapRuntime implements FrontlineJourneyMapBrid
         for (Map.Entry<OwnerKey, Set<ChunkPos>> entry : chunksByOwner.entrySet()) {
             OwnerKey owner = entry.getKey();
             boolean grayZone = owner.isGrayZone();
+            // Рамки территорий приглушены: границу соприкосновения рисует линия фронта.
             ShapeProperties shape = new ShapeProperties()
                     .setFillColor(owner.color())
                     .setFillOpacity(grayZone ? Math.max(0.42f, alpha(in.fillAlpha)) : alpha(in.fillAlpha))
                     .setStrokeColor(grayZone ? 0xE6E6E6 : owner.color())
-                    .setStrokeOpacity(grayZone ? 0.95f : alpha(in.borderAlpha))
-                    .setStrokeWidth(grayZone ? 2.6f : 2.0f);
+                    .setStrokeOpacity(grayZone ? 0.55f : alpha(in.borderAlpha) * 0.5f)
+                    .setStrokeWidth(grayZone ? 1.4f : 1.0f);
 
             ResourceKey<Level> dimension = dimensionKey(owner.dimension());
             for (MapPolygonWithHoles polygon : PolygonHelper.createChunksPolygon(entry.getValue(), MAP_Y)) {
@@ -341,6 +347,99 @@ public final class FrontlineJourneyMapRuntime implements FrontlineJourneyMapBrid
                     .setDisplayOrder(REGION_BORDER_DISPLAY_ORDER);
             out.add(overlay);
         }
+    }
+
+    // Чёткая линия фронта: жирные полосы по рёбрам соприкосновения территории команды
+    // с чужой территорией или серой зоной (границы с нейтралью и краем региона — не фронт).
+    private void buildFrontLineOverlays(BuildInputs in, List<PolygonOverlay> out) {
+        Map<String, Map<Long, String>> ownersByDim = new HashMap<>();
+        for (FrontlineMapSyncPacket.ChunkEntry chunk : in.chunks) {
+            if (chunk.ownerId().isBlank()) continue;
+            ownersByDim.computeIfAbsent(chunk.dimension(), ignored -> new HashMap<>())
+                    .put(packChunk(chunk.x(), chunk.z()), chunk.ownerId());
+        }
+
+        // Рёбра группируются по (измерение, цвет, сторона, фиксированная координата) для склейки.
+        Map<FrontRunKey, List<Integer>> runs = new LinkedHashMap<>();
+        for (FrontlineMapSyncPacket.ChunkEntry chunk : in.chunks) {
+            if (chunk.ownerId().isBlank() || FrontlineTeams.GRAY_ZONE_ID.equals(chunk.ownerId())) continue;
+            Map<Long, String> owners = ownersByDim.get(chunk.dimension());
+            for (FrontSide side : FrontSide.values()) {
+                String neighborOwner = owners.get(packChunk(chunk.x() + side.dx, chunk.z() + side.dz));
+                if (neighborOwner == null || neighborOwner.isBlank() || neighborOwner.equals(chunk.ownerId())) continue;
+                boolean horizontal = side.dz != 0;
+                int fixed = horizontal ? chunk.z() : chunk.x();
+                int varying = horizontal ? chunk.x() : chunk.z();
+                runs.computeIfAbsent(new FrontRunKey(chunk.dimension(), chunk.ownerColor(), side, fixed), ignored -> new ArrayList<>())
+                        .add(varying);
+            }
+        }
+
+        for (Map.Entry<FrontRunKey, List<Integer>> entry : runs.entrySet()) {
+            FrontRunKey key = entry.getKey();
+            List<Integer> coords = entry.getValue();
+            coords.sort(null);
+
+            ShapeProperties shape = new ShapeProperties()
+                    .setFillColor(key.color())
+                    .setFillOpacity(0.9f)
+                    .setStrokeColor(key.color())
+                    .setStrokeOpacity(0.95f)
+                    .setStrokeWidth(1.0f);
+            ResourceKey<Level> dimension = dimensionKey(key.dimension());
+
+            int start = coords.getFirst();
+            int prev = start;
+            for (int i = 1; i <= coords.size(); i++) {
+                int current = i < coords.size() ? coords.get(i) : Integer.MIN_VALUE;
+                if (i < coords.size() && current == prev + 1) {
+                    prev = current;
+                    continue;
+                }
+                out.add(frontLineOverlay(dimension, shape, key, start, prev));
+                start = current;
+                prev = current;
+            }
+        }
+    }
+
+    private PolygonOverlay frontLineOverlay(ResourceKey<Level> dimension, ShapeProperties shape, FrontRunKey key, int startChunk, int endChunk) {
+        int minX, maxX, minZ, maxZ;
+        switch (key.side()) {
+            case NORTH -> {
+                minX = startChunk << 4;
+                maxX = (endChunk + 1) << 4;
+                minZ = key.fixed() << 4;
+                maxZ = minZ + FRONT_LINE_WIDTH_BLOCKS;
+            }
+            case SOUTH -> {
+                minX = startChunk << 4;
+                maxX = (endChunk + 1) << 4;
+                maxZ = (key.fixed() + 1) << 4;
+                minZ = maxZ - FRONT_LINE_WIDTH_BLOCKS;
+            }
+            case WEST -> {
+                minZ = startChunk << 4;
+                maxZ = (endChunk + 1) << 4;
+                minX = key.fixed() << 4;
+                maxX = minX + FRONT_LINE_WIDTH_BLOCKS;
+            }
+            default -> {
+                minZ = startChunk << 4;
+                maxZ = (endChunk + 1) << 4;
+                maxX = (key.fixed() + 1) << 4;
+                minX = maxX - FRONT_LINE_WIDTH_BLOCKS;
+            }
+        }
+        MapPolygon polygon = PolygonHelper.createBlockRect(
+                new BlockPos(minX, MAP_Y, minZ),
+                new BlockPos(maxX, MAP_Y, maxZ));
+        PolygonOverlay overlay = new PolygonOverlay(Pjmbasemod.MODID, dimension, shape, polygon);
+        overlay.setOverlayGroupName("PJM Frontline")
+                .setTitle(null)
+                .setLabel(null)
+                .setDisplayOrder(FRONT_LINE_DISPLAY_ORDER);
+        return overlay;
     }
 
     private void buildActiveSectorOverlays(BuildInputs in, List<PolygonOverlay> out, Map<String, PolygonOverlay> sectorOut) {
@@ -579,6 +678,20 @@ public final class FrontlineJourneyMapRuntime implements FrontlineJourneyMapBrid
             return FrontlineTeams.GRAY_ZONE_ID.equals(id);
         }
     }
+
+    private enum FrontSide {
+        NORTH(0, -1), SOUTH(0, 1), WEST(-1, 0), EAST(1, 0);
+
+        final int dx;
+        final int dz;
+
+        FrontSide(int dx, int dz) {
+            this.dx = dx;
+            this.dz = dz;
+        }
+    }
+
+    private record FrontRunKey(String dimension, int color, FrontSide side, int fixed) {}
 
     // Замороженный на клиентском потоке вход для фоновой сборки.
     private record BuildInputs(

@@ -329,10 +329,17 @@ public final class FrontlineManager {
             int nextProgress = state.progressTicks() + intervalTicks * Math.max(1, leader.advantage());
             if (nextProgress >= requiredTicks) {
                 List<FrontlineChunkKey> changedChunks = new ArrayList<>(data.setSectorOwnerRaw(presence.region(), key, leader.teamId()));
+                java.util.Set<FrontlineChunkKey> pocketChunks = Config.isFrontlineEncirclementEnabled()
+                        ? data.captureEncircledPockets(presence.region(), leader.teamId())
+                        : java.util.Set.of();
+                changedChunks.addAll(pocketChunks);
                 int grayChanged = data.rebuildGrayZones(presence.region(), changedChunks);
                 int rankRewards = RankService.rewardSectorCapture(server, presence.region(), key, leader.teamId());
                 changed = true;
                 announceCapture(server, presence.region(), key, leader.teamId(), changedChunks.size(), grayChanged, rankRewards);
+                if (!pocketChunks.isEmpty()) {
+                    announceEncirclement(server, presence.region(), leader.teamId(), pocketChunks.size());
+                }
                 continue;
             }
 
@@ -369,6 +376,21 @@ public final class FrontlineManager {
         Component subtitle = Component.literal(teamName + " захватили сектор №" + sector + " в регионе " + region.displayName());
         PjmNetworking.sendToAll(server, new NotificationPacket(title, subtitle, FrontlineTeams.color(server, teamId), 3500L));
         Pjmbasemod.LOGGER.info("[FRONTLINE] {} captured sector {} in region {} (chunks={}, grayChanged={}, rankRewards={})", teamId, sector, region.name(), chunkCount, grayChanged, rankRewards);
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.FRONTLINE,
+                "сектор №" + sector + " в регионе " + region.displayName() + " захвачен командой " + teamName);
+    }
+
+    private static void announceEncirclement(MinecraftServer server, Region region, String teamId, int chunkCount) {
+        String teamName = FrontlineTeams.displayName(server, teamId);
+        Component title = Component.literal("Котёл!");
+        Component subtitle = Component.literal(teamName + " окружили и захватили отрезанную территорию в регионе "
+                + region.displayName() + " (" + chunkCount + " чанков)");
+        PjmNetworking.sendToAll(server, new NotificationPacket(title, subtitle, FrontlineTeams.color(server, teamId), 4500L));
+        Pjmbasemod.LOGGER.info("[FRONTLINE] {} captured encircled pocket in region {} (chunks={})", teamId, region.name(), chunkCount);
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.FRONTLINE,
+                "котёл: " + teamName + " окружили и захватили " + chunkCount + " чанков в регионе " + region.displayName());
     }
 
     private static CaptureLeader leader(Map<String, Integer> counts) {

@@ -105,6 +105,7 @@
 `FrontlineTeams` — резолв команды игрока через ванильный **scoreboard** (не кастомный enum):
 - `FrontlineTeams.resolvePlayerTeamId(ServerPlayer)` → id команды или null
 - `FrontlineTeams.all()` → `List<Config.ConfiguredTeam>` с `.id()`
+Котёл: `FrontlineSavedData.captureEncircledPockets` — территория (враг/нейтраль/серая зона), отрезанная кольцом одной команды от границы региона, целиком переходит к ней после захвата сектора (флаг `frontline.capture.encirclementEnabled`).
 `FrontlineBlueMapRuntime`, `FrontlineBlueMapService` — интеграция с BlueMap.
 Клиентское зеркало: `client/frontline/ClientFrontlineState`.
 JourneyMap: `client/frontline/journeymap/` — плагин карты.
