@@ -99,6 +99,7 @@ public final class PjmCommands {
                 .then(inventoryCommand())
                 .then(entityCommand())
                 .then(ModerationCommands.build())
+                .then(WipeCommands.build())
                 .then(configCommand())
                 .then(debugCommand()));
     }
