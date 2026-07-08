@@ -1,6 +1,6 @@
 package ru.liko.pjmbasemod.common.fleet;
 
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -23,9 +23,6 @@ import java.util.UUID;
  * кулдаун спавна, регистрация/снятие записей и очистка брошенной техники (см. onServerTick).
  */
 public final class VehicleFleetManager {
-
-    /** NBT-ключ метки на сущности (в {@code entity.getPersistentData()}). */
-    public static final String TAG = "PjmFleet";
 
     private VehicleFleetManager() {}
 
@@ -102,17 +99,9 @@ public final class VehicleFleetManager {
         if (team == null) team = "";
 
         FleetRecord record = new FleetRecord(entity.getUUID(), player.getUUID(), team, defId, type,
-                entity.level().dimension(), now, now, false);
+                entity.level().dimension(), now, now, false, entity.blockPosition());
         data.put(record);
         data.setLastSpawn(player.getUUID(), now);
-
-        CompoundTag fleet = new CompoundTag();
-        fleet.putUUID("Owner", player.getUUID());
-        fleet.putString("Team", team);
-        fleet.putString("Def", defId);
-        fleet.putString("Type", type.name());
-        fleet.putLong("Spawn", now);
-        entity.getPersistentData().put(TAG, fleet);
     }
 
     public static void unregister(MinecraftServer server, UUID entityId) {
@@ -137,10 +126,27 @@ public final class VehicleFleetManager {
             ServerLevel level = server.getLevel(record.dimension);
             Entity entity = level == null ? null : level.getEntity(record.entityId);
 
-            // Сущности нет / удалена (в т.ч. уничтожена и снята миксином) → снять запись тихо.
-            if (entity == null || entity.isRemoved()) {
+            // Сущность загружена, но удалена (уничтожена/сдана/kill) → снять запись.
+            if (entity != null && entity.isRemoved()) {
                 toRemove.add(record.entityId);
                 continue;
+            }
+            // Сущности нет в индексе: либо действительно исчезла, либо её чанк выгружен.
+            if (entity == null) {
+                boolean chunkLoaded = level != null
+                        && level.hasChunk(record.lastPos.getX() >> 4, record.lastPos.getZ() >> 4);
+                if (chunkLoaded) {
+                    // Чанк загружен, а сущности нет → техника действительно исчезла.
+                    toRemove.add(record.entityId);
+                }
+                // Иначе чанк выгружен/измерение недоступно — слот честно занят, запись не трогаем.
+                continue;
+            }
+            // Сущность жива — обновляем последнюю известную позицию.
+            BlockPos pos = entity.blockPosition();
+            if (!pos.equals(record.lastPos)) {
+                record.lastPos = pos;
+                data.setDirty();
             }
             // Есть водитель/пассажир → техника «живая», сбросить отсчёт и предупреждение.
             if (!entity.getPassengers().isEmpty()) {

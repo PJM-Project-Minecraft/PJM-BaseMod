@@ -475,7 +475,7 @@ public final class GarageManager {
         }
 
         // Проверка лимита флота: до списания техники со склада, чтобы при отказе не снимать экземпляр
-        GarageType fleetType = ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.classify(typeId);
+        GarageType fleetType = vehicleGarageType(def, typeId);
         if (!ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.canSpawn(player, fleetType)) {
             resync(player);
             return;

@@ -1,5 +1,6 @@
 package ru.liko.pjmbasemod.common.fleet;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
@@ -24,9 +25,11 @@ public final class FleetRecord {
     public final long spawnGameTime;
     public long lastOccupiedGameTime;
     public boolean warned;
+    public BlockPos lastPos;
 
     public FleetRecord(UUID entityId, UUID ownerId, String teamId, String defId, GarageType type,
-                       ResourceKey<Level> dimension, long spawnGameTime, long lastOccupiedGameTime, boolean warned) {
+                       ResourceKey<Level> dimension, long spawnGameTime, long lastOccupiedGameTime, boolean warned,
+                       BlockPos lastPos) {
         this.entityId = entityId;
         this.ownerId = ownerId;
         this.teamId = teamId == null ? "" : teamId;
@@ -36,6 +39,7 @@ public final class FleetRecord {
         this.spawnGameTime = spawnGameTime;
         this.lastOccupiedGameTime = lastOccupiedGameTime;
         this.warned = warned;
+        this.lastPos = lastPos != null ? lastPos : BlockPos.ZERO;
     }
 
     public CompoundTag save() {
@@ -49,6 +53,7 @@ public final class FleetRecord {
         tag.putLong("Spawn", spawnGameTime);
         tag.putLong("LastOccupied", lastOccupiedGameTime);
         tag.putBoolean("Warned", warned);
+        tag.putLong("Pos", lastPos.asLong());
         return tag;
     }
 
@@ -61,6 +66,7 @@ public final class FleetRecord {
         }
         ResourceKey<Level> dim = ResourceKey.create(Registries.DIMENSION,
                 ResourceLocation.parse(tag.getString("Dim")));
+        BlockPos pos = BlockPos.of(tag.getLong("Pos"));
         return new FleetRecord(
                 tag.getUUID("Entity"),
                 tag.getUUID("Owner"),
@@ -70,6 +76,7 @@ public final class FleetRecord {
                 dim,
                 tag.getLong("Spawn"),
                 tag.getLong("LastOccupied"),
-                tag.getBoolean("Warned"));
+                tag.getBoolean("Warned"),
+                pos);
     }
 }
