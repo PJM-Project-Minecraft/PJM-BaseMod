@@ -474,6 +474,13 @@ public final class GarageManager {
             return;
         }
 
+        // Проверка лимита флота: до списания техники со склада, чтобы при отказе не снимать экземпляр
+        GarageType fleetType = ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.classify(typeId);
+        if (!ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.canSpawn(player, fleetType)) {
+            resync(player);
+            return;
+        }
+
         Entity entity = type.create(level);
         if (entity == null) {
             player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.entity_missing", typeId.toString()));
@@ -494,9 +501,15 @@ public final class GarageManager {
         entity.setYHeadRot(yaw);
         entity.setYBodyRot(yaw);
         level.addFreshEntity(entity);
+        // Регистрируем единицу в учёте флота
+        ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.register(entity, player, stored.defId(), fleetType);
 
         data.remove(garageKey(player), instanceId);
         player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.spawned", displayName));
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.GARAGE,
+                player.getGameProfile().getName() + " выгнал из гаража " + displayName
+                        + " @ " + spawn.getX() + "," + spawn.getY() + "," + spawn.getZ());
         playGarageSound(level, entity.position(), SoundEvents.PISTON_EXTEND, 0.9F, 0.85F);
         playGarageSound(level, entity.position(), SoundEvents.DISPENSER_LAUNCH, 0.65F, 0.75F);
         resync(player);
@@ -692,6 +705,8 @@ public final class GarageManager {
         GarageSavedData.get(player.server).add(garageKey(player), stored);
         playGarageSound(player.serverLevel(), entity.position(), SoundEvents.PISTON_CONTRACT, 0.8F, 0.85F);
         playGarageSound(player.serverLevel(), entity.position(), SoundEvents.IRON_GOLEM_REPAIR, 0.65F, 1.2F);
+        // Снимаем запись из учёта флота перед удалением сущности
+        ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.unregister(player.server, entity.getUUID());
         entity.discard();
         player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.stored", displayName));
         resync(player);

@@ -41,6 +41,7 @@ import ru.liko.pjmbasemod.common.garage.VehicleRegistry;
 import ru.liko.pjmbasemod.common.inventory.EquipmentLockService;
 import ru.liko.pjmbasemod.common.inventory.InventoryLimitRegistry;
 import ru.liko.pjmbasemod.common.inventory.InventoryLimitService;
+import ru.liko.pjmbasemod.common.logging.PjmActionLogger;
 import ru.liko.pjmbasemod.common.moderation.ModerationService;
 import ru.liko.pjmbasemod.common.init.PjmItems;
 import ru.liko.pjmbasemod.common.warehouse.CrateRegistry;
@@ -66,6 +67,7 @@ public final class PjmServerEvents {
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer sp)) return;
         if (ModerationService.enforceOnLogin(sp)) return; // забанен — кикнут, синхронизировать нечего
+        PjmActionLogger.instance().logSession(sp, true);
         ChatMode mode = ServerPacketHandlers.getChatMode(sp);
         PjmNetworking.sendToPlayer(sp, new SyncPjmDataPacket(sp.getUUID(), mode.getKey()));
         ServerPacketHandlers.sendHudConfig(sp);
@@ -91,6 +93,16 @@ public final class PjmServerEvents {
             killer = credited;
         }
         RankService.handlePlayerKill(killer, victim);
+        if (killer != null) {
+            PjmActionLogger.instance().logKill(killer, victim, killCause(killer, event));
+        }
+    }
+
+    /** Читаемая причина убийства: имя оружия в руке киллера, иначе id типа урона. */
+    private static String killCause(ServerPlayer killer, LivingDeathEvent event) {
+        ItemStack weapon = killer.getMainHandItem();
+        if (!weapon.isEmpty()) return weapon.getHoverName().getString();
+        return event.getSource().type().msgId();
     }
 
     @SubscribeEvent
@@ -121,6 +133,7 @@ public final class PjmServerEvents {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer sp) {
+            PjmActionLogger.instance().logSession(sp, false);
             ServerPacketHandlers.onPlayerLogout(sp);
             ru.liko.pjmbasemod.common.inventory.EquipmentLockService.onPlayerLogout(sp.getUUID());
             BaseZoneManager.onPlayerLogout(sp);
@@ -236,6 +249,7 @@ public final class PjmServerEvents {
     public static void onServerStopping(ServerStoppingEvent event) {
         FrontlineBlueMapService.onServerStopping();
         VoicechatBridge.onServerStop();
+        PjmActionLogger.instance().stop();
     }
 
     private static int warehouseScanCounter = 0;
@@ -246,6 +260,7 @@ public final class PjmServerEvents {
         FrontlineBlueMapService.onServerTick(event.getServer());
         FactionOrderManager.onServerTick(event.getServer());
         ModerationService.tick(event.getServer());
+        ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.onServerTick(event.getServer());
 
         if (++warehouseScanCounter >= 20) {
             warehouseScanCounter = 0;
@@ -258,6 +273,7 @@ public final class PjmServerEvents {
 
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
+        PjmActionLogger.instance().start();
         FrontlineBlueMapService.onServerStarted(event.getServer());
         ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.reload(event.getServer());
         VehicleRegistry.get().reload();
