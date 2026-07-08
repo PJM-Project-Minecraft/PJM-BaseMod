@@ -319,5 +319,14 @@
   "pjmbasemod.web.logout.done": "Завершено сессий веб-панели: %s",
   "basezone.warning.title": "⚠ ЧУЖАЯ БАЗА",
   "basezone.warning.subtitle": "Покиньте зону базы! Смерть через %s сек.",
-  "death.attack.pjm_base_zone": "%1$s погиб в зоне вражеской базы"
+  "death.attack.pjm_base_zone": "%1$s погиб в зоне вражеской базы",
+  "pjmbasemod.wipe.warn.ranks": "⚠ Это сбросит звания (XP) У ВСЕХ игроков. Для подтверждения повторите ту же команду с 'confirm' в течение 15 секунд.",
+  "pjmbasemod.wipe.warn.ranks_team": "⚠ Это сбросит звания (XP) команды '%s'. Для подтверждения повторите ту же команду с 'confirm' в течение 15 секунд.",
+  "pjmbasemod.wipe.warn.all": "⚠ ПОЛНЫЙ ВАЙП: будет стёрт весь прогресс игроков (звания, склад, гаражи, флот, фронтлайн, фракции, роли). Админ-разметка сохранится. Повторите с 'confirm' в течение 15 секунд.",
+  "pjmbasemod.wipe.success.ranks": "Звания сброшены у всех игроков.",
+  "pjmbasemod.wipe.success.ranks_team": "Звания команды '%s' сброшены (%s игроков).",
+  "pjmbasemod.wipe.success.all": "Полный вайп прогресса игроков выполнен.",
+  "pjmbasemod.wipe.expired": "Подтверждение не найдено или истекло. Запустите команду заново.",
+  "pjmbasemod.wipe.unknown_team": "Команда '%s' не найдена.",
+  "pjmbasemod.wipe.team_offline_skipped": "Пропущено (нет в кэше профилей): %s."
 }

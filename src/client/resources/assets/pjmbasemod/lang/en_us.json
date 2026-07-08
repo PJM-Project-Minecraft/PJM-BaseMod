@@ -319,5 +319,14 @@
   "pjmbasemod.web.logout.done": "Web panel sessions revoked: %s",
   "basezone.warning.title": "⚠ ENEMY BASE",
   "basezone.warning.subtitle": "Leave the base zone! Death in %s sec.",
-  "death.attack.pjm_base_zone": "%1$s died inside an enemy base zone"
+  "death.attack.pjm_base_zone": "%1$s died inside an enemy base zone",
+  "pjmbasemod.wipe.warn.ranks": "⚠ This will reset ranks (XP) for ALL players. To confirm, repeat the same command with 'confirm' within 15 seconds.",
+  "pjmbasemod.wipe.warn.ranks_team": "⚠ This will reset ranks (XP) for team '%s'. To confirm, repeat the same command with 'confirm' within 15 seconds.",
+  "pjmbasemod.wipe.warn.all": "⚠ FULL WIPE: all player progress will be erased (ranks, warehouse, garages, fleet, frontline, factions, roles). Admin setup is preserved. Repeat with 'confirm' within 15 seconds.",
+  "pjmbasemod.wipe.success.ranks": "Ranks reset for all players.",
+  "pjmbasemod.wipe.success.ranks_team": "Ranks for team '%s' reset (%s players).",
+  "pjmbasemod.wipe.success.all": "Full player-progress wipe complete.",
+  "pjmbasemod.wipe.expired": "No pending confirmation, or it expired. Run the command again.",
+  "pjmbasemod.wipe.unknown_team": "Team '%s' not found.",
+  "pjmbasemod.wipe.team_offline_skipped": "Skipped (not in profile cache): %s."
 }

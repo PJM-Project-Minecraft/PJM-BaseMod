@@ -319,5 +319,14 @@
   "pjmbasemod.web.logout.done": "已注销网页面板会话：%s",
   "basezone.warning.title": "⚠ 敌方基地",
   "basezone.warning.subtitle": "离开基地区域！%s 秒后死亡。",
-  "death.attack.pjm_base_zone": "%1$s 死在了敌方基地区域内"
+  "death.attack.pjm_base_zone": "%1$s 死在了敌方基地区域内",
+  "pjmbasemod.wipe.warn.ranks": "⚠ 这将重置所有玩家的军衔（经验）。如需确认，请在 15 秒内以 'confirm' 重复相同命令。",
+  "pjmbasemod.wipe.warn.ranks_team": "⚠ 这将重置队伍 '%s' 的军衔（经验）。如需确认，请在 15 秒内以 'confirm' 重复相同命令。",
+  "pjmbasemod.wipe.warn.all": "⚠ 完全清档：将清除所有玩家进度（军衔、仓库、车库、载具、前线、阵营、角色）。管理员配置将保留。请在 15 秒内以 'confirm' 重复命令。",
+  "pjmbasemod.wipe.success.ranks": "已重置所有玩家的军衔。",
+  "pjmbasemod.wipe.success.ranks_team": "已重置队伍 '%s' 的军衔（%s 名玩家）。",
+  "pjmbasemod.wipe.success.all": "玩家进度完全清档已完成。",
+  "pjmbasemod.wipe.expired": "没有待确认操作或已过期。请重新执行命令。",
+  "pjmbasemod.wipe.unknown_team": "未找到队伍 '%s'。",
+  "pjmbasemod.wipe.team_offline_skipped": "已跳过（不在档案缓存中）：%s。"
 }

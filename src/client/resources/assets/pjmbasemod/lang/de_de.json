@@ -319,5 +319,14 @@
   "pjmbasemod.web.logout.done": "Beendete Webpanel-Sitzungen: %s",
   "basezone.warning.title": "⚠ FEINDLICHE BASIS",
   "basezone.warning.subtitle": "Verlasse die Basiszone! Tod in %s Sek.",
-  "death.attack.pjm_base_zone": "%1$s starb in einer feindlichen Basiszone"
+  "death.attack.pjm_base_zone": "%1$s starb in einer feindlichen Basiszone",
+  "pjmbasemod.wipe.warn.ranks": "⚠ Dies setzt die Ränge (XP) ALLER Spieler zurück. Zum Bestätigen denselben Befehl innerhalb von 15 Sekunden mit 'confirm' wiederholen.",
+  "pjmbasemod.wipe.warn.ranks_team": "⚠ Dies setzt die Ränge (XP) des Teams '%s' zurück. Zum Bestätigen denselben Befehl innerhalb von 15 Sekunden mit 'confirm' wiederholen.",
+  "pjmbasemod.wipe.warn.all": "⚠ VOLLSTÄNDIGER WIPE: Der gesamte Spielerfortschritt wird gelöscht (Ränge, Lager, Garagen, Flotte, Frontlinie, Fraktionen, Rollen). Admin-Einrichtung bleibt erhalten. Innerhalb von 15 Sekunden mit 'confirm' wiederholen.",
+  "pjmbasemod.wipe.success.ranks": "Ränge aller Spieler zurückgesetzt.",
+  "pjmbasemod.wipe.success.ranks_team": "Ränge des Teams '%s' zurückgesetzt (%s Spieler).",
+  "pjmbasemod.wipe.success.all": "Vollständiger Wipe des Spielerfortschritts abgeschlossen.",
+  "pjmbasemod.wipe.expired": "Keine ausstehende Bestätigung oder abgelaufen. Befehl erneut ausführen.",
+  "pjmbasemod.wipe.unknown_team": "Team '%s' nicht gefunden.",
+  "pjmbasemod.wipe.team_offline_skipped": "Übersprungen (nicht im Profil-Cache): %s."
 }

@@ -319,5 +319,14 @@
   "pjmbasemod.web.logout.done": "Завершено сесій веб-панелі: %s",
   "basezone.warning.title": "⚠ ЧУЖА БАЗА",
   "basezone.warning.subtitle": "Покиньте зону бази! Смерть через %s сек.",
-  "death.attack.pjm_base_zone": "%1$s загинув у зоні ворожої бази"
+  "death.attack.pjm_base_zone": "%1$s загинув у зоні ворожої бази",
+  "pjmbasemod.wipe.warn.ranks": "⚠ Це скине звання (XP) У ВСІХ гравців. Для підтвердження повторіть ту саму команду з 'confirm' протягом 15 секунд.",
+  "pjmbasemod.wipe.warn.ranks_team": "⚠ Це скине звання (XP) команди '%s'. Для підтвердження повторіть ту саму команду з 'confirm' протягом 15 секунд.",
+  "pjmbasemod.wipe.warn.all": "⚠ ПОВНИЙ ВАЙП: буде стерто весь прогрес гравців (звання, склад, гаражі, флот, фронтлайн, фракції, ролі). Адмін-налаштування збережуться. Повторіть з 'confirm' протягом 15 секунд.",
+  "pjmbasemod.wipe.success.ranks": "Звання скинуто в усіх гравців.",
+  "pjmbasemod.wipe.success.ranks_team": "Звання команди '%s' скинуто (%s гравців).",
+  "pjmbasemod.wipe.success.all": "Повний вайп прогресу гравців виконано.",
+  "pjmbasemod.wipe.expired": "Підтвердження не знайдено або воно застаріло. Запустіть команду знову.",
+  "pjmbasemod.wipe.unknown_team": "Команду '%s' не знайдено.",
+  "pjmbasemod.wipe.team_offline_skipped": "Пропущено (немає в кеші профілів): %s."
 }
