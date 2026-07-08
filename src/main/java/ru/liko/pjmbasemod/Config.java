@@ -132,6 +132,14 @@ public final class Config {
     public static int getFrontlineJourneyMapRegionBorderColorRgb() { return data().frontline.journeymap.regionBorderColorRgb; }
     public static List<? extends String> getStartupCommands() { return data().commands.startup; }
     public static boolean isGarageEnabled() { return data().garage.enabled; }
+    public static boolean isFleetEnabled()                 { return data().fleet.enabled; }
+    public static int getFleetMaxActivePerTeam()           { return data().fleet.maxActivePerTeam; }
+    public static int getFleetMaxActivePerPlayer()         { return data().fleet.maxActivePerPlayer; }
+    public static int getFleetAviationMaxActivePerTeam()   { return data().fleet.aviationMaxActivePerTeam; }
+    public static int getFleetAviationMaxActivePerPlayer() { return data().fleet.aviationMaxActivePerPlayer; }
+    public static int getFleetSpawnCooldownSeconds()       { return data().fleet.spawnCooldownSeconds; }
+    public static int getFleetAbandonTimeoutSeconds()      { return data().fleet.abandonTimeoutSeconds; }
+    public static int getFleetAbandonWarningSeconds()      { return data().fleet.abandonWarningSeconds; }
     public static int getFactionMaxDeputies()            { return data().faction.maxDeputies; }
     public static int getFactionOrderMaxLength()         { return data().faction.orderMaxLength; }
     public static int getFactionOrderDefaultTtlMinutes() { return data().faction.orderDefaultTtlMinutes; }
@@ -152,6 +160,8 @@ public final class Config {
     public static boolean isModerationBroadcast()            { return data().moderation.broadcastPunishments; }
     public static int  getModerationWarnDecayDays()          { return data().moderation.warnDecayDays; }
     public static List<? extends String> getModerationWarnEscalationRaw() { return data().moderation.warnEscalation; }
+
+    public static boolean isLoggingEnabled()       { return data().logging.enabled; }
 
     public static boolean isWebEnabled()           { return data().web.enabled; }
     public static int     getWebPort()             { return data().web.port; }
@@ -295,10 +305,12 @@ public final class Config {
         Region region = new Region();
         Frontline frontline = new Frontline();
         Garage garage = new Garage();
+        Fleet fleet = new Fleet();
         Faction faction = new Faction();
         AntiGrief antigrief = new AntiGrief();
         Moderation moderation = new Moderation();
         Web web = new Web();
+        Logging logging = new Logging();
         BaseZone baseZone = new BaseZone();
         Commands commands = new Commands();
 
@@ -310,6 +322,14 @@ public final class Config {
             if (region == null) region = new Region();
             if (frontline == null) frontline = new Frontline();
             if (garage == null) garage = new Garage();
+            if (fleet == null) fleet = new Fleet();
+            fleet.maxActivePerTeam = fleet.maxActivePerTeam < 0 ? -1 : clamp(fleet.maxActivePerTeam, 0, 4096);
+            fleet.maxActivePerPlayer = fleet.maxActivePerPlayer < 0 ? -1 : clamp(fleet.maxActivePerPlayer, 0, 4096);
+            fleet.aviationMaxActivePerTeam = fleet.aviationMaxActivePerTeam < 0 ? -1 : clamp(fleet.aviationMaxActivePerTeam, 0, 4096);
+            fleet.aviationMaxActivePerPlayer = fleet.aviationMaxActivePerPlayer < 0 ? -1 : clamp(fleet.aviationMaxActivePerPlayer, 0, 4096);
+            fleet.spawnCooldownSeconds = clamp(fleet.spawnCooldownSeconds, 0, 86_400);
+            fleet.abandonTimeoutSeconds = clamp(fleet.abandonTimeoutSeconds, 5, 86_400);
+            fleet.abandonWarningSeconds = clamp(fleet.abandonWarningSeconds, 0, 3_600);
             if (faction == null) faction = new Faction();
             faction.maxDeputies = clamp(faction.maxDeputies, 0, 64);
             faction.orderMaxLength = clamp(faction.orderMaxLength, 1, 256);
@@ -331,6 +351,7 @@ public final class Config {
             web.historyMinutes = clamp(web.historyMinutes, 5, 1_440);
             if (web.bindAddress == null || web.bindAddress.isBlank()) web.bindAddress = "0.0.0.0";
             if (web.publicUrl == null) web.publicUrl = "";
+            if (logging == null) logging = new Logging();
             if (baseZone == null) baseZone = new BaseZone();
             baseZone.countdownSeconds = clamp(baseZone.countdownSeconds, 1, 60);
             if (commands == null) commands = new Commands();
@@ -456,6 +477,22 @@ public final class Config {
         boolean enabled = true;
     }
 
+    /**
+     * Лимиты и очистка активной техники гаража. {@code -1} в любом лимите = без ограничения.
+     * Тайминги в секундах; брошенная (пустая) техника удаляется через
+     * {@code abandonTimeoutSeconds + abandonWarningSeconds} после того, как её покинул водитель.
+     */
+    static final class Fleet {
+        boolean enabled = true;
+        int maxActivePerTeam = 8;
+        int maxActivePerPlayer = 1;
+        int spawnCooldownSeconds = 120;
+        int abandonTimeoutSeconds = 180;
+        int abandonWarningSeconds = 30;
+        int aviationMaxActivePerTeam = 3;
+        int aviationMaxActivePerPlayer = 1;
+    }
+
     static final class Faction {
         int maxDeputies = 3;
         int orderMaxLength = 120;
@@ -515,6 +552,15 @@ public final class Config {
         int historyMinutes = 120;
         boolean profilerEnabled = true;
         String publicUrl = "";
+    }
+
+    /**
+     * Логирование действий игроков в читаемые файлы {@code <game>/pjmlogs/YYYY-MM-DD.log}:
+     * убийства (PvP), уничтожение техники SuperbWarfare, вход/выход, действия подсистем.
+     * {@code enabled} — единый выключатель всей записи (см. {@code common/logging/PjmActionLogger}).
+     */
+    static final class Logging {
+        boolean enabled = true;
     }
 
     static final class BaseZone {
