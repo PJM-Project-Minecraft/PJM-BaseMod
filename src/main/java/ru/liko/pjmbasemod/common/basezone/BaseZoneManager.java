@@ -1,6 +1,7 @@
 package ru.liko.pjmbasemod.common.basezone;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundClearTitlesPacket;
@@ -12,6 +13,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import ru.liko.pjmbasemod.Config;
@@ -62,7 +65,7 @@ public final class BaseZoneManager {
 
         if (remaining <= 0) {
             COUNTDOWN.remove(id);
-            kill(player, level);
+            kill(player, level, zone.owner());
             return;
         }
 
@@ -75,6 +78,76 @@ public final class BaseZoneManager {
 
     public static void onPlayerLogout(ServerPlayer player) {
         COUNTDOWN.remove(player.getUUID());
+    }
+
+    /**
+     * Отключение урона по своим внутри собственной зоны базы. Урон отменяется, если атакующий и
+     * жертва — одна scoreboard-команда, а жертва стоит в зоне, чей {@code owner} совпадает с этой
+     * командой («безопасная зона своей базы»).
+     *
+     * @param attacker сущность-инициатор урона ({@code DamageSource.getEntity()} — для снарядов это стрелок)
+     * @param victim   пострадавший игрок
+     * @return {@code true}, если урон нужно отменить
+     */
+    public static boolean shouldCancelFriendlyFire(Entity attacker, ServerPlayer victim) {
+        if (!Config.isBaseZoneEnabled()) return false;
+        if (!(attacker instanceof ServerPlayer aggressor) || aggressor == victim) return false;
+
+        String attackerTeam = FrontlineTeams.resolvePlayerTeamId(aggressor);
+        String victimTeam = FrontlineTeams.resolvePlayerTeamId(victim);
+        if (attackerTeam == null || victimTeam == null || !attackerTeam.equalsIgnoreCase(victimTeam)) {
+            return false;
+        }
+
+        MinecraftServer server = victim.getServer();
+        if (server == null) return false;
+        String dimension = victim.serverLevel().dimension().location().toString();
+        BaseZone zone = BaseZoneSavedData.get(server).findZoneAt(dimension, victim.blockPosition());
+        return zone != null && zone.owner().equalsIgnoreCase(victimTeam);
+    }
+
+    /**
+     * Отключение урона от взрывов (SBW) и гранат (WarBorn) внутри любой зоны базы. Защищает
+     * защитников базы от закидывания взрывчаткой. Ловит:
+     * <ul>
+     *   <li>любой тип урона с тегом {@link DamageTypeTags#IS_EXPLOSION} — ванильный взрыв гранаты
+     *       WarBorn ({@code minecraft:explosion}/{@code player_explosion}) и большинство взрывов SBW
+     *       ({@code projectile_explosion}, {@code custom_explosion}, {@code lunge_mine});</li>
+     *   <li>SBW-типы взрыва вне тега — {@code superbwarfare:vehicle_explosion}, {@code superbwarfare:mine};</li>
+     *   <li>любой урон от сущности из мода {@code warbornexplosives} — осколки ({@code ShrapnelEntity},
+     *       тип {@code minecraft:thrown}) и сама граната.</li>
+     * </ul>
+     *
+     * @param source источник урона
+     * @param victim пострадавший игрок
+     * @return {@code true}, если урон нужно отменить
+     */
+    public static boolean shouldCancelExplosion(DamageSource source, ServerPlayer victim) {
+        if (!Config.isBaseZoneEnabled() || !Config.isBaseZoneBlockExplosions()) return false;
+        if (!isExplosiveSource(source)) return false;
+
+        MinecraftServer server = victim.getServer();
+        if (server == null) return false;
+        String dimension = victim.serverLevel().dimension().location().toString();
+        return BaseZoneSavedData.get(server).findZoneAt(dimension, victim.blockPosition()) != null;
+    }
+
+    private static boolean isExplosiveSource(DamageSource source) {
+        if (source.is(DamageTypeTags.IS_EXPLOSION)) return true;
+
+        ResourceLocation typeId = source.typeHolder().unwrapKey()
+                .map(ResourceKey::location).orElse(null);
+        if (typeId != null && "superbwarfare".equals(typeId.getNamespace())) {
+            String path = typeId.getPath();
+            if (path.contains("explosion") || path.contains("mine")) return true;
+        }
+
+        Entity direct = source.getDirectEntity();
+        if (direct != null) {
+            ResourceLocation entId = BuiltInRegistries.ENTITY_TYPE.getKey(direct.getType());
+            if ("warbornexplosives".equals(entId.getNamespace())) return true;
+        }
+        return false;
     }
 
     private static void clear(ServerPlayer player) {
@@ -94,9 +167,12 @@ public final class BaseZoneManager {
                         .withStyle(ChatFormatting.YELLOW)));
     }
 
-    private static void kill(ServerPlayer player, ServerLevel level) {
+    private static void kill(ServerPlayer player, ServerLevel level, String zoneOwner) {
         player.connection.send(new ClientboundClearTitlesPacket(false));
         DamageSource source = level.damageSources().source(BASE_ZONE_DAMAGE);
         player.hurt(source, Float.MAX_VALUE);
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.BASEZONE,
+                player.getGameProfile().getName() + " погиб в базовой зоне команды " + zoneOwner);
     }
 }

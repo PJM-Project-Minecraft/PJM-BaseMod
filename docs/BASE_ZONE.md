@@ -32,6 +32,10 @@
 
 - `enabled` (bool, дефолт `true`) — вкл/выкл систему.
 - `countdownSeconds` (int, дефолт `5`, диапазон 1..60) — время до смерти.
+- `blockExplosions` (bool, дефолт `true`) — отключать урон от взрывов SuperbWarfare и
+  гранат WarBornExplosives любому игроку внутри зоны базы (защита от закидывания
+  взрывчаткой). Ловится по тегу `IS_EXPLOSION`, SBW-типам `vehicle_explosion`/`mine`
+  и любому урону от сущностей мода `warbornexplosives` (осколки/граната).
 
 ## Реализация
 
@@ -39,5 +43,7 @@
 - `common/basezone/BaseZoneSavedData` — персист (`pjmbasemod_basezones`) + `findZoneAt`.
 - `common/basezone/BaseZoneManager` — enforcement в `PlayerTickEvent.Post`
   (`PjmServerEvents.onPlayerTick`): титры, отсчёт, смерть. Состояние отсчёта —
-  рантайм-`Map`, не персистится.
+  рантайм-`Map`, не персистится. Отмена урона по своим (`shouldCancelFriendlyFire`) и
+  отмена урона от взрывов (`shouldCancelExplosion`) — в `LivingIncomingDamageEvent`
+  (`PjmServerEvents.onIncomingDamage`).
 - `data/pjmbasemod/damage_type/base_zone.json` — кастомный источник урона.
