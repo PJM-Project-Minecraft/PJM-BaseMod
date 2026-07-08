@@ -99,6 +99,13 @@ public final class WarehouseSavedData extends SavedData {
         setDirty();
     }
 
+    /** Выставляет точное значение очков пула (clamp ≥ 0). */
+    public void setPoints(String warehouseId, WarehousePoolCategory pool, int amount) {
+        EnumMap<WarehousePoolCategory, Integer> points = stock.computeIfAbsent(warehouseId, k -> emptyPoints());
+        points.put(pool, Math.max(0, amount));
+        setDirty();
+    }
+
     /** Списывает {@code cost} очков из пула, если их достаточно. true — успех. */
     public boolean trySpend(String warehouseId, WarehousePoolCategory pool, int cost) {
         if (cost <= 0) return true;
@@ -109,6 +116,14 @@ public final class WarehouseSavedData extends SavedData {
         points.put(pool, have - cost);
         setDirty();
         return true;
+    }
+
+    /** Сброс накопленных очков всех складов (админ-разметка зон приёма не трогается). */
+    public void clearAll() {
+        if (!stock.isEmpty()) {
+            stock.clear();
+            setDirty();
+        }
     }
 
     private static EnumMap<WarehousePoolCategory, Integer> emptyPoints() {

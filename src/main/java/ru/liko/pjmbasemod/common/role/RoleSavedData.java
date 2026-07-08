@@ -85,6 +85,14 @@ public final class RoleSavedData extends SavedData {
         return removed;
     }
 
+    /** Сброс боевых ролей у всех игроков. */
+    public void clearAll() {
+        if (!rolesByPlayer.isEmpty()) {
+            rolesByPlayer.clear();
+            setDirty();
+        }
+    }
+
     private static String safeName(String name) {
         return name == null || name.isBlank() ? "unknown" : name.trim();
     }

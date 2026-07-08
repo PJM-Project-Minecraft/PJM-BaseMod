@@ -77,6 +77,14 @@ public final class FactionOrderSavedData extends SavedData {
         if (ordersByTeam.remove(FrontlineTeams.normalize(teamId)) != null) setDirty();
     }
 
+    /** Убрать приказы у всех фракций. */
+    public void clearAll() {
+        if (!ordersByTeam.isEmpty()) {
+            ordersByTeam.clear();
+            setDirty();
+        }
+    }
+
     public Map<String, OrderEntry> orders() {
         return Map.copyOf(ordersByTeam);
     }

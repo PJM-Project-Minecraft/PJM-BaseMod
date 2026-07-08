@@ -108,6 +108,14 @@ public final class FactionDeputySavedData extends SavedData {
         return null;
     }
 
+    /** Снять всех заместителей фракций. */
+    public void clearAll() {
+        if (!deputiesByTeam.isEmpty()) {
+            deputiesByTeam.clear();
+            setDirty();
+        }
+    }
+
     public void clearPlayer(UUID playerId) {
         if (playerId == null) return;
         boolean changed = false;

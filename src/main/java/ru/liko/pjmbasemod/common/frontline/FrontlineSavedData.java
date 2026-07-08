@@ -72,6 +72,15 @@ public final class FrontlineSavedData extends SavedData {
         return tag;
     }
 
+    /** Сброс всех захватов: чанки и сектора возвращаются в нейтраль. */
+    public void clearAll() {
+        if (!chunks.isEmpty() || !sectors.isEmpty()) {
+            chunks.clear();
+            sectors.clear();
+            setDirty();
+        }
+    }
+
     public boolean isManualActive() {
         return manualActive;
     }
@@ -123,14 +132,18 @@ public final class FrontlineSavedData extends SavedData {
     }
 
     public boolean removeStateOutsideRegions(RegionSavedData regions) {
+        // Захват сохраняем, пока чанк/сектор ещё покрыт существующим регионом по границам —
+        // независимо от флага isFrontline(). Выключение frontline лишь ставит захват на паузу,
+        // прогресс не должен стираться и восстанавливается при повторном включении.
+        // Реально чистим только осиротевшее состояние: регион удалён или границы больше не покрывают чанк.
         boolean changed = chunks.entrySet().removeIf(entry -> {
             FrontlineChunkKey key = entry.getKey();
-            return regions.findFrontlineRegion(key.dimension(), key.x(), key.z()) == null;
+            return regions.findRegion(key.dimension(), key.x(), key.z()) == null;
         });
         changed |= sectors.entrySet().removeIf(entry -> {
             FrontlineSectorKey key = entry.getKey();
             Region region = regions.region(key.regionName());
-            return region == null || !region.isFrontline() || !region.isComplete() || sectorChunks(region, key).isEmpty();
+            return region == null || !region.isComplete() || sectorChunks(region, key).isEmpty();
         });
         if (changed) setDirty();
         return changed;

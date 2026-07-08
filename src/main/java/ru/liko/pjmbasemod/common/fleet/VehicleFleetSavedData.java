@@ -87,4 +87,13 @@ public final class VehicleFleetSavedData extends SavedData {
         lastSpawn.put(owner, tick);
         setDirty();
     }
+
+    /** Сброс реестра активной техники и кулдаунов спавна. */
+    public void clearAll() {
+        if (!active.isEmpty() || !lastSpawn.isEmpty()) {
+            active.clear();
+            lastSpawn.clear();
+            setDirty();
+        }
+    }
 }

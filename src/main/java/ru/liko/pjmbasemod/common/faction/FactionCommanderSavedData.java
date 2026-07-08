@@ -97,6 +97,14 @@ public final class FactionCommanderSavedData extends SavedData {
         return removed;
     }
 
+    /** Снять всех командиров фракций. */
+    public void clearAll() {
+        if (!commandersByTeam.isEmpty()) {
+            commandersByTeam.clear();
+            setDirty();
+        }
+    }
+
     public Map<String, CommanderEntry> clearPlayer(UUID playerId) {
         Map<String, CommanderEntry> removed = new LinkedHashMap<>();
         if (playerId == null) return removed;

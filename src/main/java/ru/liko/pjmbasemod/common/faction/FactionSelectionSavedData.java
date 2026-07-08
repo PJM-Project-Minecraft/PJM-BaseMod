@@ -85,6 +85,14 @@ public final class FactionSelectionSavedData extends SavedData {
         }
     }
 
+    /** Сброс выбора фракции у всех игроков. */
+    public void clearAll() {
+        if (!selectionsByPlayer.isEmpty()) {
+            selectionsByPlayer.clear();
+            setDirty();
+        }
+    }
+
     private static String safeName(String name) {
         return name == null || name.isBlank() ? "unknown" : name.trim();
     }

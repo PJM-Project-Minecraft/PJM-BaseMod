@@ -106,6 +106,14 @@ public final class WarehousePersonalBudgetSavedData extends SavedData {
         setBalance(server, playerId, max, max, regenPerHour);
     }
 
+    /** Сброс личных бюджетов всех игроков. */
+    public void clearAll() {
+        if (!entries.isEmpty()) {
+            entries.clear();
+            setDirty();
+        }
+    }
+
     /** Ленивый пересчёт: добавляет накопленную регенерацию до потолка и обновляет метку времени. */
     private Entry refresh(MinecraftServer server, UUID playerId, int maxPoints, int regenPoints) {
         double max = Math.max(0, maxPoints);

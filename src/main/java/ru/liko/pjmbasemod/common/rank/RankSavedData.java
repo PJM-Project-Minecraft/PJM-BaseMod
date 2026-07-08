@@ -65,4 +65,21 @@ public final class RankSavedData extends SavedData {
     public void reset(UUID playerId) {
         if (xpByPlayer.remove(playerId) != null) setDirty();
     }
+
+    /** Полный сброс XP у всех игроков. */
+    public void clearAll() {
+        if (!xpByPlayer.isEmpty()) {
+            xpByPlayer.clear();
+            setDirty();
+        }
+    }
+
+    /** Сброс XP только у указанных игроков (по UUID). */
+    public void clearPlayers(java.util.Set<UUID> players) {
+        boolean changed = false;
+        for (UUID id : players) {
+            if (xpByPlayer.remove(id) != null) changed = true;
+        }
+        if (changed) setDirty();
+    }
 }

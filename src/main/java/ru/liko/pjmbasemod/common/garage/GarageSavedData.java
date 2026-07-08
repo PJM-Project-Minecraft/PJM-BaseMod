@@ -105,6 +105,18 @@ public final class GarageSavedData extends SavedData {
         setDirty();
     }
 
+    /** Опустошает хранимую технику во всех гаражах, сами гаражи (ключи) сохраняются. */
+    public void clearVehicles() {
+        boolean changed = false;
+        for (List<StoredVehicle> list : garages.values()) {
+            if (!list.isEmpty()) {
+                list.clear();
+                changed = true;
+            }
+        }
+        if (changed) setDirty();
+    }
+
     @Nullable
     public StoredVehicle remove(String key, UUID instanceId) {
         List<StoredVehicle> list = garages.get(key);
