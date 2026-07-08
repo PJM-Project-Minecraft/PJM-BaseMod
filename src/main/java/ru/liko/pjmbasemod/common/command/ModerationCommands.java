@@ -207,6 +207,13 @@ public final class ModerationCommands {
         String ip = target;
         ServerPlayer online = source.getServer().getPlayerList().getPlayerByName(target);
         if (online != null) ip = online.getIpAddress();
+        // Анти-футган: за прокси getIpAddress() у всех одинаков — бан такого IP выкинет полсервера.
+        long sharing = ModerationService.onlinePlayersWithIp(source.getServer(), ip);
+        if (sharing > 1) {
+            final String sharedIp = ip;
+            source.sendFailure(Component.translatable("pjmbasemod.moderation.cmd.banip.shared", sharedIp, sharing));
+            return 0;
+        }
         ModerationService.applyIpBan(source.getServer(), ip, dur, reason, moderator(source));
         final String bannedIp = ip;
         Component msg = Component.translatable("pjmbasemod.moderation.cmd.banip.success", bannedIp, DurationParser.format(dur));
