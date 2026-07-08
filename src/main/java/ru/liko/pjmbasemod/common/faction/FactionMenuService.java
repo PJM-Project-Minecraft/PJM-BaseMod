@@ -93,6 +93,14 @@ public final class FactionMenuService {
             return;
         }
 
+        TeamBalanceService.Decision balance = TeamBalanceService.check(server, player, team);
+        if (!balance.allowed()) {
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.balance.blocked",
+                    FrontlineTeams.displayName(server, balance.suggestedTeamId())), true);
+            openSelection(player);
+            return;
+        }
+
         CombatRole role = CombatRole.byIdOrAlias(rawRoleId);
         if (role == null) {
             player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.selection.invalid_role"), true);
