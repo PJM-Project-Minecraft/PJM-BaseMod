@@ -348,5 +348,6 @@
   "event.pjmbasemod.signal_hunt.end.aborted.subtitle": "无线电侦察中止。找到信标：%s/%s",
   "hud.pjmbasemod.signal_hunt.signal": "信号",
   "hud.pjmbasemod.signal_hunt.capture_now": "右键 — 截获",
-  "hud.pjmbasemod.signal_hunt.capture_progress": "截获中 %s"
+  "hud.pjmbasemod.signal_hunt.capture_progress": "截获中 %s",
+  "gui.pjmbasemod.capturepoint_editor.title": "占领点编辑器"
 }

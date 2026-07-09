@@ -348,5 +348,6 @@
   "event.pjmbasemod.signal_hunt.end.aborted.subtitle": "Радіорозвідку перервано. Знайдено маяків: %s/%s",
   "hud.pjmbasemod.signal_hunt.signal": "Сигнал",
   "hud.pjmbasemod.signal_hunt.capture_now": "ПКМ — ПЕРЕХОП",
-  "hud.pjmbasemod.signal_hunt.capture_progress": "Перехоплення %s"
+  "hud.pjmbasemod.signal_hunt.capture_progress": "Перехоплення %s",
+  "gui.pjmbasemod.capturepoint_editor.title": "Редактор точок захоплення"
 }

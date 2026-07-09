@@ -348,5 +348,6 @@
   "event.pjmbasemod.signal_hunt.end.aborted.subtitle": "Funkaufklärung abgebrochen. Signale gefunden: %s/%s",
   "hud.pjmbasemod.signal_hunt.signal": "Signal",
   "hud.pjmbasemod.signal_hunt.capture_now": "RMB — ERFASSEN",
-  "hud.pjmbasemod.signal_hunt.capture_progress": "Erfassen %s"
+  "hud.pjmbasemod.signal_hunt.capture_progress": "Erfassen %s",
+  "gui.pjmbasemod.capturepoint_editor.title": "Eroberungspunkte-Editor"
 }

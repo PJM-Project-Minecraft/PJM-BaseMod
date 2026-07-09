@@ -348,5 +348,6 @@
   "event.pjmbasemod.signal_hunt.end.aborted.subtitle": "Signal hunt aborted. Beacons found: %s/%s",
   "hud.pjmbasemod.signal_hunt.signal": "Signal",
   "hud.pjmbasemod.signal_hunt.capture_now": "RMB — CAPTURE",
-  "hud.pjmbasemod.signal_hunt.capture_progress": "Capturing %s"
+  "hud.pjmbasemod.signal_hunt.capture_progress": "Capturing %s",
+  "gui.pjmbasemod.capturepoint_editor.title": "Capture Points Editor"
 }

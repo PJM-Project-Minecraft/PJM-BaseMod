@@ -348,5 +348,6 @@
   "event.pjmbasemod.signal_hunt.end.aborted.subtitle": "Радиоразведка прервана. Найдено маяков: %s/%s",
   "hud.pjmbasemod.signal_hunt.signal": "Сигнал",
   "hud.pjmbasemod.signal_hunt.capture_now": "ПКМ — ПЕРЕХВАТ",
-  "hud.pjmbasemod.signal_hunt.capture_progress": "Перехват %s"
+  "hud.pjmbasemod.signal_hunt.capture_progress": "Перехват %s",
+  "gui.pjmbasemod.capturepoint_editor.title": "Редактор точек захвата"
 }
