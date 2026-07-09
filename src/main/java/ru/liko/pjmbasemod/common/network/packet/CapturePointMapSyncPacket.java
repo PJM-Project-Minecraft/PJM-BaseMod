@@ -31,6 +31,7 @@ public record CapturePointMapSyncPacket(List<CapturePoint> points) implements Cu
                 buf.writeVarInt(v.z());
             }
             buf.writeUtf(cp.ownerTeamId());
+            buf.writeVarInt(cp.ownerColor());
             buf.writeUtf(cp.captureTeamId());
             buf.writeVarInt(cp.progressPercent());
             buf.writeBoolean(cp.contested());
@@ -50,11 +51,12 @@ public record CapturePointMapSyncPacket(List<CapturePoint> points) implements Cu
                 vertices.add(new CapturePoint.Vertex(buf.readVarInt(), buf.readVarInt()));
             }
             String owner = buf.readUtf();
+            int ownerColor = buf.readVarInt();
             String capture = buf.readUtf();
             int progress = buf.readVarInt();
             boolean contested = buf.readBoolean();
             points.add(new CapturePoint(id, displayName, dimension, List.copyOf(vertices),
-                    owner, capture, progress, contested));
+                    owner, ownerColor, capture, progress, contested));
         }
         return new CapturePointMapSyncPacket(List.copyOf(points));
     }

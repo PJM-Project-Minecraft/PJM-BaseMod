@@ -113,6 +113,7 @@ public final class CapturePointSavedData extends SavedData {
         Entry entry = entry(id);
         if (entry == null) return false;
         entry.ownerTeamId = ownerTeamId == null ? "" : Teams.normalize(ownerTeamId);
+        entry.ownerColor = entry.ownerTeamId.isEmpty() ? 0x9B9B9B : Teams.color(null, entry.ownerTeamId);
         entry.captureTeamId = "";
         entry.progressTicks = entry.ownerTeamId.isEmpty() ? 0 : Integer.MAX_VALUE;
         setDirty();
@@ -139,6 +140,7 @@ public final class CapturePointSavedData extends SavedData {
         public String dimension;
         public List<CapturePoint.Vertex> vertices = List.of();
         public String ownerTeamId = "";
+        public int ownerColor = 0x9B9B9B;
         public String captureTeamId = "";
         public int progressTicks = 0;
 
@@ -154,7 +156,7 @@ public final class CapturePointSavedData extends SavedData {
                 percent = Math.max(0, Math.min(100, progressTicks * 100 / requiredTicks));
             }
             return new CapturePoint(id, displayName, dimension,
-                    List.copyOf(vertices), ownerTeamId, captureTeamId, percent, contested);
+                    List.copyOf(vertices), ownerTeamId, ownerColor, captureTeamId, percent, contested);
         }
 
         CompoundTag save() {
@@ -163,6 +165,7 @@ public final class CapturePointSavedData extends SavedData {
             tag.putString("displayName", displayName);
             tag.putString("dimension", dimension);
             tag.putString("owner", ownerTeamId);
+            tag.putInt("ownerColor", ownerColor);
             tag.putString("capture", captureTeamId);
             tag.putInt("progress", progressTicks);
             ListTag vlist = new ListTag();
@@ -183,6 +186,7 @@ public final class CapturePointSavedData extends SavedData {
             entry.displayName = tag.getString("displayName");
             entry.dimension = tag.getString("dimension");
             entry.ownerTeamId = tag.getString("owner");
+            entry.ownerColor = tag.getInt("ownerColor");
             entry.captureTeamId = tag.getString("capture");
             entry.progressTicks = Math.max(0, tag.getInt("progress"));
             ListTag vlist = tag.getList("vertices", Tag.TAG_COMPOUND);

@@ -97,12 +97,12 @@ public class CapturePointEditorScreen extends PjmBaseScreen {
 
     private static CapturePoint withName(CapturePoint cp, String name) {
         return new CapturePoint(cp.id(), name, cp.dimension(), cp.vertices(),
-                cp.ownerTeamId(), cp.captureTeamId(), cp.progressPercent(), cp.contested());
+                cp.ownerTeamId(), cp.ownerColor(), cp.captureTeamId(), cp.progressPercent(), cp.contested());
     }
 
     private static CapturePoint withVertices(CapturePoint cp, List<CapturePoint.Vertex> v) {
         return new CapturePoint(cp.id(), cp.displayName(), cp.dimension(), v,
-                cp.ownerTeamId(), cp.captureTeamId(), cp.progressPercent(), cp.contested());
+                cp.ownerTeamId(), cp.ownerColor(), cp.captureTeamId(), cp.progressPercent(), cp.contested());
     }
 
     @Override
@@ -396,7 +396,7 @@ public class CapturePointEditorScreen extends PjmBaseScreen {
                 if (mc.player != null) dim = mc.player.level().dimension().location().toString();
                 PjmNetworking.sendToServer(new CapturePointEditorActionPacket(
                         CapturePointEditorActionPacket.Action.ADD, newId, newId, dim, "", List.of()));
-                serverPoints.add(new CapturePoint(newId, newId, dim, List.of(), "", "", 0, false));
+                serverPoints.add(new CapturePoint(newId, newId, dim, List.of(), "", 0x9B9B9B, "", 0, false));
                 selectedPoint = serverPoints.size() - 1;
                 if (nameBox != null) nameBox.setValue(newId);
             }

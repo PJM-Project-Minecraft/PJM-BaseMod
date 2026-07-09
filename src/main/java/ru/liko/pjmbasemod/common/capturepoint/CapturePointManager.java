@@ -173,6 +173,7 @@ public final class CapturePointManager {
         entry.progressTicks = Math.max(0, entry.progressTicks - interval);
         if (entry.progressTicks == 0) {
             entry.ownerTeamId = "";
+            entry.ownerColor = 0x9B9B9B;
             entry.progressTicks = Math.min(requiredTicks, entry.progressTicks + interval);
         }
         return true;
@@ -181,6 +182,7 @@ public final class CapturePointManager {
     private static void handleCaptureComplete(MinecraftServer server, CapturePointSavedData.Entry entry, int requiredTicks) {
         if (entry.ownerTeamId.isEmpty() && entry.progressTicks >= requiredTicks && !entry.captureTeamId.isEmpty()) {
             entry.ownerTeamId = entry.captureTeamId;
+            entry.ownerColor = Teams.color(server, entry.ownerTeamId);
             entry.captureTeamId = "";
             entry.progressTicks = requiredTicks;
             String teamName = Teams.displayName(server, entry.ownerTeamId);

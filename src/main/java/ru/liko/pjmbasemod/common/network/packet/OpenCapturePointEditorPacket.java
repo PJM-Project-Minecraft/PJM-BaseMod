@@ -31,6 +31,7 @@ public record OpenCapturePointEditorPacket(List<CapturePoint> points) implements
                 buf.writeVarInt(v.z());
             }
             buf.writeUtf(cp.ownerTeamId());
+            buf.writeVarInt(cp.ownerColor());
             buf.writeUtf(cp.captureTeamId());
             buf.writeVarInt(cp.progressPercent());
             buf.writeBoolean(cp.contested());
@@ -50,7 +51,7 @@ public record OpenCapturePointEditorPacket(List<CapturePoint> points) implements
                 vertices.add(new CapturePoint.Vertex(buf.readVarInt(), buf.readVarInt()));
             }
             points.add(new CapturePoint(id, displayName, dimension, List.copyOf(vertices),
-                    buf.readUtf(), buf.readUtf(), buf.readVarInt(), buf.readBoolean()));
+                    buf.readUtf(), buf.readVarInt(), buf.readUtf(), buf.readVarInt(), buf.readBoolean()));
         }
         return new OpenCapturePointEditorPacket(List.copyOf(points));
     }

@@ -13,6 +13,7 @@ import java.util.List;
  * @param dimension       id измерения (напр. {@code minecraft:overworld})
  * @param vertices        вершины полигона в блочных координатах X/Z
  * @param ownerTeamId     текущий владелец ({@code ""} = нейтрально)
+ * @param ownerColor      RGB цвет владельца (для карты; 0x9B9B9B = нейтрально)
  * @param captureTeamId   команда, захватывающая/нейтрализующая точку ({@code ""} = нет)
  * @param progressPercent 0–100: при NEUTRALIZING — остаток контроля владельца,
  *                        при CAPTURING — прогресс захвата
@@ -24,6 +25,7 @@ public record CapturePoint(
         String dimension,
         List<Vertex> vertices,
         String ownerTeamId,
+        int ownerColor,
         String captureTeamId,
         int progressPercent,
         boolean contested

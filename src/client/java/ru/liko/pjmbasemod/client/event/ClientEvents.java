@@ -16,6 +16,7 @@ import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.chat.ClientChatModeState;
+import ru.liko.pjmbasemod.client.capturepoint.ClientCapturePointState;
 import ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState;
 import ru.liko.pjmbasemod.client.gui.RadialMenuScreen;
 import ru.liko.pjmbasemod.client.gui.screen.TacticalMainMenuScreen;
@@ -48,9 +49,11 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ru.liko.pjmbasemod.client.gui.overlay.HudOverlay.reset();
+        ClientCapturePointState.reset();
         ClientFactionCommanderState.reset();
         ClientRoleState.reset();
         ru.liko.pjmbasemod.client.serverevent.journeymap.EventJourneyMapBridge.onLogout();
+        ru.liko.pjmbasemod.client.capturepoint.journeymap.CapturePointJourneyMapBridge.onLogout();
         ru.liko.pjmbasemod.client.serverevent.ClientServerEventState.clear();
         ru.liko.pjmbasemod.client.serverevent.SignalHuntActionBarHud.reset();
         RadioManager.get().reset();
@@ -62,6 +65,7 @@ public final class ClientEvents {
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
         ru.liko.pjmbasemod.client.serverevent.journeymap.EventJourneyMapBridge.onClientTick();
+        ru.liko.pjmbasemod.client.capturepoint.journeymap.CapturePointJourneyMapBridge.onClientTick();
         if (mc.player == null) {
             VoiceChatActionBarHud.tick(mc);
             return;
