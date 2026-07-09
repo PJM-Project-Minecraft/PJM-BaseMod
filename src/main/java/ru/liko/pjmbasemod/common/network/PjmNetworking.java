@@ -14,7 +14,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "28";
+    public static final String VERSION = "29";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -49,6 +49,7 @@ public final class PjmNetworking {
         r.playToServer(RequestFactionManagementPacket.TYPE, RequestFactionManagementPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestFactionManagement(p, (ServerPlayer) ctx.player())));
         r.playToServer(RequestModerationPacket.TYPE,   RequestModerationPacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestModeration(p, (ServerPlayer) ctx.player())));
         r.playToServer(ModerationActionPacket.TYPE,    ModerationActionPacket.STREAM_CODEC,    (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleModerationAction(p, (ServerPlayer) ctx.player())));
+        r.playToServer(CapturePointEditorActionPacket.TYPE, CapturePointEditorActionPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ru.liko.pjmbasemod.common.capturepoint.CapturePointManager.handleEditorAction(p, (ServerPlayer) ctx.player())));
 
         // ===== Server → Client =====
         r.playToClient(SyncPjmDataPacket.TYPE,  SyncPjmDataPacket.STREAM_CODEC,  (p, ctx) -> ctx.enqueueWork(() -> CLIENT.syncPlayerData(p)));
@@ -76,8 +77,11 @@ public final class PjmNetworking {
         r.playToClient(ModerationSyncPacket.TYPE, ModerationSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.moderationSync(p)));
         r.playToClient(EventMapSyncPacket.TYPE, EventMapSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.eventMapSync(p)));
         r.playToClient(SignalHuntHudPacket.TYPE, SignalHuntHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.signalHuntHud(p)));
+        r.playToClient(CapturePointMapSyncPacket.TYPE, CapturePointMapSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.capturePointMapSync(p)));
+        r.playToClient(CapturePointHudPacket.TYPE, CapturePointHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.capturePointHud(p)));
+        r.playToClient(OpenCapturePointEditorPacket.TYPE, OpenCapturePointEditorPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openCapturePointEditor(p)));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 43);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 47);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {

@@ -23,6 +23,9 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.capturepoint.CapturePoint;
+import ru.liko.pjmbasemod.common.capturepoint.CapturePointManager;
+import ru.liko.pjmbasemod.common.capturepoint.CapturePointSavedData;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
 import ru.liko.pjmbasemod.common.web.WebAuthService;
 import ru.liko.pjmbasemod.common.entity.NotebookEntity;
@@ -36,8 +39,10 @@ import ru.liko.pjmbasemod.common.garage.GarageManager;
 import ru.liko.pjmbasemod.common.garage.GarageTerminalSavedData;
 import ru.liko.pjmbasemod.common.garage.VehicleDefinition;
 import ru.liko.pjmbasemod.common.garage.VehicleRegistry;
+import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers;
 import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
+import ru.liko.pjmbasemod.common.network.packet.OpenCapturePointEditorPacket;
 import ru.liko.pjmbasemod.common.rank.RankRegistry;
 import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.rank.RankSnapshot;
@@ -77,6 +82,7 @@ public final class PjmCommands {
                 .then(webCommand())
                 .then(baseZoneCommand())
                 .then(eventCommand())
+                .then(capturePointCommand())
                 .then(inventoryCommand())
                 .then(entityCommand())
                 .then(ModerationCommands.build())
@@ -1172,6 +1178,112 @@ public final class PjmCommands {
 
     private static String dimensionId(ServerPlayer player) {
         return player.serverLevel().dimension().location().toString();
+    }
+
+    // --------------------------------------------------------------- capturepoint (точки захвата на полигонах)
+
+    private static LiteralArgumentBuilder<CommandSourceStack> capturePointCommand() {
+        return Commands.literal("capturepoint")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("add")
+                        .then(Commands.argument("id", StringArgumentType.word())
+                                .executes(ctx -> capturePointAdd(ctx.getSource(), StringArgumentType.getString(ctx, "id"), null))
+                                .then(Commands.argument("display_name", StringArgumentType.string())
+                                        .executes(ctx -> capturePointAdd(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "id"),
+                                                StringArgumentType.getString(ctx, "display_name"))))))
+                .then(Commands.literal("remove")
+                        .then(Commands.argument("id", StringArgumentType.word())
+                                .executes(ctx -> capturePointRemove(ctx.getSource(), StringArgumentType.getString(ctx, "id")))))
+                .then(Commands.literal("list")
+                        .executes(ctx -> capturePointList(ctx.getSource())))
+                .then(Commands.literal("setowner")
+                        .then(Commands.argument("id", StringArgumentType.word())
+                                .then(Commands.argument("owner", StringArgumentType.word())
+                                        .executes(ctx -> capturePointSetOwner(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "id"),
+                                                StringArgumentType.getString(ctx, "owner"))))))
+                .then(Commands.literal("editor")
+                        .executes(ctx -> capturePointOpenEditor(ctx.getSource())))
+                .then(Commands.literal("sync")
+                        .executes(ctx -> capturePointSync(ctx.getSource())));
+    }
+
+    private static int capturePointAdd(CommandSourceStack source, String id, @Nullable String displayName) {
+        ServerPlayer player = requirePlayer(source);
+        String dimension = player == null ? "minecraft:overworld" : dimensionId(player);
+        CapturePointSavedData data = CapturePointSavedData.get(source.getServer());
+        if (!data.addPoint(id, displayName, dimension)) {
+            source.sendFailure(Component.literal("Точка захвата '" + id + "' уже существует"));
+            return 0;
+        }
+        CapturePointManager.broadcastMapSync(source.getServer(), data, "capturepoint_added");
+        source.sendSuccess(() -> Component.literal("Создана точка захвата '" + id + "'"
+                + (displayName != null ? " (" + displayName + ")" : "")
+                + ". Добавь вершины через редактор: /pjm capturepoint editor"), true);
+        return 1;
+    }
+
+    private static int capturePointRemove(CommandSourceStack source, String id) {
+        CapturePointSavedData data = CapturePointSavedData.get(source.getServer());
+        if (!data.removePoint(id)) {
+            source.sendFailure(Component.literal("Точка захвата '" + id + "' не найдена"));
+            return 0;
+        }
+        CapturePointManager.broadcastMapSync(source.getServer(), data, "capturepoint_removed");
+        source.sendSuccess(() -> Component.literal("Удалена точка захвата '" + id + "'"), true);
+        return 1;
+    }
+
+    private static int capturePointList(CommandSourceStack source) {
+        CapturePointSavedData data = CapturePointSavedData.get(source.getServer());
+        if (data.entries().isEmpty()) {
+            source.sendSuccess(() -> Component.literal("Точки захвата не настроены"), false);
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Точки захвата (" + data.entries().size() + "):"), false);
+        int count = 0;
+        for (CapturePointSavedData.Entry entry : data.entries()) {
+            String owner = entry.ownerTeamId.isEmpty() ? "нейтрально" : entry.ownerTeamId;
+            String status = entry.captureTeamId.isEmpty() ? "" : " [захват: " + entry.captureTeamId + "]";
+            source.sendSuccess(() -> Component.literal(" - " + entry.id + " (" + entry.displayName + ")"
+                    + " | " + entry.dimension + " | вершин: " + entry.vertices.size()
+                    + " | владелец: " + owner + status), false);
+            count++;
+        }
+        return count;
+    }
+
+    private static int capturePointSetOwner(CommandSourceStack source, String id, String ownerArg) {
+        String owner = parseTeam(source, ownerArg);
+        if (owner == null) return 0;
+        CapturePointSavedData data = CapturePointSavedData.get(source.getServer());
+        if (!data.setOwner(id, owner)) {
+            source.sendFailure(Component.literal("Точка захвата '" + id + "' не найдена"));
+            return 0;
+        }
+        CapturePointManager.broadcastMapSync(source.getServer(), data, "capturepoint_owner_set");
+        String ownerLabel = owner.isEmpty() ? "нейтрально" : owner;
+        source.sendSuccess(() -> Component.literal("Владелец точки '" + id + "' = " + ownerLabel), true);
+        return 1;
+    }
+
+    private static int capturePointOpenEditor(CommandSourceStack source) {
+        ServerPlayer player = requirePlayer(source);
+        if (player == null) return 0;
+        CapturePointSavedData data = CapturePointSavedData.get(source.getServer());
+        int requiredTicks = Math.max(1, Config.getCapturePointCaptureTimeSeconds() * 20);
+        java.util.List<CapturePoint> points = data.snapshots(requiredTicks, null);
+        PjmNetworking.sendToPlayer(player, new OpenCapturePointEditorPacket(points));
+        source.sendSuccess(() -> Component.literal("Открыт редактор точек захвата"), true);
+        return 1;
+    }
+
+    private static int capturePointSync(CommandSourceStack source) {
+        CapturePointSavedData data = CapturePointSavedData.get(source.getServer());
+        CapturePointManager.broadcastMapSync(source.getServer(), data, "command_capturepoint_sync");
+        source.sendSuccess(() -> Component.literal("Синхронизация точек захвата отправлена игрокам"), false);
+        return 1;
     }
 
 }

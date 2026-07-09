@@ -26,6 +26,7 @@ import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.antigrief.AntiGriefService;
 import ru.liko.pjmbasemod.common.basezone.BaseZoneManager;
+import ru.liko.pjmbasemod.common.capturepoint.CapturePointManager;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
 import ru.liko.pjmbasemod.common.chat.ChatService;
 import ru.liko.pjmbasemod.common.customization.SkinRegistry;
@@ -73,6 +74,7 @@ public final class PjmServerEvents {
         PjmNetworking.sendToPlayer(sp, new SyncPjmDataPacket(sp.getUUID(), mode.getKey()));
         ServerPacketHandlers.sendHudConfig(sp);
         RankService.sync(sp);
+        CapturePointManager.sendInitialSync(sp);
         FactionCommanderService.onPlayerLogin(sp);
         RoleService.onPlayerLogin(sp);
         FactionMenuService.onPlayerLogin(sp);
@@ -260,6 +262,7 @@ public final class PjmServerEvents {
         ModerationService.tick(event.getServer());
         ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.onServerTick(event.getServer());
         ServerEventManager.onServerTick(event.getServer());
+        CapturePointManager.onServerTick(event.getServer());
 
         if (++warehouseScanCounter >= 20) {
             warehouseScanCounter = 0;

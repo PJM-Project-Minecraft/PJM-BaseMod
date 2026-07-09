@@ -6,10 +6,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.capturepoint.CapturePoint;
 import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.RankSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankXpPacket;
+
+import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -112,6 +115,30 @@ public final class RankService {
         } else {
             addXp(killer, config.enemyKillXp(), "kill");
         }
+    }
+
+    /**
+     * Награда XP игрокам команды, находящимся внутри полигона точки захвата.
+     * Вызывается из {@link ru.liko.pjmbasemod.common.capturepoint.CapturePointManager}
+     * при завершении захвата точки.
+     * @return количество награждённых игроков.
+     */
+    public static int rewardCapturePoint(MinecraftServer server, String pointId, String dimension,
+                                         List<CapturePoint.Vertex> vertices, String teamId) {
+        RankConfig config = RankRegistry.get().config();
+        if (server == null || !config.enabled() || config.sectorCaptureXp() == 0) return 0;
+        if (!Teams.isCombatTeam(teamId)) return 0;
+
+        int rewarded = 0;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (!player.isAlive() || player.isSpectator() || player.isCreative()) continue;
+            if (!teamId.equals(Teams.resolvePlayerTeamId(player))) continue;
+            if (!dimension.equals(player.serverLevel().dimension().location().toString())) continue;
+            if (!CapturePoint.contains(vertices, player.blockPosition().getX(), player.blockPosition().getZ())) continue;
+            addXp(player, config.sectorCaptureXp(), "capture_point");
+            rewarded++;
+        }
+        return rewarded;
     }
 
     /**

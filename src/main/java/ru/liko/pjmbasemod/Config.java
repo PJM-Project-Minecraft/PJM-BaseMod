@@ -127,6 +127,17 @@ public final class Config {
     public static int     getEventsMaxIntervalMinutes()     { return data().events.maxIntervalMinutes; }
     public static boolean isEventsRequireCaptureInactive()  { return data().events.requireCaptureInactive; }
 
+    public static boolean isCapturePointsEnabled()          { return data().capturePoints.enabled; }
+    public static int     getCapturePointCaptureTimeSeconds() { return data().capturePoints.captureTimeSeconds; }
+    public static int     getCapturePointDecayTimeSeconds()    { return data().capturePoints.decayTimeSeconds; }
+    public static int     getCapturePointTickIntervalTicks()   { return data().capturePoints.tickIntervalTicks; }
+    public static int     getCapturePointMinAdvantage()        { return data().capturePoints.minAdvantage; }
+    public static boolean isCapturePointContestedFreeze()      { return data().capturePoints.contestedFreeze; }
+    public static boolean isCapturePointJourneyMapEnabled()    { return data().capturePoints.journeymapEnabled; }
+    public static int     getCapturePointJourneyMapFillAlpha()   { return data().capturePoints.journeymapFillAlpha; }
+    public static int     getCapturePointJourneyMapBorderAlpha() { return data().capturePoints.journeymapBorderAlpha; }
+    public static int     getCapturePointJourneyMapNeutralColorRgb() { return data().capturePoints.journeymapNeutralColorRgb; }
+
     public static boolean isModerationOverrideVanilla()      { return data().moderation.overrideVanillaCommands; }
     public static int  getModerationDefaultTempBanMinutes()  { return data().moderation.defaultTempBanMinutes; }
     public static int  getModerationDefaultMuteMinutes()     { return data().moderation.defaultMuteMinutes; }
@@ -261,6 +272,7 @@ public final class Config {
         BaseZone baseZone = new BaseZone();
         Commands commands = new Commands();
         Events events = new Events();
+        CapturePoints capturePoints = new CapturePoints();
 
         /** Заменяет null-секции дефолтами и зажимает числовые значения в допустимые диапазоны. */
         void normalize() {
@@ -304,6 +316,9 @@ public final class Config {
             if (events == null) events = new Events();
             events.minIntervalMinutes = clamp(events.minIntervalMinutes, 1, 10_080);
             events.maxIntervalMinutes = clamp(events.maxIntervalMinutes, events.minIntervalMinutes, 10_080);
+
+            if (capturePoints == null) capturePoints = new CapturePoints();
+            capturePoints.normalize();
 
             if (teams.definitions == null) teams.definitions = new ArrayList<>();
             if (teams.joinCommands == null) teams.joinCommands = new ArrayList<>();
@@ -450,5 +465,28 @@ public final class Config {
         int maxIntervalMinutes = 180;
         /** Автозапуск только когда захват фронтлайна неактивен. */
         boolean requireCaptureInactive = true;
+    }
+
+    static final class CapturePoints {
+        boolean enabled = true;
+        int captureTimeSeconds = 45;
+        int decayTimeSeconds = 30;
+        int tickIntervalTicks = 20;
+        int minAdvantage = 1;
+        boolean contestedFreeze = true;
+        boolean journeymapEnabled = true;
+        int journeymapFillAlpha = 96;
+        int journeymapBorderAlpha = 220;
+        int journeymapNeutralColorRgb = 0x9B9B9B;
+
+        void normalize() {
+            captureTimeSeconds = clamp(captureTimeSeconds, 5, 3600);
+            decayTimeSeconds = clamp(decayTimeSeconds, 1, 3600);
+            tickIntervalTicks = clamp(tickIntervalTicks, 1, 200);
+            minAdvantage = clamp(minAdvantage, 1, 64);
+            journeymapFillAlpha = clamp(journeymapFillAlpha, 0, 255);
+            journeymapBorderAlpha = clamp(journeymapBorderAlpha, 0, 255);
+            journeymapNeutralColorRgb = clamp(journeymapNeutralColorRgb, 0, 0xFFFFFF);
+        }
     }
 }
