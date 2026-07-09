@@ -32,12 +32,16 @@ import ru.liko.pjmbasemod.common.network.packet.OpenModerationPacket;
 import ru.liko.pjmbasemod.common.network.packet.WarehouseSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.ModerationSyncPacket;
 import ru.liko.pjmbasemod.client.gui.overlay.NotificationOverlay;
+import ru.liko.pjmbasemod.client.capturepoint.ClientCapturePointState;
 import ru.liko.pjmbasemod.client.rank.ClientRankState;
 import ru.liko.pjmbasemod.client.radio.RadioManager;
 import ru.liko.pjmbasemod.client.role.ClientRoleState;
 import ru.liko.pjmbasemod.common.network.ClientPacketProxy;
 import ru.liko.pjmbasemod.common.network.packet.FactionCommanderSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
+import ru.liko.pjmbasemod.common.network.packet.CapturePointMapSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.CapturePointHudPacket;
+import ru.liko.pjmbasemod.common.network.packet.OpenCapturePointEditorPacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioEventPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankXpPacket;
@@ -189,6 +193,21 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     @Override
     public void eventMapSync(ru.liko.pjmbasemod.common.network.packet.EventMapSyncPacket payload) {
         ru.liko.pjmbasemod.client.serverevent.ClientServerEventState.update(payload);
+    }
+
+    @Override
+    public void capturePointMapSync(CapturePointMapSyncPacket payload) {
+        ClientCapturePointState.updateMap(payload);
+    }
+
+    @Override
+    public void capturePointHud(CapturePointHudPacket payload) {
+        ClientCapturePointState.updateHud(payload);
+    }
+
+    @Override
+    public void openCapturePointEditor(OpenCapturePointEditorPacket payload) {
+        ru.liko.pjmbasemod.client.gui.screen.CapturePointEditorScreen.open(payload.points());
     }
 
     @Override
