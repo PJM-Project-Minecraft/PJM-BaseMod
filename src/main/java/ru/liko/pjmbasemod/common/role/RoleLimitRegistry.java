@@ -6,7 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.neoforged.fml.loading.FMLPaths;
 import ru.liko.pjmbasemod.Pjmbasemod;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -68,7 +68,7 @@ public final class RoleLimitRegistry {
 
     public synchronized int limitFor(String teamId, CombatRole role) {
         if (role == null) return UNLIMITED;
-        Map<String, Integer> teamLimits = limitsByTeam.get(FrontlineTeams.normalize(teamId));
+        Map<String, Integer> teamLimits = limitsByTeam.get(Teams.normalize(teamId));
         if (teamLimits == null) return UNLIMITED;
         return teamLimits.getOrDefault(role.id(), UNLIMITED);
     }
@@ -88,8 +88,8 @@ public final class RoleLimitRegistry {
             }
 
             for (Map.Entry<String, JsonElement> teamEntry : teams.entrySet()) {
-                String teamId = FrontlineTeams.normalize(teamEntry.getKey());
-                if (teamId.isBlank() || !FrontlineTeams.isCombatTeam(teamId)) {
+                String teamId = Teams.normalize(teamEntry.getKey());
+                if (teamId.isBlank() || !Teams.isCombatTeam(teamId)) {
                     Pjmbasemod.LOGGER.warn("Roles: пропущена неизвестная фракция '{}'", teamEntry.getKey());
                     continue;
                 }
@@ -140,7 +140,7 @@ public final class RoleLimitRegistry {
         JsonObject root = new JsonObject();
         root.addProperty("schemaVersion", 1);
         JsonObject teams = new JsonObject();
-        for (var team : FrontlineTeams.all()) {
+        for (var team : Teams.all()) {
             JsonObject roles = new JsonObject();
             for (CombatRole role : CombatRole.values()) {
                 roles.addProperty(role.id(), UNLIMITED);

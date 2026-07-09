@@ -7,7 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -57,8 +57,8 @@ public record FactionCommanderSyncPacket(
                 active,
                 canManage,
                 team,
-                active ? FrontlineTeams.displayName(player.getServer(), team) : "",
-                active ? FrontlineTeams.color(player.getServer(), team) : FactionCommanderService.ROLE_COLOR,
+                active ? Teams.displayName(player.getServer(), team) : "",
+                active ? Teams.color(player.getServer(), team) : FactionCommanderService.ROLE_COLOR,
                 FactionCommanderService.ROLE_SHORT_NAME,
                 FactionCommanderService.ROLE_DISPLAY_NAME
         );

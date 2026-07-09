@@ -17,13 +17,10 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.chat.ClientChatModeState;
 import ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState;
-import ru.liko.pjmbasemod.client.frontline.ClientFrontlineState;
-import ru.liko.pjmbasemod.client.frontline.journeymap.FrontlineJourneyMapBridge;
 import ru.liko.pjmbasemod.client.gui.RadialMenuScreen;
 import ru.liko.pjmbasemod.client.gui.screen.TacticalMainMenuScreen;
 import ru.liko.pjmbasemod.client.input.ModKeyBindings;
 import ru.liko.pjmbasemod.client.inventory.LockedSlotsClientState;
-import ru.liko.pjmbasemod.client.region.ClientRegionState;
 import ru.liko.pjmbasemod.client.radio.RadioManager;
 import ru.liko.pjmbasemod.client.radio.VoiceChatActionBarHud;
 import ru.liko.pjmbasemod.client.radio.VoiceChatBridge;
@@ -51,11 +48,11 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ru.liko.pjmbasemod.client.gui.overlay.HudOverlay.reset();
-        ClientRegionState.reset();
-        ClientFrontlineState.reset();
         ClientFactionCommanderState.reset();
         ClientRoleState.reset();
-        FrontlineJourneyMapBridge.onLogout();
+        ru.liko.pjmbasemod.client.serverevent.journeymap.EventJourneyMapBridge.onLogout();
+        ru.liko.pjmbasemod.client.serverevent.ClientServerEventState.clear();
+        ru.liko.pjmbasemod.client.serverevent.SignalHuntActionBarHud.reset();
         RadioManager.get().reset();
         LockedSlotsClientState.reset();
         firstTitleReplaced = false;
@@ -64,7 +61,7 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        FrontlineJourneyMapBridge.onClientTick();
+        ru.liko.pjmbasemod.client.serverevent.journeymap.EventJourneyMapBridge.onClientTick();
         if (mc.player == null) {
             VoiceChatActionBarHud.tick(mc);
             return;
@@ -72,6 +69,7 @@ public final class ClientEvents {
 
         RadioManager.get().tick();
         VoiceChatActionBarHud.tick(mc);
+        ru.liko.pjmbasemod.client.serverevent.SignalHuntActionBarHud.tick(mc);
 
         // F1 (скрытие HUD) — только для OP. У обычных игроков сразу возвращаем HUD,
         // чтобы нельзя было спрятать интерфейс (уровень прав синкается с сервера).

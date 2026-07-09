@@ -7,7 +7,7 @@ import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.common.dimension.LobbyService;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.FactionManagementSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionManagementPacket;
@@ -40,7 +40,7 @@ public final class FactionMenuService {
         if (player.serverLevel().getGameTime() % 40L == 0L) {
             FactionDeputySavedData data = FactionDeputySavedData.get(player.getServer());
             String deputyTeam = data.deputyTeamOf(player.getUUID());
-            if (deputyTeam != null && !deputyTeam.equals(FrontlineTeams.resolvePlayerTeamId(player))) {
+            if (deputyTeam != null && !deputyTeam.equals(Teams.resolvePlayerTeamId(player))) {
                 data.removeDeputy(deputyTeam, player.getUUID());
             }
         }
@@ -74,7 +74,7 @@ public final class FactionMenuService {
      */
     public static boolean debugOpenManagement(ServerPlayer target) {
         if (target == null || target.getServer() == null) return false;
-        String team = FrontlineTeams.resolvePlayerTeamId(target);
+        String team = Teams.resolvePlayerTeamId(target);
         if (team == null || team.isBlank()) return false;
         // Debug всегда открывает с полными правами, минуя проверки прав.
         Authority full = new Authority(team, true, true, true, true);
@@ -86,8 +86,8 @@ public final class FactionMenuService {
         if (player == null || player.getServer() == null) return;
         MinecraftServer server = player.getServer();
 
-        String team = FrontlineTeams.resolveAlias(rawTeamId);
-        if (team == null || !FrontlineTeams.isCombatTeam(team)) {
+        String team = Teams.resolveAlias(rawTeamId);
+        if (team == null || !Teams.isCombatTeam(team)) {
             player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.selection.invalid_team"), true);
             openSelection(player);
             return;
@@ -96,7 +96,7 @@ public final class FactionMenuService {
         TeamBalanceService.Decision balance = TeamBalanceService.check(server, player, team);
         if (!balance.allowed()) {
             player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.balance.blocked",
-                    FrontlineTeams.displayName(server, balance.suggestedTeamId())), true);
+                    Teams.displayName(server, balance.suggestedTeamId())), true);
             openSelection(player);
             return;
         }
@@ -129,7 +129,7 @@ public final class FactionMenuService {
         FactionCommanderService.sync(player);
         FactionCommanderService.refreshTabName(player);
         player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.selection.complete",
-                FrontlineTeams.displayName(server, team), Component.translatable(role.translationKey())), true);
+                Teams.displayName(server, team), Component.translatable(role.translationKey())), true);
         LobbyService.returnToOverworld(player);
         FactionJoinActions.run(player, team);
     }
@@ -161,7 +161,7 @@ public final class FactionMenuService {
             return;
         }
 
-        String targetTeam = FrontlineTeams.resolvePlayerTeamId(target);
+        String targetTeam = Teams.resolvePlayerTeamId(target);
         if (!team.equals(targetTeam)) {
             actor.displayClientMessage(Component.translatable("gui.pjmbasemod.role.target_wrong_faction"), true);
             resync(actor);
@@ -196,7 +196,7 @@ public final class FactionMenuService {
             resync(actor);
             return;
         }
-        if (!team.equals(FrontlineTeams.resolvePlayerTeamId(target))) {
+        if (!team.equals(Teams.resolvePlayerTeamId(target))) {
             actor.displayClientMessage(Component.translatable("gui.pjmbasemod.role.target_wrong_faction"), true);
             resync(actor);
             return;
@@ -236,7 +236,7 @@ public final class FactionMenuService {
     /** Что текущий игрок вправе делать в управлении своей фракцией. */
     public static Authority authority(ServerPlayer actor) {
         if (actor == null || actor.getServer() == null) return Authority.NONE;
-        String team = FrontlineTeams.resolvePlayerTeamId(actor);
+        String team = Teams.resolvePlayerTeamId(actor);
         if (team == null || team.isBlank()) return Authority.NONE;
 
         boolean admin = RolePermissions.can(actor, RolePermissions.ADMIN);
@@ -260,7 +260,7 @@ public final class FactionMenuService {
     }
 
     private static FactionSelectionSnapshot selectionSnapshot(ServerPlayer player, boolean required) {
-        String currentTeam = FrontlineTeams.resolvePlayerTeamId(player);
+        String currentTeam = Teams.resolvePlayerTeamId(player);
         return new FactionSelectionSnapshot(teamEntries(player.getServer()),
                 currentTeam == null ? "" : currentTeam,
                 RoleService.currentRoleId(player),
@@ -274,7 +274,7 @@ public final class FactionMenuService {
 
         List<FactionManagementSnapshot.MemberEntry> members = new ArrayList<>();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (!team.equals(FrontlineTeams.resolvePlayerTeamId(player))) continue;
+            if (!team.equals(Teams.resolvePlayerTeamId(player))) continue;
             String commanderTeam = FactionCommanderService.activeCommanderTeam(player);
             int perms = deputies.permissions(team, player.getUUID());
             members.add(new FactionManagementSnapshot.MemberEntry(player.getUUID(),
@@ -299,8 +299,8 @@ public final class FactionMenuService {
         }
 
         return new FactionManagementSnapshot(team,
-                FrontlineTeams.displayName(server, team),
-                FrontlineTeams.color(server, team),
+                Teams.displayName(server, team),
+                Teams.color(server, team),
                 true,
                 List.copyOf(members),
                 roleEntries(server, team),
@@ -314,10 +314,10 @@ public final class FactionMenuService {
 
     private static List<FactionSelectionSnapshot.TeamEntry> teamEntries(MinecraftServer server) {
         List<FactionSelectionSnapshot.TeamEntry> teams = new ArrayList<>();
-        for (var team : FrontlineTeams.all()) {
+        for (var team : Teams.all()) {
             teams.add(new FactionSelectionSnapshot.TeamEntry(team.id(),
-                    FrontlineTeams.displayName(server, team.id()),
-                    FrontlineTeams.color(server, team.id()),
+                    Teams.displayName(server, team.id()),
+                    Teams.color(server, team.id()),
                     roleEntries(server, team.id())));
         }
         return List.copyOf(teams);

@@ -31,19 +31,14 @@ import ru.liko.pjmbasemod.common.network.packet.OpenWarehousePacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenModerationPacket;
 import ru.liko.pjmbasemod.common.network.packet.WarehouseSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.ModerationSyncPacket;
-import ru.liko.pjmbasemod.client.frontline.ClientFrontlineState;
 import ru.liko.pjmbasemod.client.gui.overlay.NotificationOverlay;
 import ru.liko.pjmbasemod.client.rank.ClientRankState;
-import ru.liko.pjmbasemod.client.region.ClientRegionState;
 import ru.liko.pjmbasemod.client.radio.RadioManager;
 import ru.liko.pjmbasemod.client.role.ClientRoleState;
 import ru.liko.pjmbasemod.common.network.ClientPacketProxy;
 import ru.liko.pjmbasemod.common.network.packet.FactionCommanderSyncPacket;
-import ru.liko.pjmbasemod.common.network.packet.FrontlineHudPacket;
-import ru.liko.pjmbasemod.common.network.packet.FrontlineMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioEventPacket;
-import ru.liko.pjmbasemod.common.network.packet.RegionMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankXpPacket;
 import ru.liko.pjmbasemod.common.network.packet.RoleSyncPacket;
@@ -71,21 +66,6 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
         } else {
             RadioManager.get().onTeammateStopRadio(payload.senderId());
         }
-    }
-
-    @Override
-    public void regionMapSync(RegionMapSyncPacket payload) {
-        ClientRegionState.updateMap(payload);
-    }
-
-    @Override
-    public void frontlineHud(FrontlineHudPacket payload) {
-        ClientFrontlineState.updateHud(payload);
-    }
-
-    @Override
-    public void frontlineMapSync(FrontlineMapSyncPacket payload) {
-        ClientFrontlineState.updateMap(payload);
     }
 
     @Override
@@ -204,6 +184,16 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
         if (Minecraft.getInstance().screen instanceof ModerationScreen screen) {
             screen.updateSnapshot(payload.snapshot());
         }
+    }
+
+    @Override
+    public void eventMapSync(ru.liko.pjmbasemod.common.network.packet.EventMapSyncPacket payload) {
+        ru.liko.pjmbasemod.client.serverevent.ClientServerEventState.update(payload);
+    }
+
+    @Override
+    public void signalHuntHud(ru.liko.pjmbasemod.common.network.packet.SignalHuntHudPacket payload) {
+        ru.liko.pjmbasemod.client.serverevent.ClientSignalHuntState.update(payload);
     }
 
     @Override

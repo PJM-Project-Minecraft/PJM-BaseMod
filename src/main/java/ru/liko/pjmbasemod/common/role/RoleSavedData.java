@@ -6,7 +6,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 
 import javax.annotation.Nullable;
 import java.util.LinkedHashMap;
@@ -35,7 +35,7 @@ public final class RoleSavedData extends SavedData {
             try {
                 UUID playerId = UUID.fromString(entryTag.getString("uuid"));
                 CombatRole role = CombatRole.byIdOrAlias(entryTag.getString("role"));
-                String team = FrontlineTeams.normalize(entryTag.getString("team"));
+                String team = Teams.normalize(entryTag.getString("team"));
                 if (role == null || team.isBlank()) continue;
                 String name = safeName(entryTag.getString("name"));
                 data.rolesByPlayer.put(playerId, new RoleEntry(role.id(), team, name));
@@ -71,7 +71,7 @@ public final class RoleSavedData extends SavedData {
 
     public void setRole(UUID playerId, String lastKnownName, String teamId, CombatRole role) {
         if (playerId == null || role == null) return;
-        String team = FrontlineTeams.normalize(teamId);
+        String team = Teams.normalize(teamId);
         if (team.isBlank()) return;
         RoleEntry next = new RoleEntry(role.id(), team, safeName(lastKnownName));
         RoleEntry previous = rolesByPlayer.put(playerId, next);

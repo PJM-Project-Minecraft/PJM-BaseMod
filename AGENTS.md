@@ -33,7 +33,7 @@
 - **События:** всё через `@EventBusSubscriber`. Server-хаб — `common/event/PjmServerEvents`. Отложенные действия на входе (телепорт) делать в `onPlayerTick`, **не** в `onLogin` (entity ещё не заспавнен).
 - **Персистентность:** ванильный `SavedData` (`*SavedData` классы, per-world).
 - **JSON-регистры** грузятся из `config/pjmbasemod/<subsystem>/` (НЕ из ресурсов мода), перезагрузка на `ServerStartedEvent` и `/pjm ... reload`.
-- **Команды/состояние игроков:** через ванильный **scoreboard** (`FrontlineTeams.resolvePlayerTeamId`, `FrontlineTeams.all()`). Классов `PjmPlayerData`/`PjmPermissions` нет.
+- **Команды/состояние игроков:** через ванильный **scoreboard** (`Teams.resolvePlayerTeamId`, `Teams.all()`, пакет `common/teams/`). Классов `PjmPlayerData`/`PjmPermissions` нет.
 - **GUI:** кастомные `Screen` **без `AbstractContainerMenu`**. Полноэкранные меню наследуют `PjmBaseScreen` (масштабирование, чтобы не вылезать за края) — см. [`docs/GUI_SCREENS.md`](./docs/GUI_SCREENS.md).
 - **Звуки:** `SoundEvents` в моде = собственный `SoundEvent`, передавай напрямую в `level.playSound(...)` без `.value()`.
 - **Mixins:** единственный — `SlotMixin`. Новые добавлять в пакет `mixin/`.

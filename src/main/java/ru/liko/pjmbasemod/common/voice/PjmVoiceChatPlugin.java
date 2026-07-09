@@ -18,7 +18,7 @@ import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.audio.RadioAudioProcessor;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.RadioEventPacket;
 
@@ -287,6 +287,6 @@ public class PjmVoiceChatPlugin implements VoicechatPlugin {
 
     @Nullable
     private String resolveConfiguredTeam(ServerPlayer player) {
-        return FrontlineTeams.resolvePlayerTeamId(player);
+        return Teams.resolvePlayerTeamId(player);
     }
 }

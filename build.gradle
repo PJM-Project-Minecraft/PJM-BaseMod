@@ -106,6 +106,9 @@ repositories {
 }
 
 def taczReferenceJar = file("${projectDir}/libs/tacz-neoforge-1.21.1-1.1.7-hotfix-r1.jar")
+def wrbdronesReferenceJar = file("${projectDir}/../WRBDrones/build/libs/wrbdrones-1.21.1-0.6.jar")
+// SuperbWarfare-fork-PJM: WRBDrones зависит от его типов (OBBEntity и др.) — нужен на classpath для compileOnly.
+def superbWarfareReferenceJar = file("${projectDir}/../SuperbWarfare-fork-PJM/build/libs/superbwarfare-0.8.9-mc1.21.1.jar")
 
 dependencies {
     // GeckoLib (required) — common+client side
@@ -127,6 +130,11 @@ dependencies {
     compileOnly files(taczReferenceJar)
     clientCompileOnly files(taczReferenceJar)
     runtimeOnly files(taczReferenceJar)
+
+    // WRBDrones (optional drone raid event integration) — local reference jar, not bundled.
+    // Требует типы SuperbWarfare-fork-PJM (OBBEntity) на compile classpath.
+    compileOnly files(wrbdronesReferenceJar)
+    compileOnly files(superbWarfareReferenceJar)
 
     // Веб-панель: Javalin (встроенный HTTP/WS-сервер), вшивается в JAR через jarJar.
     // slf4j-api не вшиваем — его поставляет Minecraft.

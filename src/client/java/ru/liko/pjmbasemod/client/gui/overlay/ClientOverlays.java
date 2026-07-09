@@ -31,7 +31,6 @@ public final class ClientOverlays {
         e.registerBelow(VanillaGuiLayers.HOTBAR, id("custom_hotbar"),     CustomHotbarOverlay.INSTANCE);
         e.registerBelow(VanillaGuiLayers.HOTBAR, id("compass_overlay"),   HudOverlay.COMPASS_OVERLAY);
         e.registerBelow(VanillaGuiLayers.HOTBAR, id("voicechat_overlay"), VoiceChatOverlay.INSTANCE);
-        e.registerAbove(VanillaGuiLayers.HOTBAR, id("frontline_hud"),     FrontlineHudOverlay.OVERLAY);
         e.registerAbove(VanillaGuiLayers.HOTBAR, id("rank_hud"),          RankHudOverlay.OVERLAY);
         e.registerAbove(VanillaGuiLayers.HOTBAR, id("faction_order_hud"), FactionOrderHudOverlay.OVERLAY);
         e.registerAbove(VanillaGuiLayers.HOTBAR, id("notifications"),     NotificationOverlay.OVERLAY);

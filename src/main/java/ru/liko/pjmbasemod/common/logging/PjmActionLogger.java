@@ -8,7 +8,7 @@ import net.minecraft.world.entity.Entity;
 import net.neoforged.fml.loading.FMLPaths;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 
 import javax.annotation.Nullable;
 import java.io.BufferedWriter;
@@ -133,7 +133,7 @@ public final class PjmActionLogger {
 
     @Nullable
     private static String teamOf(ServerPlayer player) {
-        return player == null ? null : FrontlineTeams.resolvePlayerTeamId(player);
+        return player == null ? null : Teams.resolvePlayerTeamId(player);
     }
 
     private static String formatTeams(@Nullable String killerTeam, @Nullable String victimTeam) {

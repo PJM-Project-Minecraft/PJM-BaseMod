@@ -72,3 +72,12 @@ type = "optional"
 versionRange = "*"
 ordering = "AFTER"
 side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "wrbdrones"
+type = "optional"
+# 0.6+ обязателен: в 0.5 нет ShahedShotDownEvent — на старом jar
+# регистрация слушателя упадёт с NoClassDefFoundError.
+versionRange = "[1.21.1-0.6,)"
+ordering = "AFTER"
+side = "BOTH"

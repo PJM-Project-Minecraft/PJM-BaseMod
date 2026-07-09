@@ -5,7 +5,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import ru.liko.pjmbasemod.Config;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.FactionOrderSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
@@ -50,9 +50,9 @@ public final class FactionOrderManager {
 
         Component title = Component.translatable("gui.pjmbasemod.faction.order.notify_title");
         Component subtitle = Component.literal(text);
-        int color = FrontlineTeams.color(server, team);
+        int color = Teams.color(server, team);
         for (ServerPlayer member : server.getPlayerList().getPlayers()) {
-            if (team.equals(FrontlineTeams.resolvePlayerTeamId(member))) {
+            if (team.equals(Teams.resolvePlayerTeamId(member))) {
                 PjmNetworking.sendToPlayer(member, new NotificationPacket(title, subtitle, color, NOTIFY_DURATION_MS));
             }
         }
@@ -75,7 +75,7 @@ public final class FactionOrderManager {
     /** Отправляет игроку актуальный приказ его команды (или «пусто»). Вызывается при логине. */
     public static void syncTo(ServerPlayer player) {
         if (player == null || player.getServer() == null) return;
-        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        String team = Teams.resolvePlayerTeamId(player);
         if (team == null || team.isBlank()) {
             PjmNetworking.sendToPlayer(player, new FactionOrderSyncPacket(false, "", "", 0xFFFFFF, 0));
             return;
@@ -104,7 +104,7 @@ public final class FactionOrderManager {
 
     private static FactionOrderSyncPacket buildPacket(MinecraftServer server, String team) {
         FactionOrderSavedData.OrderEntry order = FactionOrderSavedData.get(server).order(team);
-        int color = FrontlineTeams.color(server, team);
+        int color = Teams.color(server, team);
         long now = server.overworld().getGameTime();
         if (order == null || (order.expiresAtGameTime() >= 0 && now >= order.expiresAtGameTime())) {
             return new FactionOrderSyncPacket(false, "", "", color, 0);

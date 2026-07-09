@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerPlayer;
 import ru.liko.pjmbasemod.common.faction.DeputyPermission;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
 import ru.liko.pjmbasemod.common.faction.FactionDeputySavedData;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.RoleSyncPacket;
 
@@ -26,7 +26,7 @@ public final class RoleService {
         if (player == null || player.getServer() == null) return null;
         RoleSavedData.RoleEntry entry = RoleSavedData.get(player.getServer()).entry(player.getUUID());
         if (entry == null) return null;
-        String currentTeam = FrontlineTeams.resolvePlayerTeamId(player);
+        String currentTeam = Teams.resolvePlayerTeamId(player);
         if (!entry.teamId().equals(currentTeam)) return null;
         return CombatRole.byIdOrAlias(entry.roleId());
     }
@@ -49,13 +49,13 @@ public final class RoleService {
     public static boolean canAssignAny(ServerPlayer actor) {
         return RolePermissions.can(actor, RolePermissions.ADMIN)
                 || FactionCommanderService.isActiveCommander(actor)
-                || isRoleDeputy(actor, FrontlineTeams.resolvePlayerTeamId(actor));
+                || isRoleDeputy(actor, Teams.resolvePlayerTeamId(actor));
     }
 
     public static boolean canAssign(@Nullable ServerPlayer actor, ServerPlayer target) {
         if (actor == null) return true;
         if (RolePermissions.can(actor, RolePermissions.ADMIN)) return true;
-        String targetTeam = FrontlineTeams.resolvePlayerTeamId(target);
+        String targetTeam = Teams.resolvePlayerTeamId(target);
         String commanderTeam = FactionCommanderService.activeCommanderTeam(actor);
         if (commanderTeam != null && commanderTeam.equals(targetTeam)) return true;
         return isRoleDeputy(actor, targetTeam);
@@ -78,7 +78,7 @@ public final class RoleService {
             return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.target_too_far"));
         }
 
-        String targetTeam = FrontlineTeams.resolvePlayerTeamId(target);
+        String targetTeam = Teams.resolvePlayerTeamId(target);
         if (targetTeam == null || targetTeam.isBlank()) {
             return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.target_no_team"));
         }
@@ -156,7 +156,7 @@ public final class RoleService {
         RoleSavedData data = RoleSavedData.get(player.getServer());
         RoleSavedData.RoleEntry entry = data.entry(player.getUUID());
         if (entry == null) return false;
-        String currentTeam = FrontlineTeams.resolvePlayerTeamId(player);
+        String currentTeam = Teams.resolvePlayerTeamId(player);
         if (entry.teamId().equals(currentTeam)) return false;
         data.clearRole(player.getUUID());
         player.displayClientMessage(Component.translatable("gui.pjmbasemod.role.cleared_team_changed"), true);
@@ -186,7 +186,7 @@ public final class RoleService {
             return AssignmentResult.success(Component.empty());
         }
 
-        String teamName = FrontlineTeams.displayName(server, teamId);
+        String teamName = Teams.displayName(server, teamId);
         Component roleName = Component.translatable(role.translationKey());
         if (limit == 0) {
             return AssignmentResult.failure(Component.translatable(
@@ -208,12 +208,12 @@ public final class RoleService {
     public static int onlineRoleCount(MinecraftServer server, String teamId, CombatRole role,
                                       @Nullable UUID excludedPlayerId) {
         if (server == null || role == null) return 0;
-        String team = FrontlineTeams.normalize(teamId);
+        String team = Teams.normalize(teamId);
         if (team.isBlank()) return 0;
         int count = 0;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (excludedPlayerId != null && excludedPlayerId.equals(player.getUUID())) continue;
-            if (!team.equals(FrontlineTeams.resolvePlayerTeamId(player))) continue;
+            if (!team.equals(Teams.resolvePlayerTeamId(player))) continue;
             CombatRole current = currentRole(player);
             if (current == role) count++;
         }

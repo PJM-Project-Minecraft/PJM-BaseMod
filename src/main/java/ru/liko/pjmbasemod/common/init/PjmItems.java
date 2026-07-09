@@ -10,6 +10,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.garage.GarageType;
 import ru.liko.pjmbasemod.common.item.NotebookItem;
+import ru.liko.pjmbasemod.common.item.RadioDetectorItem;
 import ru.liko.pjmbasemod.common.item.SupplyCrateItem;
 
 public final class PjmItems {
@@ -26,6 +27,10 @@ public final class PjmItems {
     public static final DeferredHolder<Item, Item> NOTEBOOK_AIR =
             ITEMS.register("notebook_air", () -> new NotebookItem(new Item.Properties().stacksTo(16), GarageType.AVIATION));
 
+    // Радио-детектор (GeckoLib) — для события «радиоразведка».
+    public static final DeferredHolder<Item, RadioDetectorItem> RADIO_DETECTOR =
+            ITEMS.register("radio_detector", () -> new RadioDetectorItem(new Item.Properties().stacksTo(1)));
+
     // Ящики поставок склада. id предмета = crateId в CrateRegistry.
     public static final DeferredHolder<Item, Item> WEAPON_CRATE = registerCrate("weapon_crate");
     public static final DeferredHolder<Item, Item> SUPPLY_CRATE = registerCrate("supply_crate");
@@ -40,6 +45,7 @@ public final class PjmItems {
                     .displayItems((params, output) -> {
                         output.accept(NOTEBOOK.get());
                         output.accept(NOTEBOOK_AIR.get());
+                        output.accept(RADIO_DETECTOR.get());
                     })
                     .build());
 

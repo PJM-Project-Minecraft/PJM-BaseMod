@@ -3,7 +3,7 @@ package ru.liko.pjmbasemod.common.faction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import ru.liko.pjmbasemod.Config;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -31,22 +31,22 @@ public final class TeamBalanceService {
         }
 
         // Остаться в своей команде (смена роли) никогда не ухудшает баланс.
-        String currentTeam = FrontlineTeams.resolvePlayerTeamId(player);
+        String currentTeam = Teams.resolvePlayerTeamId(player);
         if (currentTeam != null && currentTeam.equalsIgnoreCase(targetTeamId)) {
             return new Decision(true, targetTeamId);
         }
 
         // Онлайн-состав боевых команд, исключая самого игрока (он мог быть в другой команде).
         Map<String, Integer> counts = new HashMap<>();
-        for (Config.ConfiguredTeam team : FrontlineTeams.all()) {
+        for (Config.ConfiguredTeam team : Teams.all()) {
             counts.put(team.id().toLowerCase(Locale.ROOT), 0);
         }
         UUID self = player.getUUID();
         int totalExcl = 0;
         for (ServerPlayer online : server.getPlayerList().getPlayers()) {
             if (online.getUUID().equals(self)) continue;
-            String team = FrontlineTeams.resolvePlayerTeamId(online);
-            if (team == null || !FrontlineTeams.isCombatTeam(team)) continue;
+            String team = Teams.resolvePlayerTeamId(online);
+            if (team == null || !Teams.isCombatTeam(team)) continue;
             String key = team.toLowerCase(Locale.ROOT);
             if (!counts.containsKey(key)) continue;
             counts.merge(key, 1, Integer::sum);
@@ -76,7 +76,7 @@ public final class TeamBalanceService {
 
     /** Первая по порядку конфига команда с минимальным составом (стабильная подсказка). */
     private static String smallestTeam(Map<String, Integer> counts, int minCount, String fallback) {
-        for (Config.ConfiguredTeam team : FrontlineTeams.all()) {
+        for (Config.ConfiguredTeam team : Teams.all()) {
             if (counts.getOrDefault(team.id().toLowerCase(Locale.ROOT), 0) == minCount) {
                 return team.id();
             }

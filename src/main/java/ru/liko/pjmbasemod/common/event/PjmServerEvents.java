@@ -34,8 +34,6 @@ import ru.liko.pjmbasemod.common.dimension.LobbyService;
 import ru.liko.pjmbasemod.common.faction.FactionMenuService;
 import ru.liko.pjmbasemod.common.faction.FactionOrderManager;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
-import ru.liko.pjmbasemod.common.frontline.FrontlineManager;
-import ru.liko.pjmbasemod.common.frontline.bluemap.FrontlineBlueMapService;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
 import ru.liko.pjmbasemod.common.garage.VehicleRegistry;
 import ru.liko.pjmbasemod.common.inventory.EquipmentLockService;
@@ -51,9 +49,12 @@ import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers;
 import ru.liko.pjmbasemod.common.network.packet.SyncPjmDataPacket;
 import ru.liko.pjmbasemod.common.rank.RankService;
-import ru.liko.pjmbasemod.common.region.RegionManager;
 import ru.liko.pjmbasemod.common.role.RoleLimitRegistry;
 import ru.liko.pjmbasemod.common.role.RoleService;
+import ru.liko.pjmbasemod.common.serverevent.DroneRaidRegistry;
+import ru.liko.pjmbasemod.common.serverevent.ServerEventManager;
+import ru.liko.pjmbasemod.common.serverevent.SignalHuntRegistry;
+import ru.liko.pjmbasemod.common.serverevent.SignalHuntService;
 import ru.liko.pjmbasemod.common.voice.VoicechatBridge;
 
 import java.util.List;
@@ -71,8 +72,6 @@ public final class PjmServerEvents {
         ChatMode mode = ServerPacketHandlers.getChatMode(sp);
         PjmNetworking.sendToPlayer(sp, new SyncPjmDataPacket(sp.getUUID(), mode.getKey()));
         ServerPacketHandlers.sendHudConfig(sp);
-        RegionManager.sendInitialSync(sp);
-        FrontlineManager.sendInitialSync(sp);
         RankService.sync(sp);
         FactionCommanderService.onPlayerLogin(sp);
         RoleService.onPlayerLogin(sp);
@@ -80,6 +79,7 @@ public final class PjmServerEvents {
         FactionOrderManager.syncTo(sp);
         InventoryLimitService.sync(sp);
         SkinService.onPlayerLogin(sp);
+        ServerEventManager.sendInitialSync(sp);
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -150,6 +150,7 @@ public final class PjmServerEvents {
         LobbyService.onPlayerTick(player);
         FactionMenuService.onPlayerTick(player);
         BaseZoneManager.onPlayerTick(player);
+        SignalHuntService.onPlayerTick(player);
         if (player.tickCount % Math.max(1, InventoryLimitRegistry.get().config().enforceEveryTicks()) == 0) {
             InventoryLimitService.enforce(player);
         }
@@ -247,7 +248,6 @@ public final class PjmServerEvents {
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
-        FrontlineBlueMapService.onServerStopping();
         VoicechatBridge.onServerStop();
         PjmActionLogger.instance().stop();
     }
@@ -256,11 +256,10 @@ public final class PjmServerEvents {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
-        FrontlineManager.onServerTick(event.getServer());
-        FrontlineBlueMapService.onServerTick(event.getServer());
         FactionOrderManager.onServerTick(event.getServer());
         ModerationService.tick(event.getServer());
         ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.onServerTick(event.getServer());
+        ServerEventManager.onServerTick(event.getServer());
 
         if (++warehouseScanCounter >= 20) {
             warehouseScanCounter = 0;
@@ -274,7 +273,6 @@ public final class PjmServerEvents {
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
         PjmActionLogger.instance().start();
-        FrontlineBlueMapService.onServerStarted(event.getServer());
         ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.reload(event.getServer());
         VehicleRegistry.get().reload();
         WarehouseItemRegistry.get().reload();
@@ -284,6 +282,9 @@ public final class PjmServerEvents {
         InventoryLimitRegistry.get().reload();
         SkinRegistry.get().reload();
         RankService.onServerStarted(event.getServer());
+        DroneRaidRegistry.get().reload();
+        SignalHuntRegistry.get().reload();
+        ServerEventManager.onServerStarted(event.getServer());
 
         List<? extends String> commands = Config.getStartupCommands();
         if (commands.isEmpty()) return;

@@ -6,7 +6,7 @@ import com.google.gson.annotations.SerializedName;
 import net.neoforged.fml.loading.FMLPaths;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -105,7 +105,7 @@ public final class SkinRegistry {
     }
 
     private SkinPool poolFor(String teamId) {
-        String team = FrontlineTeams.normalize(teamId);
+        String team = Teams.normalize(teamId);
         if (team.isBlank()) return null;
         return config().teams.get(team);
     }
@@ -142,11 +142,11 @@ public final class SkinRegistry {
         static SkinConfig defaults() {
             SkinConfig cfg = new SkinConfig();
             int index = 0;
-            for (Config.ConfiguredTeam team : FrontlineTeams.all()) {
+            for (Config.ConfiguredTeam team : Teams.all()) {
                 SkinPool pool = new SkinPool();
                 pool.skins = new ArrayList<>(KNOWN_SKINS);
                 pool.defaultSkin = index == 0 ? "skin_emr" : "skin_mc";
-                cfg.teams.put(FrontlineTeams.normalize(team.id()), pool);
+                cfg.teams.put(Teams.normalize(team.id()), pool);
                 index++;
             }
             if (cfg.teams.isEmpty()) {
@@ -164,7 +164,7 @@ public final class SkinRegistry {
             for (Map.Entry<String, SkinPool> e : teams.entrySet()) {
                 SkinPool pool = e.getValue() == null ? new SkinPool() : e.getValue();
                 pool.normalize();
-                normalized.put(FrontlineTeams.normalize(e.getKey()), pool);
+                normalized.put(Teams.normalize(e.getKey()), pool);
             }
             teams = normalized;
         }

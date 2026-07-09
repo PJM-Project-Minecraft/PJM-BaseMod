@@ -3,7 +3,7 @@ package ru.liko.pjmbasemod.common.customization;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.PlayerSkinSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.SkinSelectionSyncPacket;
@@ -21,7 +21,7 @@ public final class SkinService {
     public static String currentSkin(ServerPlayer player) {
         if (player == null || player.getServer() == null) return "";
         String stored = SkinSavedData.get(player.getServer()).getSkin(player.getUUID());
-        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        String team = Teams.resolvePlayerTeamId(player);
         if (stored != null && !stored.isBlank()
                 && (team == null || SkinRegistry.get().isAllowed(team, stored))) {
             return stored;
@@ -34,7 +34,7 @@ public final class SkinService {
         if (player == null || player.getServer() == null) return false;
         SkinSavedData data = SkinSavedData.get(player.getServer());
         String stored = data.getSkin(player.getUUID());
-        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        String team = Teams.resolvePlayerTeamId(player);
 
         if (team == null) {
             // Нет команды — скин не навязываем, чистим устаревший выбор.
@@ -76,7 +76,7 @@ public final class SkinService {
     /** Выбор скина игроком из пула своей команды. */
     public static void select(ServerPlayer player, String skinId) {
         if (player == null || player.getServer() == null) return;
-        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        String team = Teams.resolvePlayerTeamId(player);
         String id = SkinRegistry.sanitize(skinId);
         if (team == null || !SkinRegistry.get().isAllowed(team, id)) {
             player.displayClientMessage(
@@ -111,7 +111,7 @@ public final class SkinService {
 
     public static void syncSelectionTo(ServerPlayer player) {
         if (player == null || player.getServer() == null) return;
-        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        String team = Teams.resolvePlayerTeamId(player);
         List<String> allowed = team == null ? List.of() : SkinRegistry.get().skinsForTeam(team);
         PjmNetworking.sendToPlayer(player, new SkinSelectionSyncPacket(allowed, currentSkin(player)));
     }

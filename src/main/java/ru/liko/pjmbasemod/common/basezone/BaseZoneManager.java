@@ -19,7 +19,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -55,7 +55,7 @@ public final class BaseZoneManager {
         BaseZone zone = BaseZoneSavedData.get(server).findZoneAt(dimension, player.blockPosition());
         if (zone == null) { clear(player); return; }
 
-        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        String team = Teams.resolvePlayerTeamId(player);
         if (team != null && zone.owner().equalsIgnoreCase(team)) { clear(player); return; }
 
         // Игрок-враг внутри чужой зоны — ведём отсчёт.
@@ -93,8 +93,8 @@ public final class BaseZoneManager {
         if (!Config.isBaseZoneEnabled()) return false;
         if (!(attacker instanceof ServerPlayer aggressor) || aggressor == victim) return false;
 
-        String attackerTeam = FrontlineTeams.resolvePlayerTeamId(aggressor);
-        String victimTeam = FrontlineTeams.resolvePlayerTeamId(victim);
+        String attackerTeam = Teams.resolvePlayerTeamId(aggressor);
+        String victimTeam = Teams.resolvePlayerTeamId(victim);
         if (attackerTeam == null || victimTeam == null || !attackerTeam.equalsIgnoreCase(victimTeam)) {
             return false;
         }

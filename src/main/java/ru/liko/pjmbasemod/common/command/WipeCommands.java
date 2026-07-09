@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import ru.liko.pjmbasemod.Config;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.wipe.WipeService;
 
 import javax.annotation.Nullable;
@@ -32,7 +32,7 @@ public final class WipeCommands {
     private record Pending(String scope, @Nullable String team, long expiresAt) {}
 
     private static final SuggestionProvider<CommandSourceStack> TEAM_SUGGESTIONS = (ctx, builder) -> {
-        for (Config.ConfiguredTeam team : FrontlineTeams.all()) {
+        for (Config.ConfiguredTeam team : Teams.all()) {
             builder.suggest(team.id());
         }
         return builder.buildFuture();
@@ -143,7 +143,7 @@ public final class WipeCommands {
     }
 
     private static boolean isKnownTeam(String teamId) {
-        for (Config.ConfiguredTeam team : FrontlineTeams.all()) {
+        for (Config.ConfiguredTeam team : Teams.all()) {
             if (team.id().equals(teamId)) return true;
         }
         return false;

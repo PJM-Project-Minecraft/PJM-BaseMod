@@ -5,7 +5,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import ru.liko.pjmbasemod.Pjmbasemod;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.rank.RankService;
 
 import java.util.ArrayList;
@@ -38,14 +38,14 @@ public final class ChatService {
         }
 
         if (mode == ChatMode.TEAM) {
-            String senderTeam = FrontlineTeams.resolvePlayerTeamId(sender);
+            String senderTeam = Teams.resolvePlayerTeamId(sender);
             if (senderTeam == null) {
                 // Вне команды командный чат видит только сам отправитель — не рассылаем всем.
                 out.add(sender);
                 return out;
             }
             for (ServerPlayer p : all) {
-                if (p == sender || senderTeam.equalsIgnoreCase(FrontlineTeams.resolvePlayerTeamId(p))) {
+                if (p == sender || senderTeam.equalsIgnoreCase(Teams.resolvePlayerTeamId(p))) {
                     out.add(p);
                 }
             }

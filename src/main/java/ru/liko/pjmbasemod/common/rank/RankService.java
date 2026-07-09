@@ -5,14 +5,11 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.ChunkPos;
 import ru.liko.pjmbasemod.Pjmbasemod;
-import ru.liko.pjmbasemod.common.frontline.FrontlineSectorKey;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.RankSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankXpPacket;
-import ru.liko.pjmbasemod.common.region.Region;
 
 import javax.annotation.Nullable;
 
@@ -106,8 +103,8 @@ public final class RankService {
         RankConfig config = RankRegistry.get().config();
         if (!config.enabled() || killer == null || victim == null || killer == victim) return;
 
-        String killerTeam = FrontlineTeams.resolvePlayerTeamId(killer);
-        String victimTeam = FrontlineTeams.resolvePlayerTeamId(victim);
+        String killerTeam = Teams.resolvePlayerTeamId(killer);
+        String victimTeam = Teams.resolvePlayerTeamId(victim);
         if (killerTeam == null || victimTeam == null || killerTeam.isBlank() || victimTeam.isBlank()) return;
 
         if (killerTeam.equals(victimTeam)) {
@@ -117,25 +114,31 @@ public final class RankService {
         }
     }
 
-    public static int rewardSectorCapture(MinecraftServer server, Region region, FrontlineSectorKey sector, String teamId) {
+    /**
+     * Штраф XP всем игрокам команды {@code teamId}, онлайн на сервере, на общую сумму {@code totalXp}
+     * (распределяется поровну между участниками). Используется при проигрыше налёта дронов.
+     * @return количество оштрафованных игроков.
+     */
+    public static int penalizeTeam(MinecraftServer server, String teamId, int totalXp, String reason) {
+        if (server == null || totalXp <= 0 || !Teams.isCombatTeam(teamId)) return 0;
         RankConfig config = RankRegistry.get().config();
-        if (server == null || region == null || sector == null || !config.enabled() || config.sectorCaptureXp() == 0) return 0;
-        if (!FrontlineTeams.isCombatTeam(teamId)) return 0;
+        if (!config.enabled()) return 0;
 
-        int rewarded = 0;
+        java.util.List<ServerPlayer> members = new java.util.ArrayList<>();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (!player.isAlive() || player.isSpectator() || player.isCreative()) continue;
-            if (!teamId.equals(FrontlineTeams.resolvePlayerTeamId(player))) continue;
-            if (!region.dimension().equals(player.serverLevel().dimension().location().toString())) continue;
-
-            ChunkPos pos = player.chunkPosition();
-            if (!region.contains(region.dimension(), pos.x, pos.z)) continue;
-            if (!sector.equals(FrontlineSectorKey.of(region, pos))) continue;
-
-            addXp(player, config.sectorCaptureXp(), "sector");
-            rewarded++;
+            if (player.isSpectator()) continue;
+            if (teamId.equals(Teams.resolvePlayerTeamId(player))) {
+                members.add(player);
+            }
         }
-        return rewarded;
+        if (members.isEmpty()) return 0;
+
+        int perPlayer = totalXp / members.size();
+        if (perPlayer <= 0) return 0;
+        for (ServerPlayer player : members) {
+            addXp(player, -perPlayer, reason);
+        }
+        return members.size();
     }
 
     /** ResourceLocation bitmap-шрифта с иконками рангов ({@code assets/pjmbasemod/font/rank_icons.json}). */

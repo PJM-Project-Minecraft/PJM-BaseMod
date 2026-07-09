@@ -6,7 +6,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.role.CombatRole;
 
 import javax.annotation.Nullable;
@@ -35,7 +35,7 @@ public final class FactionSelectionSavedData extends SavedData {
             CompoundTag entryTag = list.getCompound(i);
             try {
                 UUID playerId = UUID.fromString(entryTag.getString("uuid"));
-                String team = FrontlineTeams.normalize(entryTag.getString("team"));
+                String team = Teams.normalize(entryTag.getString("team"));
                 CombatRole role = CombatRole.byIdOrAlias(entryTag.getString("role"));
                 if (team.isBlank() || role == null) continue;
                 String name = safeName(entryTag.getString("name"));
@@ -72,7 +72,7 @@ public final class FactionSelectionSavedData extends SavedData {
 
     public void markComplete(UUID playerId, String lastKnownName, String teamId, CombatRole role) {
         if (playerId == null || role == null) return;
-        String team = FrontlineTeams.normalize(teamId);
+        String team = Teams.normalize(teamId);
         if (team.isBlank()) return;
         SelectionEntry next = new SelectionEntry(team, role.id(), safeName(lastKnownName));
         SelectionEntry previous = selectionsByPlayer.put(playerId, next);

@@ -6,7 +6,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 
 import javax.annotation.Nullable;
 import java.util.LinkedHashMap;
@@ -32,7 +32,7 @@ public final class FactionOrderSavedData extends SavedData {
         ListTag list = tag.getList("orders", Tag.TAG_COMPOUND);
         for (int i = 0; i < list.size(); i++) {
             CompoundTag entry = list.getCompound(i);
-            String team = FrontlineTeams.normalize(entry.getString("team"));
+            String team = Teams.normalize(entry.getString("team"));
             if (team.isBlank()) continue;
             String text = entry.getString("text");
             if (text.isBlank()) continue;
@@ -63,18 +63,18 @@ public final class FactionOrderSavedData extends SavedData {
 
     @Nullable
     public OrderEntry order(String teamId) {
-        return ordersByTeam.get(FrontlineTeams.normalize(teamId));
+        return ordersByTeam.get(Teams.normalize(teamId));
     }
 
     public void setOrder(String teamId, OrderEntry entry) {
-        String team = FrontlineTeams.normalize(teamId);
+        String team = Teams.normalize(teamId);
         if (team.isBlank() || entry == null) return;
         ordersByTeam.put(team, entry);
         setDirty();
     }
 
     public void clearOrder(String teamId) {
-        if (ordersByTeam.remove(FrontlineTeams.normalize(teamId)) != null) setDirty();
+        if (ordersByTeam.remove(Teams.normalize(teamId)) != null) setDirty();
     }
 
     /** Убрать приказы у всех фракций. */

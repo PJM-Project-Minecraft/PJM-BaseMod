@@ -91,6 +91,32 @@ public final class InventoryLimitService {
         return stack;
     }
 
+    /**
+     * Сколько штук {@code template} можно поместить в незаблокированные слоты основного инвентаря
+     * (хотбар + 3 ряда), не затрагивая заблокированные слоты. Чистая симуляция без изменений инвентаря:
+     * учитывает дозаполнение подходящих стеков и пустые разрешённые слоты.
+     * В креативе ограничения нет — возвращает {@link Integer#MAX_VALUE}.
+     */
+    public static int freeSpaceFor(ServerPlayer player, ItemStack template) {
+        if (player.isCreative()) return Integer.MAX_VALUE;
+        if (template.isEmpty()) return 0;
+        InventoryLimitConfig cfg = InventoryLimitRegistry.get().config();
+        Set<Integer> lockedSet = cfg.enabled() ? new HashSet<>(cfg.lockedSlots()) : new HashSet<>();
+        Inventory inv = player.getInventory();
+        int maxStack = template.getMaxStackSize();
+        int free = 0;
+        for (int i = 0; i <= MAIN_INVENTORY_END; i++) {
+            if (lockedSet.contains(i)) continue;
+            ItemStack slot = inv.getItem(i);
+            if (slot.isEmpty()) {
+                free += maxStack;
+            } else if (ItemStack.isSameItemSameComponents(slot, template)) {
+                free += maxStack - slot.getCount();
+            }
+        }
+        return free;
+    }
+
     /** Отправляет игроку актуальный список заблокированных слотов. */
     public static void sync(ServerPlayer player) {
         InventoryLimitConfig cfg = InventoryLimitRegistry.get().config();

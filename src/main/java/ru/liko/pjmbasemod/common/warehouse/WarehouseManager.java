@@ -10,7 +10,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import ru.liko.pjmbasemod.common.entity.QuartermasterEntity;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
+import ru.liko.pjmbasemod.common.inventory.InventoryLimitService;
 import ru.liko.pjmbasemod.common.item.SupplyCrateItem;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.OpenWarehousePacket;
@@ -130,6 +131,14 @@ public final class WarehouseManager {
         // Одна выдача = ровно quantity штук за pointCost очков (фиксированная пачка, без массовой выдачи).
         int amount = def.quantity();
         int cost = def.pointCost();
+
+        // Проверка свободного места в незаблокированных слотах инвентаря (анти-переполнение).
+        ItemStack template = def.createStack(1, player.level().registryAccess());
+        if (InventoryLimitService.freeSpaceFor(player, template) < amount) {
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.inventory_full"), true);
+            resync(player);
+            return;
+        }
 
         // Личный лимит (анти-«пылесос»): потолок зависит от ранга игрока (OP — безлимит).
         // Списываем до склада, чтобы при нехватке очков склада вернуть его.
@@ -472,14 +481,14 @@ public final class WarehouseManager {
     private static boolean hasTeamAccess(ServerPlayer player, QuartermasterEntity npc) {
         String restriction = npc.getTeamRestriction();
         if (restriction == null || restriction.isBlank()) return true;
-        String playerTeam = FrontlineTeams.resolvePlayerTeamId(player);
+        String playerTeam = Teams.resolvePlayerTeamId(player);
         return restriction.equalsIgnoreCase(playerTeam);
     }
 
     /** Доступен ли предмет команде игрока (true, если ограничения по командам нет). */
     private static boolean teamAllows(ServerPlayer player, WarehouseItemDefinition def) {
         if (!def.teamRestricted()) return true;
-        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        String team = Teams.resolvePlayerTeamId(player);
         return team != null && def.allowedTeams().contains(team);
     }
 

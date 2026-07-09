@@ -36,7 +36,7 @@
 - `ru.liko.pjmbasemod.Pjmbasemod` (`@Mod`, MODID `pjmbasemod`) — регистрирует `DeferredRegister`-ы (`PjmItems`, `PjmEntities`, `PjmSounds` в `common/init/`), сетевые пакеты, config.
 - `client/ClientInit` (`@EventBusSubscriber Dist.CLIENT`) — ставит клиентский прокси, регистрирует рендеры сущностей, кейбайндинги.
 - `server/ServerInit` — серверная точка входа.
-- `Config.java` (корень пакета, не в `common/init/`) — NeoForge Config с секциями: `general`, `hud`, `milsim`, `controlPoints`, `teams` (TEAM_JOIN_COMMANDS), `region`, `frontline` (с окном реального времени захвата).
+- `Config.java` (корень пакета, не в `common/init/`) — NeoForge Config с секциями: `general`, `hud`, `teams` (TEAM_JOIN_COMMANDS), `garage`, `fleet`, `faction`, `antigrief`, `moderation`, `web`, `logging`, `baseZone`, `commands`, `events`.
 
 ## Сетевой слой
 
@@ -53,7 +53,7 @@
 
 - `onLogin` — рассылает первичную синхронизацию подсистем, вызывает `*.onPlayerLogin`.
 - `onPlayerTick` (`PlayerTickEvent.Post`) — тик-сервисы: `FactionCommanderService`, `RoleService`, `LobbyService`, `FactionMenuService`. **Отложенные действия (телепорт при входе) — здесь, не в `onLogin`**: на логине entity ещё не полностью заспавнен.
-- `onServerTick` (`ServerTickEvent.Post`) — `FrontlineManager.onServerTick`, `FrontlineBlueMapService.onServerTick`.
+- `onServerTick` (`ServerTickEvent.Post`) — `FactionOrderManager`, `ModerationService`, `VehicleFleetManager`, `ServerEventManager`.
 - `onServerStarted` — `reload()` датапак-регистров + startup-команды из конфига, `RankService.onServerStarted`.
 
 ## Подсистемы (`common/<package>/`)
@@ -100,20 +100,12 @@
 `SlotMixin` (единственный mixin) — инжект в `Slot.mayPickup` / `Slot.mayPlace`, запрещает взаимодействие с заблокированными слотами.
 Синхронизируется `LockedSlotsPacket` (S→C). Клиентское зеркало: `client/inventory/LockedSlotsClientState`.
 
-### frontline
-`FrontlineManager`, `FrontlineSavedData`, `FrontlineChunkKey/State`, `FrontlineSectorKey/State` — система захвата секторов по чанкам.
-`FrontlineTeams` — резолв команды игрока через ванильный **scoreboard** (не кастомный enum):
-- `FrontlineTeams.resolvePlayerTeamId(ServerPlayer)` → id команды или null
-- `FrontlineTeams.all()` → `List<Config.ConfiguredTeam>` с `.id()`
-Котёл: `FrontlineSavedData.captureEncircledPockets` — территория (враг/нейтраль/серая зона), отрезанная кольцом одной команды от границы региона, целиком переходит к ней после захвата сектора (флаг `frontline.capture.encirclementEnabled`).
-`FrontlineBlueMapRuntime`, `FrontlineBlueMapService` — интеграция с BlueMap.
-Клиентское зеркало: `client/frontline/ClientFrontlineState`.
-JourneyMap: `client/frontline/journeymap/` — плагин карты.
-HUD: `client/gui/overlay/FrontlineHudOverlay`.
-
-### region
-`RegionManager`, `RegionSavedData`, `Region` — именованные регионы мира.
-Клиентское зеркало: `client/region/ClientRegionState`.
+### teams
+`Teams` (пакет `common/teams/`) — резолв боевых команд (фракций) через ванильный **scoreboard**:
+- `Teams.resolvePlayerTeamId(ServerPlayer)` → id команды или null
+- `Teams.all()` → `List<Config.ConfiguredTeam>` с `.id()`
+- `Teams.displayName/color/normalize/isCombatTeam` — утилиты для отображения команд.
+Ранее назывался `FrontlineTeams` и жил в пакете `common/frontline/`; система захвата линии фронта (`FrontlineManager`/`SavedData`/`Chunk`/`Sector`/`BlueMap`/`JourneyMap`/`HudOverlay`) и система регионов (`RegionManager`/`SavedData`) **удалены** — заменяются подсистемой точек захвата (`common/capturepoint/`, в разработке).
 
 ### basezone
 `BaseZone`, `BaseZoneSavedData`, `BaseZoneManager` — зоны базы (блочный AABB с Y +
@@ -177,7 +169,7 @@ GUI — кастомные `Screen` **без `AbstractContainerMenu`**.
 
 ## Персистентность
 
-Состояние мира — ванильный **`SavedData`**: `*SavedData` классы. Доступ через `level.getDataStorage().computeIfAbsent(...)`. Каждый класс — per-world сохранение. Примеры: `FactionSelectionSavedData`, `GarageSavedData`, `GarageTerminalSavedData`, `RankSavedData`, `RoleSavedData`, `WarehouseSavedData`, `WarehouseSettingsSavedData`, `FrontlineSavedData`, `RegionSavedData`, `FactionCommanderSavedData`.
+Состояние мира — ванильный **`SavedData`**: `*SavedData` классы. Доступ через `level.getDataStorage().computeIfAbsent(...)`. Каждый класс — per-world сохранение. Примеры: `FactionSelectionSavedData`, `GarageSavedData`, `GarageTerminalSavedData`, `RankSavedData`, `RoleSavedData`, `WarehouseSavedData`, `WarehouseSettingsSavedData`, `FactionCommanderSavedData`.
 
 ## Конфигурируемые JSON-регистры
 
@@ -228,7 +220,7 @@ Brigadier-дерево: `common/command/PjmCommands` (корень `/pjm`) + `Wa
 
 ## Conventions
 
-- Команды/состояние игроков — через ванильный **scoreboard** (`FrontlineTeams.resolvePlayerTeamId`, `FrontlineTeams.all()`). Классов `PjmPlayerData`/`PjmPermissions` нет.
+- Команды/состояние игроков — через ванильный **scoreboard** (`Teams.resolvePlayerTeamId`, `Teams.all()`, пакет `common/teams/`). Классов `PjmPlayerData`/`PjmPermissions` нет.
 - `SoundEvents` в моде = собственный `SoundEvent` (не ванильный `Holder<SoundEvent>`). Передавай напрямую в `level.playSound(...)`, без `.value()`.
 - Гаражи двух типов: `GarageType.GROUND` и `GarageType.AVIATION` — раздельные слоты и терминалы.
 - Единственный mixin — `SlotMixin` (блокировка инвентаря). Добавляй новые mixins в тот же пакет `mixin/`.

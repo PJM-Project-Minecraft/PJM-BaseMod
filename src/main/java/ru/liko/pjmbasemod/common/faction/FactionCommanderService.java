@@ -5,7 +5,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.FactionCommanderSyncPacket;
 import ru.liko.pjmbasemod.common.rank.RankService;
@@ -30,7 +30,7 @@ public final class FactionCommanderService {
 
     public static AssignmentResult setCommander(MinecraftServer server, String teamId, ServerPlayer target) {
         FactionCommanderSavedData data = FactionCommanderSavedData.get(server);
-        String team = FrontlineTeams.normalize(teamId);
+        String team = Teams.normalize(teamId);
         Map<String, FactionCommanderSavedData.CommanderEntry> removedForTarget = data.clearPlayer(target.getUUID());
         FactionCommanderSavedData.CommanderEntry previous = data.setCommander(team, target.getUUID(), target.getName().getString());
 
@@ -75,7 +75,7 @@ public final class FactionCommanderService {
         for (Map.Entry<String, FactionCommanderSavedData.CommanderEntry> entry : data.commanders().entrySet()) {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getValue().playerId());
             if (player == null) continue;
-            if (!entry.getKey().equals(FrontlineTeams.resolvePlayerTeamId(player))) {
+            if (!entry.getKey().equals(Teams.resolvePlayerTeamId(player))) {
                 data.clearCommander(entry.getKey());
                 affected.add(player.getUUID());
             }
@@ -93,7 +93,7 @@ public final class FactionCommanderService {
         FactionCommanderSavedData data = FactionCommanderSavedData.get(player.getServer());
         String assignedTeam = data.teamOf(player.getUUID());
         if (assignedTeam == null) return null;
-        String currentTeam = FrontlineTeams.resolvePlayerTeamId(player);
+        String currentTeam = Teams.resolvePlayerTeamId(player);
         return assignedTeam.equals(currentTeam) ? assignedTeam : null;
     }
 
@@ -101,7 +101,7 @@ public final class FactionCommanderService {
     public static Component tabListName(ServerPlayer player) {
         String commanderTeam = activeCommanderTeam(player);
         boolean commander = commanderTeam != null;
-        String playerTeam = FrontlineTeams.resolvePlayerTeamId(player);
+        String playerTeam = Teams.resolvePlayerTeamId(player);
         boolean deputy = !commander && playerTeam != null && player.getServer() != null
                 && FactionDeputySavedData.get(player.getServer()).isDeputy(playerTeam, player.getUUID());
         boolean rank = RankService.shouldShowTabPrefix();
@@ -109,11 +109,11 @@ public final class FactionCommanderService {
 
         MutableComponent name = Component.empty();
         if (commander) {
-            int color = FrontlineTeams.color(player.getServer(), commanderTeam);
+            int color = Teams.color(player.getServer(), commanderTeam);
             name.append(Component.literal("[" + ROLE_SHORT_NAME + "] ")
                     .withStyle(style -> style.withColor(TextColor.fromRgb(color))));
         } else if (deputy) {
-            int color = FrontlineTeams.color(player.getServer(), playerTeam);
+            int color = Teams.color(player.getServer(), playerTeam);
             name.append(Component.literal("[" + DEPUTY_SHORT_NAME + "] ")
                     .withStyle(style -> style.withColor(TextColor.fromRgb(color))));
         }
@@ -149,7 +149,7 @@ public final class FactionCommanderService {
         FactionCommanderSavedData data = FactionCommanderSavedData.get(player.getServer());
         String assignedTeam = data.teamOf(player.getUUID());
         if (assignedTeam == null) return false;
-        String currentTeam = FrontlineTeams.resolvePlayerTeamId(player);
+        String currentTeam = Teams.resolvePlayerTeamId(player);
         if (assignedTeam.equals(currentTeam)) return false;
         data.clearCommander(assignedTeam);
         return true;

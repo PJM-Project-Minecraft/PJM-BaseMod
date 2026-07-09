@@ -12,9 +12,6 @@ import ru.liko.pjmbasemod.common.faction.FactionOrderManager;
 import ru.liko.pjmbasemod.common.faction.FactionOrderSavedData;
 import ru.liko.pjmbasemod.common.faction.FactionSelectionSavedData;
 import ru.liko.pjmbasemod.common.fleet.VehicleFleetSavedData;
-import ru.liko.pjmbasemod.common.frontline.FrontlineManager;
-import ru.liko.pjmbasemod.common.frontline.FrontlineSavedData;
-import ru.liko.pjmbasemod.common.frontline.bluemap.FrontlineBlueMapService;
 import ru.liko.pjmbasemod.common.garage.GarageSavedData;
 import ru.liko.pjmbasemod.common.rank.RankSavedData;
 import ru.liko.pjmbasemod.common.rank.RankService;
@@ -54,7 +51,6 @@ public final class WipeService {
         WarehousePersonalBudgetSavedData.get(server).clearAll();
         GarageSavedData.get(server).clearVehicles();
         VehicleFleetSavedData.get(server).clearAll();
-        FrontlineSavedData.get(server).clearAll();
         FactionSelectionSavedData.get(server).clearAll();
         FactionCommanderSavedData.get(server).clearAll();
         FactionDeputySavedData.get(server).clearAll();
@@ -92,10 +88,8 @@ public final class WipeService {
         RoleService.syncAll(server);
         FactionCommanderService.syncAll(server);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            FrontlineManager.sendInitialSync(player);
             FactionOrderManager.syncTo(player);
             FactionMenuService.onPlayerLogin(player);
         }
-        FrontlineBlueMapService.requestSync("wipe");
     }
 }

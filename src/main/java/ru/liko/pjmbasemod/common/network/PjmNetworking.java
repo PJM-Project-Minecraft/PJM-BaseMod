@@ -6,7 +6,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import ru.liko.pjmbasemod.Pjmbasemod;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
 import ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers;
 import ru.liko.pjmbasemod.common.network.packet.*;
@@ -14,7 +14,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "25";
+    public static final String VERSION = "28";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -54,9 +54,6 @@ public final class PjmNetworking {
         r.playToClient(SyncPjmDataPacket.TYPE,  SyncPjmDataPacket.STREAM_CODEC,  (p, ctx) -> ctx.enqueueWork(() -> CLIENT.syncPlayerData(p)));
         r.playToClient(NotificationPacket.TYPE, NotificationPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.notification(p)));
         r.playToClient(RadioEventPacket.TYPE,   RadioEventPacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> CLIENT.radioEvent(p)));
-        r.playToClient(RegionMapSyncPacket.TYPE, RegionMapSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.regionMapSync(p)));
-        r.playToClient(FrontlineHudPacket.TYPE, FrontlineHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.frontlineHud(p)));
-        r.playToClient(FrontlineMapSyncPacket.TYPE, FrontlineMapSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.frontlineMapSync(p)));
         r.playToClient(OpenGaragePacket.TYPE,   OpenGaragePacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openGarage(p)));
         r.playToClient(GarageSyncPacket.TYPE,   GarageSyncPacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> CLIENT.garageSync(p)));
         r.playToClient(StoreOptionsPacket.TYPE, StoreOptionsPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openStoreOptions(p)));
@@ -77,8 +74,10 @@ public final class PjmNetworking {
         r.playToClient(HudConfigPacket.TYPE, HudConfigPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.hudConfig(p)));
         r.playToClient(OpenModerationPacket.TYPE, OpenModerationPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openModeration(p)));
         r.playToClient(ModerationSyncPacket.TYPE, ModerationSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.moderationSync(p)));
+        r.playToClient(EventMapSyncPacket.TYPE, EventMapSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.eventMapSync(p)));
+        r.playToClient(SignalHuntHudPacket.TYPE, SignalHuntHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.signalHuntHud(p)));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 44);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 43);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {
@@ -99,7 +98,7 @@ public final class PjmNetworking {
     public static void sendToTeam(net.minecraft.server.MinecraftServer server, String teamId, CustomPacketPayload payload) {
         if (server == null || teamId == null || teamId.isBlank()) return;
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-            if (teamId.equals(FrontlineTeams.resolvePlayerTeamId(p))) {
+            if (teamId.equals(Teams.resolvePlayerTeamId(p))) {
                 PacketDistributor.sendToPlayer(p, payload);
             }
         }

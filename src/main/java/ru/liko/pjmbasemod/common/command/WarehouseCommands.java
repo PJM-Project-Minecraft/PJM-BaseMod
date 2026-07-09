@@ -14,7 +14,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import ru.liko.pjmbasemod.common.customization.SkinRegistry;
 import ru.liko.pjmbasemod.common.entity.QuartermasterEntity;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.init.PjmEntities;
 import ru.liko.pjmbasemod.common.warehouse.WarehouseBudgetLimits;
 import ru.liko.pjmbasemod.common.warehouse.WarehouseItemRegistry;
@@ -721,7 +721,7 @@ public final class WarehouseCommands {
 
     private static CompletableFuture<Suggestions> suggestTeams(SuggestionsBuilder builder) {
         builder.suggest("none");
-        for (var team : FrontlineTeams.all()) {
+        for (var team : Teams.all()) {
             builder.suggest(team.id());
         }
         return builder.buildFuture();

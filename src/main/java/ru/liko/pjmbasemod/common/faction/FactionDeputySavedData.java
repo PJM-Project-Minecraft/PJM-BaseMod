@@ -6,7 +6,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 
 import javax.annotation.Nullable;
 import java.util.LinkedHashMap;
@@ -127,6 +127,6 @@ public final class FactionDeputySavedData extends SavedData {
     }
 
     private static String normalize(String teamId) {
-        return FrontlineTeams.normalize(teamId);
+        return Teams.normalize(teamId);
     }
 }

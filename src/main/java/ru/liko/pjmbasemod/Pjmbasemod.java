@@ -6,6 +6,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ru.liko.pjmbasemod.common.compat.WrbDronesCompat;
 import ru.liko.pjmbasemod.common.init.PjmEntities;
 import ru.liko.pjmbasemod.common.init.PjmItems;
 import ru.liko.pjmbasemod.common.init.PjmSounds;
@@ -28,6 +29,15 @@ public final class Pjmbasemod {
 
         // JSON-конфиг в config/pjmbasemod/config.json (см. Config). Грузим сразу при конструировании мода.
         Config.reload();
+
+        // Слушатель сбития Shahed-136 (XP за событие «налёт дронов»); guard внутри.
+        WrbDronesCompat.init();
+
+        // Регистрация типов серверных событий (см. common/serverevent).
+        ru.liko.pjmbasemod.common.serverevent.ServerEventManager.registerType(
+                ru.liko.pjmbasemod.common.serverevent.DroneRaidEventType.INSTANCE);
+        ru.liko.pjmbasemod.common.serverevent.ServerEventManager.registerType(
+                ru.liko.pjmbasemod.common.serverevent.SignalHuntEventType.INSTANCE);
     }
 
     private void onCommonSetup(FMLCommonSetupEvent event) {

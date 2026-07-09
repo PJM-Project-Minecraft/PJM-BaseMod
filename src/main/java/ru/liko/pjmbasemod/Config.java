@@ -9,7 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -99,38 +98,6 @@ public final class Config {
     public static boolean isDisableHunger()           { return data().hud.disableHunger; }
     public static boolean isDisableArmor()            { return data().hud.hideArmorBar; }
     public static long    getItemSwitchDisplayTime()  { return data().hud.itemSwitchDisplayMs; }
-    public static boolean isFrontlineEnabled()         { return data().frontline.enabled; }
-    public static boolean isFrontlineHudEnabled()      { return data().frontline.hudEnabled; }
-    public static boolean isFrontlineManualActive()    { return data().frontline.manualActive; }
-    public static boolean useFrontlineRealTimeWindow() { return data().frontline.schedule.enabled; }
-    public static String  getFrontlineRealTimeZone()   { return data().frontline.schedule.timeZone; }
-    public static String  getFrontlineRealTimeStart()  { return data().frontline.schedule.start; }
-    public static String  getFrontlineRealTimeEnd()    { return data().frontline.schedule.end; }
-    public static int     getFrontlineCaptureTimeSeconds() { return data().frontline.capture.captureTimeSeconds; }
-    public static int     getFrontlineDecayTimeSeconds() { return data().frontline.capture.decayTimeSeconds; }
-    public static int     getFrontlineTickIntervalTicks() { return data().frontline.capture.tickIntervalTicks; }
-    public static int     getFrontlineMinAdvantage()   { return data().frontline.capture.minAdvantage; }
-    public static boolean isFrontlineContestedFreeze() { return data().frontline.capture.contestedFreeze; }
-    public static boolean isFrontlineRequireAdjacentOwner() { return data().frontline.capture.requireAdjacentOwnedChunk; }
-    public static boolean isFrontlineAllowNeutralOpening() { return data().frontline.capture.allowNeutralOpeningCapture; }
-    public static boolean isFrontlineEncirclementEnabled() { return data().frontline.capture.encirclementEnabled; }
-    public static int     getRegionMaxChunks(){ return data().region.maxChunks; }
-    public static boolean isFrontlineBlueMapEnabled() { return data().frontline.bluemap.enabled; }
-    public static int getFrontlineBlueMapSyncDebounceTicks() { return data().frontline.bluemap.syncDebounceTicks; }
-    public static String getFrontlineBlueMapMarkerSetId() { return data().frontline.bluemap.markerSetId; }
-    public static String getFrontlineBlueMapMarkerSetLabel() { return data().frontline.bluemap.markerSetLabel; }
-    public static boolean isFrontlineBlueMapDefaultHidden() { return data().frontline.bluemap.defaultHidden; }
-    public static List<? extends String> getFrontlineBlueMapDimensionWorldOverrides() { return data().frontline.bluemap.dimensionWorldOverrides; }
-    public static int getFrontlineBlueMapFillAlpha() { return data().frontline.bluemap.fillAlpha; }
-    public static int getFrontlineBlueMapLineAlpha() { return data().frontline.bluemap.lineAlpha; }
-    public static int getFrontlineBlueMapLineWidth() { return data().frontline.bluemap.lineWidth; }
-    public static int getFrontlineBlueMapMarkerHeight() { return data().frontline.bluemap.markerHeight; }
-    public static boolean isFrontlineBlueMapDepthTest() { return data().frontline.bluemap.depthTest; }
-    public static boolean isFrontlineJourneyMapEnabled() { return data().frontline.journeymap.enabled; }
-    public static int getFrontlineJourneyMapFillAlpha() { return data().frontline.journeymap.fillAlpha; }
-    public static int getFrontlineJourneyMapBorderAlpha() { return data().frontline.journeymap.borderAlpha; }
-    public static int getFrontlineJourneyMapNeutralColorRgb() { return data().frontline.journeymap.neutralColorRgb; }
-    public static int getFrontlineJourneyMapRegionBorderColorRgb() { return data().frontline.journeymap.regionBorderColorRgb; }
     public static List<? extends String> getStartupCommands() { return data().commands.startup; }
     public static boolean isGarageEnabled() { return data().garage.enabled; }
     public static boolean isFleetEnabled()                 { return data().fleet.enabled; }
@@ -154,6 +121,11 @@ public final class Config {
     public static boolean isBaseZoneEnabled()          { return data().baseZone.enabled; }
     public static int     getBaseZoneCountdownSeconds() { return data().baseZone.countdownSeconds; }
     public static boolean isBaseZoneBlockExplosions()   { return data().baseZone.blockExplosions; }
+
+    public static boolean isEventsEnabled()                 { return data().events.enabled; }
+    public static int     getEventsMinIntervalMinutes()     { return data().events.minIntervalMinutes; }
+    public static int     getEventsMaxIntervalMinutes()     { return data().events.maxIntervalMinutes; }
+    public static boolean isEventsRequireCaptureInactive()  { return data().events.requireCaptureInactive; }
 
     public static boolean isModerationOverrideVanilla()      { return data().moderation.overrideVanillaCommands; }
     public static int  getModerationDefaultTempBanMinutes()  { return data().moderation.defaultTempBanMinutes; }
@@ -179,10 +151,6 @@ public final class Config {
     public static boolean isTeamBalancerEnabled()      { return data().teams.balancer.enabled; }
     public static int     getTeamBalancerMaxShare()    { return data().teams.balancer.maxSharePercent; }
     public static int     getTeamBalancerMinPlayers()  { return data().teams.balancer.minPlayers; }
-
-    public static List<ConfiguredTeam> getFrontlineTeams() {
-        return getTeams();
-    }
 
     private static List<ConfiguredTeam> parseTeams(List<? extends String> rawTeams) {
         List<ConfiguredTeam> teams = new ArrayList<>();
@@ -229,9 +197,9 @@ public final class Config {
         return -1;
     }
 
-    public static String getTeam1Name() { return getFrontlineTeams().getFirst().id(); }
+    public static String getTeam1Name() { return getTeams().getFirst().id(); }
     public static String getTeam2Name() {
-        List<ConfiguredTeam> teams = getFrontlineTeams();
+        List<ConfiguredTeam> teams = getTeams();
         return teams.size() > 1 ? teams.get(1).id() : "team2";
     }
 
@@ -263,26 +231,6 @@ public final class Config {
         }
     }
 
-    public static Map<String, String> parseFrontlineBlueMapDimensionWorldOverrides() {
-        Map<String, String> result = new LinkedHashMap<>();
-        for (String raw : getFrontlineBlueMapDimensionWorldOverrides()) {
-            if (raw == null) continue;
-            String line = raw.trim();
-            if (line.isBlank()) continue;
-            int split = line.indexOf('=');
-            if (split <= 0 || split >= line.length() - 1) continue;
-            String dimensionId = normalizeDimensionId(line.substring(0, split));
-            String worldId = line.substring(split + 1).trim();
-            if (dimensionId.isBlank() || worldId.isBlank()) continue;
-            result.put(dimensionId, worldId);
-        }
-        return Map.copyOf(result);
-    }
-
-    private static String normalizeDimensionId(String value) {
-        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
-    }
-
     public record ConfiguredTeam(String id) {}
 
     // ---------------------------------------------------------------- модель данных (Gson)
@@ -303,8 +251,6 @@ public final class Config {
         General general = new General();
         Hud hud = new Hud();
         Teams teams = new Teams();
-        Region region = new Region();
-        Frontline frontline = new Frontline();
         Garage garage = new Garage();
         Fleet fleet = new Fleet();
         Faction faction = new Faction();
@@ -314,14 +260,13 @@ public final class Config {
         Logging logging = new Logging();
         BaseZone baseZone = new BaseZone();
         Commands commands = new Commands();
+        Events events = new Events();
 
         /** Заменяет null-секции дефолтами и зажимает числовые значения в допустимые диапазоны. */
         void normalize() {
             if (general == null) general = new General();
             if (hud == null) hud = new Hud();
             if (teams == null) teams = new Teams();
-            if (region == null) region = new Region();
-            if (frontline == null) frontline = new Frontline();
             if (garage == null) garage = new Garage();
             if (fleet == null) fleet = new Fleet();
             fleet.maxActivePerTeam = fleet.maxActivePerTeam < 0 ? -1 : clamp(fleet.maxActivePerTeam, 0, 4096);
@@ -356,6 +301,9 @@ public final class Config {
             if (baseZone == null) baseZone = new BaseZone();
             baseZone.countdownSeconds = clamp(baseZone.countdownSeconds, 1, 60);
             if (commands == null) commands = new Commands();
+            if (events == null) events = new Events();
+            events.minIntervalMinutes = clamp(events.minIntervalMinutes, 1, 10_080);
+            events.maxIntervalMinutes = clamp(events.maxIntervalMinutes, events.minIntervalMinutes, 10_080);
 
             if (teams.definitions == null) teams.definitions = new ArrayList<>();
             if (teams.joinCommands == null) teams.joinCommands = new ArrayList<>();
@@ -365,9 +313,6 @@ public final class Config {
             if (commands.startup == null) commands.startup = new ArrayList<>();
 
             hud.itemSwitchDisplayMs = clamp(hud.itemSwitchDisplayMs, 0L, 60_000L);
-            region.maxChunks = clamp(region.maxChunks, 1, 1_000_000);
-
-            frontline.normalize();
         }
     }
 
@@ -395,85 +340,6 @@ public final class Config {
         int maxSharePercent = 60;
         /** Порог не действует, пока боевых игроков онлайн меньше этого числа (защита от тупика). */
         int minPlayers = 4;
-    }
-
-    static final class Region {
-        int maxChunks = 4096;
-    }
-
-    static final class Frontline {
-        boolean enabled = true;
-        boolean hudEnabled = true;
-        boolean manualActive = true;
-        Schedule schedule = new Schedule();
-        Capture capture = new Capture();
-        BlueMap bluemap = new BlueMap();
-        JourneyMap journeymap = new JourneyMap();
-
-        void normalize() {
-            if (schedule == null) schedule = new Schedule();
-            if (capture == null) capture = new Capture();
-            if (bluemap == null) bluemap = new BlueMap();
-            if (journeymap == null) journeymap = new JourneyMap();
-
-            capture.captureTimeSeconds = clamp(capture.captureTimeSeconds, 5, 3600);
-            capture.decayTimeSeconds = clamp(capture.decayTimeSeconds, 1, 3600);
-            capture.tickIntervalTicks = clamp(capture.tickIntervalTicks, 1, 200);
-            capture.minAdvantage = clamp(capture.minAdvantage, 1, 64);
-
-            bluemap.syncDebounceTicks = clamp(bluemap.syncDebounceTicks, 1, 20_000);
-            bluemap.fillAlpha = clamp(bluemap.fillAlpha, 0, 255);
-            bluemap.lineAlpha = clamp(bluemap.lineAlpha, 0, 255);
-            bluemap.lineWidth = clamp(bluemap.lineWidth, 1, 16);
-            bluemap.markerHeight = clamp(bluemap.markerHeight, -64, 512);
-            if (bluemap.dimensionWorldOverrides == null) bluemap.dimensionWorldOverrides = new ArrayList<>();
-
-            journeymap.fillAlpha = clamp(journeymap.fillAlpha, 0, 255);
-            journeymap.borderAlpha = clamp(journeymap.borderAlpha, 0, 255);
-            journeymap.neutralColorRgb = clamp(journeymap.neutralColorRgb, 0, 0xFFFFFF);
-            journeymap.regionBorderColorRgb = clamp(journeymap.regionBorderColorRgb, 0, 0xFFFFFF);
-        }
-    }
-
-    static final class Schedule {
-        boolean enabled = false;
-        String timeZone = "Europe/Simferopol";
-        String start = "18:00";
-        String end = "23:00";
-    }
-
-    static final class Capture {
-        int captureTimeSeconds = 45;
-        int decayTimeSeconds = 30;
-        int tickIntervalTicks = 20;
-        int minAdvantage = 1;
-        boolean contestedFreeze = true;
-        boolean requireAdjacentOwnedChunk = true;
-        boolean allowNeutralOpeningCapture = true;
-        /** Котёл: территория, отрезанная от границы региона кольцом одной команды, переходит к ней. */
-        boolean encirclementEnabled = true;
-    }
-
-    static final class BlueMap {
-        boolean enabled = true;
-        int syncDebounceTicks = 40;
-        String markerSetId = "pjm_frontline";
-        String markerSetLabel = "Линия фронта";
-        boolean defaultHidden = false;
-        List<String> dimensionWorldOverrides = new ArrayList<>();
-        int fillAlpha = 96;
-        int lineAlpha = 220;
-        int lineWidth = 2;
-        int markerHeight = 80;
-        boolean depthTest = false;
-    }
-
-    static final class JourneyMap {
-        boolean enabled = true;
-        int fillAlpha = 96;
-        int borderAlpha = 220;
-        int neutralColorRgb = 0x9B9B9B;
-        int regionBorderColorRgb = 0xFFFFFF;
     }
 
     static final class Garage {
@@ -575,5 +441,14 @@ public final class Config {
 
     static final class Commands {
         List<String> startup = new ArrayList<>();
+    }
+
+    static final class Events {
+        boolean enabled = false;
+        /** Случайный интервал автозапуска события, минуты. */
+        int minIntervalMinutes = 60;
+        int maxIntervalMinutes = 180;
+        /** Автозапуск только когда захват фронтлайна неактивен. */
+        boolean requireCaptureInactive = true;
     }
 }

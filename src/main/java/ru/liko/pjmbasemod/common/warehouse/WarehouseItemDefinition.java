@@ -553,9 +553,9 @@ public final class WarehouseItemDefinition {
         if (allowedTeams != null && !allowedTeams.isEmpty()) {
             List<String> normalized = new java.util.ArrayList<>();
             for (String raw : allowedTeams) {
-                String team = ru.liko.pjmbasemod.common.frontline.FrontlineTeams.normalize(raw);
+                String team = ru.liko.pjmbasemod.common.teams.Teams.normalize(raw);
                 if (team.isBlank() || normalized.contains(team)) continue;
-                if (ru.liko.pjmbasemod.common.frontline.FrontlineTeams.exists(team)) {
+                if (ru.liko.pjmbasemod.common.teams.Teams.exists(team)) {
                     normalized.add(team);
                 } else {
                     ru.liko.pjmbasemod.Pjmbasemod.LOGGER.warn(

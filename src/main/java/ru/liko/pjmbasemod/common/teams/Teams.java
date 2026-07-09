@@ -1,4 +1,4 @@
-package ru.liko.pjmbasemod.common.frontline;
+package ru.liko.pjmbasemod.common.teams;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.server.MinecraftServer;
@@ -11,7 +11,12 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Locale;
 
-public final class FrontlineTeams {
+/**
+ * Утилита резолва боевых команд (фракций) по scoreboard + конфигу.
+ * Ранее проживала в пакете {@code common.frontline} как {@code Teams};
+ * после удаления системы линии фронта перенесена сюда без изменения API.
+ */
+public final class Teams {
 
     public static final String NEUTRAL_ID = "";
     public static final String NEUTRAL_NAME = "Нейтрально";
@@ -20,7 +25,7 @@ public final class FrontlineTeams {
     public static final String GRAY_ZONE_NAME = "Серая Зона";
     public static final int GRAY_ZONE_COLOR = 0x737373;
 
-    private FrontlineTeams() {}
+    private Teams() {}
 
     public static List<Config.ConfiguredTeam> all() {
         return Config.getTeams();

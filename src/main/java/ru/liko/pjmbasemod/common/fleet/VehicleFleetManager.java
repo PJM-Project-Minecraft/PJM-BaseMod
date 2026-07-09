@@ -7,7 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import ru.liko.pjmbasemod.Config;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.garage.GarageType;
 import ru.liko.pjmbasemod.common.garage.VehicleDefinition;
 import ru.liko.pjmbasemod.common.garage.VehicleRegistry;
@@ -78,7 +78,7 @@ public final class VehicleFleetManager {
         }
 
         // 3. Лимит команды (только если игрок в команде).
-        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        String team = Teams.resolvePlayerTeamId(player);
         if (team != null && !team.isBlank()) {
             int teamLimit = maxPerTeam(type);
             if (teamLimit >= 0 && countForTeam(data, team, type) >= teamLimit) {
@@ -95,7 +95,7 @@ public final class VehicleFleetManager {
         MinecraftServer server = player.server;
         VehicleFleetSavedData data = VehicleFleetSavedData.get(server);
         long now = server.overworld().getGameTime();
-        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        String team = Teams.resolvePlayerTeamId(player);
         if (team == null) team = "";
 
         FleetRecord record = new FleetRecord(entity.getUUID(), player.getUUID(), team, defId, type,

@@ -9,7 +9,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.moderation.ModerationSavedData;
 import ru.liko.pjmbasemod.common.moderation.ModerationService;
 import ru.liko.pjmbasemod.common.role.RoleService;
@@ -34,7 +34,7 @@ public final class WebSnapshots {
         List<WebDtos.PlayerDto> players = new ArrayList<>();
         for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
             ModerationSavedData.ModerationProfile profile = moderation.profile(sp.getUUID());
-            String team = FrontlineTeams.resolvePlayerTeamId(sp);
+            String team = Teams.resolvePlayerTeamId(sp);
             players.add(new WebDtos.PlayerDto(
                     sp.getUUID().toString(),
                     sp.getGameProfile().getName(),

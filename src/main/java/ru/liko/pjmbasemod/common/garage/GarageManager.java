@@ -21,7 +21,7 @@ import net.minecraft.world.phys.Vec3;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.entity.NotebookEntity;
-import ru.liko.pjmbasemod.common.frontline.FrontlineTeams;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.GarageSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenGaragePacket;
@@ -67,7 +67,7 @@ public final class GarageManager {
      * сокомандники делят один пул. Игрок без команды → личный гараж ({@code player:<uuid>}).
      */
     private static String garageKey(ServerPlayer player) {
-        String teamId = FrontlineTeams.resolvePlayerTeamId(player);
+        String teamId = Teams.resolvePlayerTeamId(player);
         return teamId == null || teamId.isBlank()
                 ? GarageSavedData.playerKey(player.getUUID())
                 : GarageSavedData.teamKey(teamId);
@@ -798,7 +798,7 @@ public final class GarageManager {
     /** Доступна ли техника команде игрока (true, если ограничения по командам нет). */
     private static boolean teamAllows(ServerPlayer player, VehicleDefinition def) {
         if (!def.teamRestricted()) return true;
-        String team = FrontlineTeams.resolvePlayerTeamId(player);
+        String team = Teams.resolvePlayerTeamId(player);
         return team != null && def.allowedTeams().contains(team);
     }
 
