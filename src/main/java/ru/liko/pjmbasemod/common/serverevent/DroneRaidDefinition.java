@@ -54,8 +54,8 @@ public final class DroneRaidDefinition {
         public int spawnDistance = 600;
         /** Высота полёта (абсолютная Y); фактически берётся max(spawnAltitude, y точки + 60). */
         public int spawnAltitude = 150;
-        /** Крейсерская скорость Shahed-136, 0..1. */
-        public double speed = 0.5;
+        /** Крейсерская скорость Shahed-136, км/ч. Конвертируется во внутреннюю единицу WRBDrones (км/ч / 72) и клампится к [min_speed_kmh, max_speed_kmh] из конфига WRBDrones. */
+        public double speed = 200;
         public boolean terrainFollow = false;
         public int xpPerKill = 15;
         /** Таймаут события — страховка от «зависших» дронов. */
@@ -76,7 +76,7 @@ public final class DroneRaidDefinition {
             waveIntervalSeconds = Mth.clamp(waveIntervalSeconds, 5, 600);
             spawnDistance = Mth.clamp(spawnDistance, 100, 4000);
             spawnAltitude = Mth.clamp(spawnAltitude, 80, 320);
-            speed = Mth.clamp(speed, 0.1, 1.0);
+            speed = Mth.clamp(speed, 50.0, 1000.0);
             xpPerKill = Mth.clamp(xpPerKill, 0, 10000);
             maxDurationMinutes = Mth.clamp(maxDurationMinutes, 1, 120);
             xpLossPerHit = Mth.clamp(xpLossPerHit, 0, 10000);
@@ -105,7 +105,7 @@ public final class DroneRaidDefinition {
 
         public void normalize() {
             if (dronesPerWave != null) dronesPerWave = Mth.clamp(dronesPerWave, 1, 16);
-            if (speed != null) speed = Mth.clamp(speed, 0.1, 1.0);
+            if (speed != null) speed = Mth.clamp(speed, 50.0, 1000.0);
             if (spawnAltitude != null) spawnAltitude = Mth.clamp(spawnAltitude, 80, 320);
             if (spawnDistance != null) spawnDistance = Mth.clamp(spawnDistance, 100, 4000);
         }

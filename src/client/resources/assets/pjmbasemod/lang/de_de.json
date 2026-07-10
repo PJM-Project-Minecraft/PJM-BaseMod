@@ -338,6 +338,7 @@
   "event.pjmbasemod.drone_raid.end.aborted.subtitle": "Angriff abgebrochen. Abgeschossene Drohnen: %s",
   "event.pjmbasemod.drone_raid.end.lost.subtitle": "Angriff VERLOREN: %s von %s Drohnen durchgebrochen",
   "event.pjmbasemod.drone_raid.zone": "Drohnenangriff — %s",
+  "event.pjmbasemod.signal_hunt.zone": "Funkaufklärung — %s",
   "event.pjmbasemod.signal_hunt.start.title": "FUNKAUFKLÄRUNG",
   "event.pjmbasemod.signal_hunt.start.subtitle": "Zone: %s — finden Sie %s Signale mit dem Detektor",
   "event.pjmbasemod.signal_hunt.capture.title": "Signal erfasst",

@@ -338,6 +338,7 @@
   "event.pjmbasemod.drone_raid.end.aborted.subtitle": "Raid aborted. Drones shot down: %s",
   "event.pjmbasemod.drone_raid.end.lost.subtitle": "Raid LOST: %s of %s drones broke through",
   "event.pjmbasemod.drone_raid.zone": "Drone raid — %s",
+  "event.pjmbasemod.signal_hunt.zone": "Signal hunt — %s",
   "event.pjmbasemod.signal_hunt.start.title": "SIGNAL HUNT",
   "event.pjmbasemod.signal_hunt.start.subtitle": "Zone: %s — find %s beacons with the detector",
   "event.pjmbasemod.signal_hunt.capture.title": "Beacon captured",

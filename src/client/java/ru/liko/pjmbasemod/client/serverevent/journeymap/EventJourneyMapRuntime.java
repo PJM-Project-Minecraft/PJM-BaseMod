@@ -19,6 +19,8 @@ import net.minecraft.world.level.Level;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.serverevent.ClientServerEventState;
 import ru.liko.pjmbasemod.common.network.packet.EventMapSyncPacket;
+import ru.liko.pjmbasemod.common.serverevent.DroneRaidEvent;
+import ru.liko.pjmbasemod.common.serverevent.SignalHuntEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -128,7 +130,7 @@ public final class EventJourneyMapRuntime implements EventJourneyMapBridge.Adapt
                 .setStrokeOpacity(0.9f)
                 .setStrokeWidth(3.0f);
 
-        String label = I18n.get("event.pjmbasemod.drone_raid.zone", event.pointName());
+        String label = zoneLabel(event.typeId(), event.pointName());
         ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION,
                 ResourceLocation.parse(event.dimension()));
         PolygonOverlay overlay = new PolygonOverlay(Pjmbasemod.MODID, dimension, shape, polygon);
@@ -138,6 +140,16 @@ public final class EventJourneyMapRuntime implements EventJourneyMapBridge.Adapt
                 .setTextProperties(textProperties())
                 .setDisplayOrder(DISPLAY_ORDER);
         return overlay;
+    }
+
+    /** Метка зоны по типу события: «Налёт дронов — X» / «Радиоразведка — X». */
+    private static String zoneLabel(String typeId, String pointName) {
+        String key = switch (typeId) {
+            case DroneRaidEvent.TYPE_ID -> "event.pjmbasemod.drone_raid.zone";
+            case SignalHuntEvent.TYPE_ID -> "event.pjmbasemod.signal_hunt.zone";
+            default -> "event.pjmbasemod.drone_raid.zone";
+        };
+        return I18n.get(key, pointName);
     }
 
     private static TextProperties textProperties() {

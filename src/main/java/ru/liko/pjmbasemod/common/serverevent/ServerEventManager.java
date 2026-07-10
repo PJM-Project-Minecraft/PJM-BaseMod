@@ -266,7 +266,7 @@ public final class ServerEventManager {
         if (zone == null) {
             return EventMapSyncPacket.inactive();
         }
-        return new EventMapSyncPacket(true, zone.pointName(), zone.dimension(),
+        return new EventMapSyncPacket(true, event.typeId(), zone.pointName(), zone.dimension(),
                 zone.centerX(), zone.centerY(), zone.centerZ(), zone.radius());
     }
 }

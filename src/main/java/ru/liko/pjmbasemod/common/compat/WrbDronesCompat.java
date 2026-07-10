@@ -29,15 +29,16 @@ public final class WrbDronesCompat {
 
     /**
      * Спавнит и запускает Shahed-136: точка спавна, курс {@code yRot} (запуск идёт по курсу),
-     * цель наведения, крейсерская скорость (0..1), высота полёта и command-tag для опознания
-     * «событийных» дронов. Возвращает UUID сущности или {@code null}, если мод не загружен
-     * либо спавн не удался.
+     * цель наведения, крейсерская скорость (км/ч — конвертируется во внутреннюю единицу WRBDrones
+     * и клампится к [min_speed_kmh, max_speed_kmh] из конфига), высота полёта (блоки Y) и
+     * command-tag для опознания «событийных» дронов. Возвращает UUID сущности или {@code null},
+     * если мод не загружен либо спавн не удался.
      */
     @Nullable
     public static UUID spawnShahed(ServerLevel level, Vec3 spawnPos, float yRot, Vec3 target,
-                                   float speed, float altitude, boolean terrainFollow, String entityTag) {
+                                   float speedKmh, float altitude, boolean terrainFollow, String entityTag) {
         return isLoaded()
-                ? WrbDronesIntegration.spawnShahed(level, spawnPos, yRot, target, speed, altitude, terrainFollow, entityTag)
+                ? WrbDronesIntegration.spawnShahed(level, spawnPos, yRot, target, speedKmh, altitude, terrainFollow, entityTag)
                 : null;
     }
 }

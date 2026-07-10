@@ -78,6 +78,8 @@ modId = "wrbdrones"
 type = "optional"
 # 0.6+ обязателен: в 0.5 нет ShahedShotDownEvent — на старом jar
 # регистрация слушателя упадёт с NoClassDefFoundError.
-versionRange = "[1.21.1-0.6,)"
+# WRBDrones публикует версию как чистую "0.6" (без MC-префикса, в отличие от voicechat),
+# поэтому диапазон — по версии мода, без "1.21.1-".
+versionRange = "[0.6,)"
 ordering = "AFTER"
 side = "BOTH"

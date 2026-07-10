@@ -211,7 +211,7 @@ public final class DroneRaidEvent implements ServerEvent {
                 spawned++;
             }
         }
-        Pjmbasemod.LOGGER.info("Events: налёт '{}' — волна {}/{}, запущено {} дронов (speed={}, alt={}, dist={}).",
+        Pjmbasemod.LOGGER.info("Events: налёт '{}' — волна {}/{}, запущено {} дронов (speed={}км/ч, alt={}, dist={}).",
                 pointName, wavesSpawned + 1, waveCount, spawned, waveSpeed, waveAltitude, waveDistance);
     }
 

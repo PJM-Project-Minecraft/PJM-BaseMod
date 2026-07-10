@@ -134,12 +134,12 @@ public final class DroneRaidRegistry {
         example.settings.lossThreshold = 0.5;
         WaveProfile fast = new WaveProfile();
         fast.dronesPerWave = 2;
-        fast.speed = 0.85;
+        fast.speed = 280.0;
         fast.spawnAltitude = 200;
         example.settings.combinedProfiles.add(fast);
         WaveProfile low = new WaveProfile();
         low.dronesPerWave = 6;
-        low.speed = 0.3;
+        low.speed = 160.0;
         low.spawnAltitude = 110;
         low.terrainFollow = true;
         example.settings.combinedProfiles.add(low);

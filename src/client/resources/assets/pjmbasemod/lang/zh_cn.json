@@ -338,6 +338,7 @@
   "event.pjmbasemod.drone_raid.end.aborted.subtitle": "袭击已中断。击落无人机数：%s",
   "event.pjmbasemod.drone_raid.end.lost.subtitle": "袭击失败：%s/%s 架无人机突破",
   "event.pjmbasemod.drone_raid.zone": "无人机袭击 — %s",
+  "event.pjmbasemod.signal_hunt.zone": "无线电侦察 — %s",
   "event.pjmbasemod.signal_hunt.start.title": "无线电侦察",
   "event.pjmbasemod.signal_hunt.start.subtitle": "区域：%s — 用探测器找到 %s 个信标",
   "event.pjmbasemod.signal_hunt.capture.title": "信标已截获",

@@ -338,6 +338,7 @@
   "event.pjmbasemod.drone_raid.end.aborted.subtitle": "Налёт прерван. Сбито дронов: %s",
   "event.pjmbasemod.drone_raid.end.lost.subtitle": "Налёт ПРОИГРАН: %s из %s дронов прорвались",
   "event.pjmbasemod.drone_raid.zone": "Налёт дронов — %s",
+  "event.pjmbasemod.signal_hunt.zone": "Радиоразведка — %s",
   "event.pjmbasemod.signal_hunt.start.title": "РАДИОРАЗВЕДКА",
   "event.pjmbasemod.signal_hunt.start.subtitle": "Зона: %s — найдите %s маяков детектором",
   "event.pjmbasemod.signal_hunt.capture.title": "Маяк перехвачен",

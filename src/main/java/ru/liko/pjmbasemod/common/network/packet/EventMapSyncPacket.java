@@ -12,6 +12,7 @@ import ru.liko.pjmbasemod.Pjmbasemod;
  */
 public record EventMapSyncPacket(
         boolean active,
+        String typeId,
         String pointName,
         String dimension,
         int centerX,
@@ -28,6 +29,7 @@ public record EventMapSyncPacket(
             StreamCodec.of(
                     (buf, p) -> {
                         buf.writeBoolean(p.active);
+                        buf.writeUtf(p.typeId);
                         buf.writeUtf(p.pointName);
                         buf.writeUtf(p.dimension);
                         buf.writeVarInt(p.centerX);
@@ -39,6 +41,7 @@ public record EventMapSyncPacket(
                             buf.readBoolean(),
                             buf.readUtf(),
                             buf.readUtf(),
+                            buf.readUtf(),
                             buf.readVarInt(),
                             buf.readVarInt(),
                             buf.readVarInt(),
@@ -46,7 +49,7 @@ public record EventMapSyncPacket(
             );
 
     public static EventMapSyncPacket inactive() {
-        return new EventMapSyncPacket(false, "", "", 0, 0, 0, 0);
+        return new EventMapSyncPacket(false, "", "", "", 0, 0, 0, 0);
     }
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }
