@@ -170,14 +170,11 @@ public class FactionManagementScreen extends PjmBaseScreen {
         int top = guiTop() + Math.round((1.0F - eased) * 14.0F);
         int accent = 0xFF000000 | snapshot.teamColor();
 
-        graphics.fill(left, top, left + GUI_WIDTH, top + GUI_HEIGHT, 0xF216161A);
-        drawBorder(graphics, left, top, GUI_WIDTH, GUI_HEIGHT, 0xFF353540);
-        graphics.fill(left, top, left + GUI_WIDTH, top + HEADER_HEIGHT, 0xFF1F1F26);
-        graphics.fill(left, top + HEADER_HEIGHT, left + SIDEBAR_WIDTH, top + GUI_HEIGHT, 0xFF1A1A20);
+        PjmGuiUtils.drawScreenPanel(graphics, left, top, GUI_WIDTH, GUI_HEIGHT, SIDEBAR_WIDTH, HEADER_HEIGHT);
         graphics.fill(left, top + HEADER_HEIGHT - 2, left + GUI_WIDTH, top + HEADER_HEIGHT, accent);
 
-        graphics.drawString(font, getTitle(), left + 8, top + 8, 0xFFE8E8E8, false);
-        graphics.drawString(font, ellipsize(snapshot.teamName(), 160), left + 180, top + 8, 0xFFD8D8D8, false);
+        graphics.drawString(font, getTitle(), left + 8, top + 8, PjmGuiUtils.TEXT_PRIMARY, false);
+        graphics.drawString(font, ellipsize(snapshot.teamName(), 160), left + 180, top + 8, PjmGuiUtils.TEXT_DIM, false);
         boolean closeHovered = mouseX >= left + GUI_WIDTH - 28 && mouseX <= left + GUI_WIDTH
                 && mouseY >= top && mouseY <= top + HEADER_HEIGHT;
         graphics.drawString(font, "X", left + GUI_WIDTH - 18, top + 8,
@@ -198,7 +195,7 @@ public class FactionManagementScreen extends PjmBaseScreen {
     private void drawMembers(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
         int x = left + 8;
         int y = top + HEADER_HEIGHT + 8;
-        graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.members"), x, y, 0xFF9AA0A6, false);
+        graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.members"), x, y, PjmGuiUtils.TEXT_LABEL, false);
         y += 14;
 
         List<FactionManagementSnapshot.MemberEntry> members = snapshot.members();
@@ -208,7 +205,7 @@ public class FactionManagementScreen extends PjmBaseScreen {
             boolean selected = i == selectedMember;
             boolean hovered = mouseX >= x && mouseX <= left + SIDEBAR_WIDTH - 8
                     && mouseY >= y && mouseY <= y + MEMBER_ROW_HEIGHT - 4;
-            int bg = selected ? 0xFF35506E : hovered ? 0xFF2A2A33 : 0xFF222229;
+            int bg = selected ? PjmGuiUtils.SCREEN_SELECT : hovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW;
             graphics.fill(x, y, left + SIDEBAR_WIDTH - 8, y + MEMBER_ROW_HEIGHT - 4, bg);
             int textX = x + 8;
             if (member.commander()) {
@@ -220,9 +217,9 @@ public class FactionManagementScreen extends PjmBaseScreen {
             }
             int avail = (left + SIDEBAR_WIDTH - 8) - textX - 4;
             graphics.drawString(font, ellipsize(member.name(), avail),
-                    textX, y + 5, selected ? 0xFFFFFFFF : 0xFFE0E0E0, false);
+                    textX, y + 5, selected ? PjmGuiUtils.ACCENT : PjmGuiUtils.TEXT_DIM, false);
             graphics.drawString(font, roleName(member.roleId()), textX, y + 16,
-                    member.roleId().isBlank() ? 0xFF777777 : 0xFFD8B15F, false);
+                    member.roleId().isBlank() ? PjmGuiUtils.TEXT_MUTED : PjmGuiUtils.TEXT_GOLD, false);
             y += MEMBER_ROW_HEIGHT;
         }
 
@@ -244,10 +241,11 @@ public class FactionManagementScreen extends PjmBaseScreen {
             int tx = x + i * tabW;
             boolean current = tab == activeTab;
             boolean hovered = mouseX >= tx && mouseX <= tx + tabW - 2 && mouseY >= y && mouseY <= y + TAB_HEIGHT;
-            int bg = current ? 0xFF35506E : hovered ? 0xFF2A2A33 : 0xFF222229;
+            int bg = current ? PjmGuiUtils.SCREEN_SELECT : hovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW;
             graphics.fill(tx, y, tx + tabW - 2, y + TAB_HEIGHT, bg);
+            if (current) graphics.fill(tx, y, tx + 3, y + TAB_HEIGHT, PjmGuiUtils.ACCENT);
             graphics.drawCenteredString(font, tabTitle(tab), tx + (tabW - 2) / 2, y + 5,
-                    current ? 0xFFFFFFFF : 0xFFCCCCCC);
+                    current ? PjmGuiUtils.ACCENT : PjmGuiUtils.TEXT_DIM);
         }
     }
 
@@ -271,39 +269,39 @@ public class FactionManagementScreen extends PjmBaseScreen {
 
         if (member == null) {
             graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.select_member"),
-                    x, y, 0xFF888888, false);
+                    x, y, PjmGuiUtils.TEXT_MUTED, false);
             return;
         }
 
-        graphics.drawString(font, member.name(), x, y, 0xFFFFFFFF, false);
+        graphics.drawString(font, member.name(), x, y, PjmGuiUtils.TEXT_PRIMARY, false);
         graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.current_role",
-                roleName(member.roleId())), x, y + 12, 0xFF9AA0A6, false);
+                roleName(member.roleId())), x, y + 12, PjmGuiUtils.TEXT_LABEL, false);
         y += 30;
 
         int listBottom = top + GUI_HEIGHT - 32;
         int rowsVisible = Math.max(1, (listBottom - y) / ROLE_ROW_HEIGHT);
         List<FactionSelectionSnapshot.RoleEntry> roles = snapshot.roles();
-        
+
         for (int i = roleScroll; i < roles.size() && i < roleScroll + rowsVisible; i++) {
             FactionSelectionSnapshot.RoleEntry role = roles.get(i);
             boolean selected = role.id().equals(member.roleId());
             boolean available = role.available() || selected;
             boolean hovered = available && mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + ROLE_ROW_HEIGHT - 4;
-            int bg = !available ? 0xFF1D1D22 : selected ? 0xFF2B3E52 : hovered ? 0xFF2A2A33 : 0xFF222229;
+            int bg = !available ? PjmGuiUtils.SCREEN_ROW_LOCKED : selected ? PjmGuiUtils.SCREEN_SELECT : hovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW;
             graphics.fill(x, y, x + w, y + ROLE_ROW_HEIGHT - 4, bg);
             graphics.fill(x, y, x + 3, y + ROLE_ROW_HEIGHT - 4, 0xFF000000 | role.color());
             graphics.drawString(font, ellipsize(role.displayName(), w - 116),
-                    x + 10, y + 7, available ? 0xFFE8E8E8 : 0xFF777777, false);
+                    x + 10, y + 7, available ? PjmGuiUtils.TEXT_PRIMARY : PjmGuiUtils.TEXT_MUTED, false);
             graphics.drawString(font, roleLimitText(role), x + w - 82, y + 7,
-                    role.disabled() || role.full() ? 0xFFD8B15F : 0xFF9AA0A6, false);
+                    role.disabled() || role.full() ? PjmGuiUtils.TEXT_GOLD : PjmGuiUtils.TEXT_LABEL, false);
             y += ROLE_ROW_HEIGHT;
         }
 
         int clearY = top + GUI_HEIGHT - 32;
         boolean clearHovered = mouseX >= x && mouseX <= x + w && mouseY >= clearY && mouseY <= clearY + 22;
-        graphics.fill(x, clearY, x + w, clearY + 22, clearHovered ? 0xFF7A463E : 0xFF5A342E);
+        graphics.fill(x, clearY, x + w, clearY + 22, clearHovered ? PjmGuiUtils.BTN_RED_HOVER : PjmGuiUtils.BTN_RED);
         graphics.drawCenteredString(font, Component.translatable("gui.pjmbasemod.faction.manage.clear_role"),
-                x + w / 2, clearY + 7, 0xFFFFFFFF);
+                x + w / 2, clearY + 7, PjmGuiUtils.TEXT_PRIMARY);
     }
 
     private void drawDeputyPanel(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
@@ -313,43 +311,43 @@ public class FactionManagementScreen extends PjmBaseScreen {
         int w = GUI_WIDTH - SIDEBAR_WIDTH - 24;
 
         graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.deputy.count",
-                snapshot.deputyCount(), snapshot.maxDeputies()), x, y, 0xFF9AA0A6, false);
+                snapshot.deputyCount(), snapshot.maxDeputies()), x, y, PjmGuiUtils.TEXT_LABEL, false);
         y += 18;
 
         if (member == null) {
             graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.select_member"),
-                    x, y, 0xFF888888, false);
+                    x, y, PjmGuiUtils.TEXT_MUTED, false);
             return;
         }
 
-        graphics.drawString(font, member.name(), x, y, 0xFFFFFFFF, false);
+        graphics.drawString(font, member.name(), x, y, PjmGuiUtils.TEXT_PRIMARY, false);
         y += 18;
 
         // Переключатель «Назначить замом»
         boolean isDeputy = member.deputy();
         boolean toggleHovered = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + 22;
-        int toggleBg = isDeputy ? 0xFF2E5E3A : toggleHovered ? 0xFF2A2A33 : 0xFF222229;
+        int toggleBg = isDeputy ? PjmGuiUtils.BTN_GREEN : toggleHovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW;
         graphics.fill(x, y, x + w, y + 22, toggleBg);
         graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.deputy.toggle"), x + 10, y + 7,
-                0xFFE8E8E8, false);
-        graphics.drawString(font, isDeputy ? "ON" : "OFF", x + w - 30, y + 7, isDeputy ? 0xFF7CD68A : 0xFF888888, false);
+                PjmGuiUtils.TEXT_PRIMARY, false);
+        graphics.drawString(font, isDeputy ? "ON" : "OFF", x + w - 30, y + 7, isDeputy ? 0xFF7CD68A : PjmGuiUtils.TEXT_MUTED, false);
         y += 30;
 
         // Чекбоксы прав (активны только если зам)
         DeputyPermission[] perms = DeputyPermission.values();
         int rowsVisible = Math.max(1, (top + GUI_HEIGHT - 10 - y) / 24);
-        
+
         for (int i = deputyScroll; i < perms.length && i < deputyScroll + rowsVisible; i++) {
             DeputyPermission perm = perms[i];
             boolean checked = DeputyPermission.has(member.deputyPerms(), perm);
             boolean enabled = isDeputy;
             boolean hovered = enabled && mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + 20;
-            int bg = hovered ? 0xFF2A2A33 : 0xFF1E1E24;
+            int bg = hovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW;
             graphics.fill(x, y, x + w, y + 20, bg);
             int box = enabled ? (checked ? 0xFF7CD68A : 0xFF555560) : 0xFF333338;
             graphics.fill(x + 6, y + 5, x + 16, y + 15, box);
             graphics.drawString(font, permTitle(perm), x + 24, y + 6,
-                    enabled ? 0xFFE8E8E8 : 0xFF666666, false);
+                    enabled ? PjmGuiUtils.TEXT_PRIMARY : PjmGuiUtils.TEXT_MUTED, false);
             y += 24;
         }
     }
@@ -368,12 +366,12 @@ public class FactionManagementScreen extends PjmBaseScreen {
         int w = GUI_WIDTH - SIDEBAR_WIDTH - 24;
 
         // Текущий приказ
-        graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.order.current"), x, y, 0xFF9AA0A6, false);
+        graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.order.current"), x, y, PjmGuiUtils.TEXT_LABEL, false);
         y += 12;
         if (snapshot.orderText().isBlank()) {
-            graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.order.none"), x, y, 0xFF777777, false);
+            graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.order.none"), x, y, PjmGuiUtils.TEXT_MUTED, false);
         } else {
-            graphics.drawString(font, ellipsize(snapshot.orderText(), w), x, y, 0xFFE8E8E8, false);
+            graphics.drawString(font, ellipsize(snapshot.orderText(), w), x, y, PjmGuiUtils.TEXT_PRIMARY, false);
             y += 11;
             String meta = Component.translatable("gui.pjmbasemod.faction.order.author", snapshot.orderAuthor()).getString();
             if (snapshot.orderSecondsRemaining() >= 0) {
@@ -382,49 +380,49 @@ public class FactionManagementScreen extends PjmBaseScreen {
             } else {
                 meta += "  " + Component.translatable("gui.pjmbasemod.faction.order.remaining_permanent").getString();
             }
-            graphics.drawString(font, meta, x, y, 0xFF888888, false);
+            graphics.drawString(font, meta, x, y, PjmGuiUtils.TEXT_MUTED, false);
         }
         y += 22;
 
         // Поле ввода
-        graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.order.title"), x, y, 0xFF9AA0A6, false);
+        graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.order.title"), x, y, PjmGuiUtils.TEXT_LABEL, false);
         y += 12;
         int boxH = 22;
         boolean isFocused = orderEditBox.isFocused();
-        graphics.fill(x, y, x + w, y + boxH, isFocused ? 0xFF2A3550 : 0xFF222229);
-        drawBorder(graphics, x, y, w, boxH, isFocused ? 0xFF4A6A9E : 0xFF353540);
-        
+        graphics.fill(x, y, x + w, y + boxH, isFocused ? 0xBB151510 : PjmGuiUtils.SCREEN_ROW);
+        drawBorder(graphics, x, y, w, boxH, isFocused ? PjmGuiUtils.ACCENT_DIM : PjmGuiUtils.SCREEN_BORDER);
+
         orderEditBox.setX(x + 6);
-        orderEditBox.setY(y + 3); // Center vertically in 22px box (font is ~9px)
+        orderEditBox.setY(y + 3);
         orderEditBox.setWidth(w - 12);
         orderEditBox.render(graphics, mouseX, mouseY, 0);
-        
+
         if (!isFocused && orderEditBox.getValue().isEmpty()) {
-            graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.order.placeholder"), x + 6, y + 7, 0xFF666666, false);
+            graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.order.placeholder"), x + 6, y + 7, PjmGuiUtils.TEXT_MUTED, false);
         }
         y += boxH + 8;
 
         // TTL-переключатель
         int ttlW = w / 2 - 4;
         boolean ttlHovered = mouseX >= x && mouseX <= x + ttlW && mouseY >= y && mouseY <= y + 22;
-        graphics.fill(x, y, x + ttlW, y + 22, ttlHovered ? 0xFF2A2A33 : 0xFF222229);
+        graphics.fill(x, y, x + ttlW, y + 22, ttlHovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW);
         graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.order.ttl", ttlLabel()),
-                x + 8, y + 7, 0xFFE8E8E8, false);
+                x + 8, y + 7, PjmGuiUtils.TEXT_PRIMARY, false);
 
         // Кнопка «Отправить»
         int sendX = x + ttlW + 8;
         int sendW = w - ttlW - 8;
         boolean sendHovered = mouseX >= sendX && mouseX <= sendX + sendW && mouseY >= y && mouseY <= y + 22;
-        graphics.fill(sendX, y, sendX + sendW, y + 22, sendHovered ? 0xFF2E5E3A : 0xFF274D31);
+        graphics.fill(sendX, y, sendX + sendW, y + 22, sendHovered ? PjmGuiUtils.BTN_GREEN_HOVER : PjmGuiUtils.BTN_GREEN);
         graphics.drawCenteredString(font, Component.translatable("gui.pjmbasemod.faction.order.send"),
-                sendX + sendW / 2, y + 7, 0xFFFFFFFF);
+                sendX + sendW / 2, y + 7, PjmGuiUtils.TEXT_PRIMARY);
         y += 30;
 
         // Кнопка «Снять»
         boolean clearHovered = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + 22;
-        graphics.fill(x, y, x + w, y + 22, clearHovered ? 0xFF7A463E : 0xFF5A342E);
+        graphics.fill(x, y, x + w, y + 22, clearHovered ? PjmGuiUtils.BTN_RED_HOVER : PjmGuiUtils.BTN_RED);
         graphics.drawCenteredString(font, Component.translatable("gui.pjmbasemod.faction.order.clear"),
-                x + w / 2, y + 7, 0xFFFFFFFF);
+                x + w / 2, y + 7, PjmGuiUtils.TEXT_PRIMARY);
     }
 
     private String ttlLabel() {

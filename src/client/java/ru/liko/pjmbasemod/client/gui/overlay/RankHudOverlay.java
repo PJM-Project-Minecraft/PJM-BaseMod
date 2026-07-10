@@ -15,6 +15,7 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState;
 import ru.liko.pjmbasemod.client.faction.FactionRankIcons;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.rank.ClientRankState;
 
 import java.util.ArrayDeque;
@@ -188,7 +189,7 @@ public final class RankHudOverlay {
             int y = 46 + index * 18 - (int) (progress * 8.0f);
             int x = 12;
             
-            int color = popup.delta() > 0 ? 0xFFFFCC00 : 0xFFFF4444; // Tactical yellow/red
+            int color = popup.delta() > 0 ? PjmGuiUtils.ACCENT : 0xFFFF5555;
             String text = (popup.delta() > 0 ? "+" : "") + popup.delta() + " XP";
             String reason = reasonLabel(popup.reason());
             if (!reason.isBlank()) text += " | " + reason;

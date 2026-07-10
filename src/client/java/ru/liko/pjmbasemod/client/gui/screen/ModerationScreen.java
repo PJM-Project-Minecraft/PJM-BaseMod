@@ -215,14 +215,14 @@ public class ModerationScreen extends PjmBaseScreen {
 
     private void drawBoxFrame(GuiGraphics g, int x, int y, int w, int h, EditBox box) {
         boolean focused = box != null && box.isFocused();
-        g.fill(x, y, x + w, y + h, focused ? 0xFF2A3550 : 0xFF222229);
-        PjmGuiUtils.drawBorder(g, x, y, w, h, focused ? 0xFF4A6A9E : PjmGuiUtils.SCREEN_BORDER);
+        g.fill(x, y, x + w, y + h, PjmGuiUtils.SCREEN_ROW);
+        PjmGuiUtils.drawBorder(g, x, y, w, h, focused ? PjmGuiUtils.ACCENT_DIM : PjmGuiUtils.SCREEN_BORDER);
     }
 
     private void addButton(GuiGraphics g, int x, int y, int w, String label, int mouseX, int mouseY,
                            boolean enabled, Runnable action) {
         boolean hover = enabled && mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + 18;
-        int bg = !enabled ? 0xFF1A1A1F : hover ? 0xFF33333F : 0xFF26262E;
+        int bg = !enabled ? PjmGuiUtils.BTN_DISABLED : hover ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW;
         g.fill(x, y, x + w, y + 18, bg);
         PjmGuiUtils.drawBorder(g, x, y, w, 18, PjmGuiUtils.SCREEN_BORDER);
         int color = enabled ? 0xFFFFFFFF : 0xFF555555;

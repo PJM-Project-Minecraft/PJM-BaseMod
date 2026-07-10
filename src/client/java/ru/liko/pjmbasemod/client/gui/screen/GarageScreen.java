@@ -351,20 +351,7 @@ public class GarageScreen extends PjmBaseScreen {
         int left = guiLeft();
         int top = guiTop();
 
-        // Основной фон окна
-        graphics.fill(left, top, left + GUI_WIDTH, top + GUI_HEIGHT, 0xF216161A);
-
-        // Обводка окна
-        graphics.fill(left - 1, top - 1, left + GUI_WIDTH + 1, top, 0xFF353540);
-        graphics.fill(left - 1, top + GUI_HEIGHT, left + GUI_WIDTH + 1, top + GUI_HEIGHT + 1, 0xFF353540);
-        graphics.fill(left - 1, top, left, top + GUI_HEIGHT, 0xFF353540);
-        graphics.fill(left + GUI_WIDTH, top, left + GUI_WIDTH + 1, top + GUI_HEIGHT, 0xFF353540);
-
-        // Хедер
-        graphics.fill(left, top, left + GUI_WIDTH, top + HEADER_HEIGHT, 0xFF1F1F26);
-
-        // Сайдбар
-        graphics.fill(left, top + HEADER_HEIGHT, left + SIDEBAR_WIDTH, top + GUI_HEIGHT, 0xFF1A1A20);
+        PjmGuiUtils.drawScreenPanel(graphics, left, top, GUI_WIDTH, GUI_HEIGHT, SIDEBAR_WIDTH, HEADER_HEIGHT);
 
         // Меню выбора (модальный оверлей): рисуем только его, контент гаража пропускаем,
         // чтобы 3D-превью техники не просвечивало поверх меню через depth-буфер.
@@ -375,7 +362,7 @@ public class GarageScreen extends PjmBaseScreen {
         }
 
         // Заголовок
-        graphics.drawString(font, getTitle(), left + 8, top + 7, 0xFFE8E8E8, false);
+        graphics.drawString(font, getTitle(), left + 8, top + 7, PjmGuiUtils.TEXT_PRIMARY, false);
 
         // Кнопка закрытия [✕]
         boolean hoverClose = closeRect().contains(mouseX, mouseY);
@@ -390,11 +377,11 @@ public class GarageScreen extends PjmBaseScreen {
             boolean canStore = snapshot.canStore();
             Rect r = storeButtonRect();
             boolean hoverStore = r.contains(mouseX, mouseY);
-            int bgColor = canStore ? (hoverStore ? 0xFF35506E : 0xFF26262E) : 0xFF22222A;
+            int bgColor = canStore ? (hoverStore ? PjmGuiUtils.BTN_AMBER_HOVER : PjmGuiUtils.BTN_AMBER) : PjmGuiUtils.BTN_DISABLED;
             graphics.fill(r.x(), r.y(), r.x() + r.w(), r.y() + r.h(), bgColor);
 
             Component storeTextComp = Component.translatable("gui.pjmbasemod.garage.store_button");
-            graphics.drawCenteredString(font, storeTextComp.getString(), r.x() + r.w() / 2, r.y() + 8, canStore ? 0xFFFFFFFF : 0xFF777777);
+            graphics.drawCenteredString(font, storeTextComp.getString(), r.x() + r.w() / 2, r.y() + 8, canStore ? PjmGuiUtils.TEXT_PRIMARY : PjmGuiUtils.TEXT_MUTED);
         }
 
         drawSidebarPreview(graphics, hoveredPreview(mouseX, mouseY), left, top, partialTick);
@@ -438,14 +425,14 @@ public class GarageScreen extends PjmBaseScreen {
         if (rowCount() > rowsVisible()) {
             int scrollX = left + GUI_WIDTH - 6;
             int scrollYStart = contentTop;
-            int scrollHeight = rowsVisible() * ROW_HEIGHT - 4; // -4 чтобы выровнять с последней строкой
-            
-            graphics.fill(scrollX, scrollYStart, scrollX + 3, scrollYStart + scrollHeight, 0xFF1A1A20);
+            int scrollHeight = rowsVisible() * ROW_HEIGHT - 4;
+
+            graphics.fill(scrollX, scrollYStart, scrollX + 3, scrollYStart + scrollHeight, 0x33111111);
 
             int maxScroll = rowCount() - rowsVisible();
             int thumbHeight = Math.max(15, scrollHeight * rowsVisible() / rowCount());
             int thumbY = scrollYStart + (scrollHeight - thumbHeight) * scroll / maxScroll;
-            graphics.fill(scrollX, thumbY, scrollX + 3, thumbY + thumbHeight, 0xFF35506E);
+            graphics.fill(scrollX, thumbY, scrollX + 3, thumbY + thumbHeight, PjmGuiUtils.ACCENT_DIM);
         }
 
     }
@@ -470,15 +457,9 @@ public class GarageScreen extends PjmBaseScreen {
         int w = STORE_MENU_WIDTH;
         int h = spawnMenuHeight();
 
-        graphics.fill(left, top, left + w, top + h, 0xF21B1B22);
-        graphics.fill(left - 1, top - 1, left + w + 1, top, 0xFF353540);
-        graphics.fill(left - 1, top + h, left + w + 1, top + h + 1, 0xFF353540);
-        graphics.fill(left - 1, top, left, top + h, 0xFF353540);
-        graphics.fill(left + w, top, left + w + 1, top + h, 0xFF353540);
-
-        graphics.fill(left, top, left + w, top + STORE_MENU_HEADER, 0xFF1F1F26);
+        PjmGuiUtils.drawScreenPanel(graphics, left, top, w, h, 0, STORE_MENU_HEADER);
         graphics.drawString(font, Component.translatable("gui.pjmbasemod.garage.spawn_select_title"),
-                left + 8, top + 8, 0xFFE8E8E8, false);
+                left + 8, top + 8, PjmGuiUtils.TEXT_PRIMARY, false);
         boolean hoverClose = mouseX >= left + w - 22 && mouseX <= left + w && mouseY >= top && mouseY <= top + STORE_MENU_HEADER;
         graphics.drawString(font, "✕", left + w - 16, top + 8, hoverClose ? 0xFFD06060 : 0xFFB05050, false);
 
@@ -488,19 +469,19 @@ public class GarageScreen extends PjmBaseScreen {
             var option = spawnOptions.get(i);
             boolean hovered = option.free() && mouseX >= left + 4 && mouseX <= left + w - 4
                     && mouseY >= y && mouseY <= y + STORE_ROW_HEIGHT - 2;
-            int bg = !option.free() ? 0xFF302024 : hovered ? 0xFF35506E : 0xFF26262E;
+            int bg = !option.free() ? PjmGuiUtils.SCREEN_ROW_LOCKED : hovered ? PjmGuiUtils.SCREEN_SELECT : PjmGuiUtils.SCREEN_ROW;
             graphics.fill(left + 4, y, left + w - 4, y + STORE_ROW_HEIGHT - 2, bg);
             String suffix = option.free() ? "" : " — "
                     + Component.translatable("gui.pjmbasemod.garage.spawn_point_busy").getString();
             String name = ellipsize(option.label() + suffix, w - 16);
-            int color = option.free() ? 0xFFFFFFFF : 0xFF8A7A7A;
+            int color = option.free() ? PjmGuiUtils.TEXT_PRIMARY : PjmGuiUtils.TEXT_MUTED;
             graphics.drawString(font, name, left + 10, y + 6, color, false);
             y += STORE_ROW_HEIGHT;
         }
 
         if (spawnOptions.size() > rows) {
             String more = "▾ " + spawnOptions.size();
-            graphics.drawString(font, more, left + w - 4 - font.width(more), top + h - 10, 0xFF8890A0, false);
+            graphics.drawString(font, more, left + w - 4 - font.width(more), top + h - 10, PjmGuiUtils.TEXT_LABEL, false);
         }
     }
 
@@ -550,7 +531,6 @@ public class GarageScreen extends PjmBaseScreen {
     private int storeMenuTop() { return (vHeight() - storeMenuHeight()) / 2; }
 
     private void renderStoreMenu(GuiGraphics graphics, int mouseX, int mouseY) {
-        // Затемняем фон под меню
         graphics.fill(0, 0, vWidth(), vHeight(), 0xB0000000);
 
         int left = storeMenuLeft();
@@ -558,16 +538,9 @@ public class GarageScreen extends PjmBaseScreen {
         int w = STORE_MENU_WIDTH;
         int h = storeMenuHeight();
 
-        graphics.fill(left, top, left + w, top + h, 0xF21B1B22);
-        graphics.fill(left - 1, top - 1, left + w + 1, top, 0xFF353540);
-        graphics.fill(left - 1, top + h, left + w + 1, top + h + 1, 0xFF353540);
-        graphics.fill(left - 1, top, left, top + h, 0xFF353540);
-        graphics.fill(left + w, top, left + w + 1, top + h, 0xFF353540);
-
-        // Заголовок
-        graphics.fill(left, top, left + w, top + STORE_MENU_HEADER, 0xFF1F1F26);
+        PjmGuiUtils.drawScreenPanel(graphics, left, top, w, h, 0, STORE_MENU_HEADER);
         graphics.drawString(font, Component.translatable("gui.pjmbasemod.garage.store_select_title"),
-                left + 8, top + 8, 0xFFE8E8E8, false);
+                left + 8, top + 8, PjmGuiUtils.TEXT_PRIMARY, false);
         boolean hoverClose = mouseX >= left + w - 22 && mouseX <= left + w && mouseY >= top && mouseY <= top + STORE_MENU_HEADER;
         graphics.drawString(font, "✕", left + w - 16, top + 8, hoverClose ? 0xFFD06060 : 0xFFB05050, false);
 
@@ -577,16 +550,15 @@ public class GarageScreen extends PjmBaseScreen {
             var option = storeOptions.get(i);
             boolean hovered = mouseX >= left + 4 && mouseX <= left + w - 4
                     && mouseY >= y && mouseY <= y + STORE_ROW_HEIGHT - 2;
-            graphics.fill(left + 4, y, left + w - 4, y + STORE_ROW_HEIGHT - 2, hovered ? 0xFF35506E : 0xFF26262E);
+            graphics.fill(left + 4, y, left + w - 4, y + STORE_ROW_HEIGHT - 2, hovered ? PjmGuiUtils.SCREEN_SELECT : PjmGuiUtils.SCREEN_ROW);
             String name = ellipsize(option.displayName(), w - 16);
-            graphics.drawString(font, name, left + 10, y + 6, 0xFFFFFFFF, false);
+            graphics.drawString(font, name, left + 10, y + 6, PjmGuiUtils.TEXT_PRIMARY, false);
             y += STORE_ROW_HEIGHT;
         }
 
-        // Индикатор прокрутки
         if (storeOptions.size() > rows) {
             String more = "▾ " + storeOptions.size();
-            graphics.drawString(font, more, left + w - 4 - font.width(more), top + h - 10, 0xFF8890A0, false);
+            graphics.drawString(font, more, left + w - 4 - font.width(more), top + h - 10, PjmGuiUtils.TEXT_LABEL, false);
         }
     }
 
@@ -630,11 +602,14 @@ public class GarageScreen extends PjmBaseScreen {
         boolean isSelected = (this.tab == tabIndex);
         boolean isHovered = r.contains(mouseX, mouseY);
 
-        int bg = isSelected ? 0xFF35506E : (isHovered ? 0xFF2E2E38 : 0xFF26262E);
+        int bg = isSelected ? PjmGuiUtils.SCREEN_SELECT : (isHovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW);
         graphics.fill(r.x(), r.y(), r.x() + r.w(), r.y() + r.h(), bg);
+        if (isSelected) {
+            graphics.fill(r.x(), r.y(), r.x() + 3, r.y() + r.h(), PjmGuiUtils.ACCENT);
+        }
 
-        int color = isSelected ? 0xFFFFFFFF : 0xFFB8B8B8;
-        graphics.drawString(font, text, r.x() + 6, r.y() + 8, color, false);
+        int color = isSelected ? PjmGuiUtils.ACCENT : PjmGuiUtils.TEXT_DIM;
+        graphics.drawString(font, text, r.x() + 8, r.y() + 8, color, false);
     }
 
     private void drawRowCraft(GuiGraphics graphics, GarageSnapshot.DefEntry def, boolean canCraft, int x, int y, int width, int mouseX, int mouseY) {
@@ -643,20 +618,20 @@ public class GarageScreen extends PjmBaseScreen {
         boolean roleLocked = !def.roleAllowed();
         boolean rankLocked = def.roleAllowed() && !def.rankAllowed();
         boolean locked = roleLocked || rankLocked;
-        int bgColor = locked ? 0xFF1D1D22 : (isHovered ? 0xFF2A2A33 : 0xFF222229);
+        int bgColor = locked ? PjmGuiUtils.SCREEN_ROW_LOCKED : (isHovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW);
         graphics.fill(x, y, x + width, y + ROW_HEIGHT - 4, bgColor);
 
         int buttonWidth = 110;
-        int nameWidth = Math.max(20, width - buttonWidth - 80); // leave some space for time
+        int nameWidth = Math.max(20, width - buttonWidth - 80);
         String name = ellipsize(def.displayName(), nameWidth);
-        graphics.drawString(font, name, x + 12, y + 6, locked ? 0xFF9A9A9A : 0xFFFFFFFF, true);
+        graphics.drawString(font, name, x + 12, y + 6, locked ? PjmGuiUtils.TEXT_MUTED : PjmGuiUtils.TEXT_PRIMARY, true);
         
         if (def.assemblyTime() > 0) {
             int t = def.assemblyTime();
             String timeStr = t >= 3600 ? (t / 3600) + "ч " + ((t % 3600) / 60) + "м" : (t >= 60 ? (t / 60) + "м " + (t % 60) + "с" : t + "с");
             timeStr = timeStr.replace(" 0м", "").replace(" 0с", "");
             int nameLen = font.width(name);
-            graphics.drawString(font, "⏱ " + timeStr, x + 12 + nameLen + 8, y + 6, 0xFFAAAAAA, false);
+            graphics.drawString(font, "⏱ " + timeStr, x + 12 + nameLen + 8, y + 6, PjmGuiUtils.TEXT_LABEL, false);
         }
         
         int costX = x + 12;
@@ -667,7 +642,7 @@ public class GarageScreen extends PjmBaseScreen {
                     ? Component.translatable("gui.pjmbasemod.role.required", roleNames(def.allowedRoles())).getString()
                     : Component.translatable("gui.pjmbasemod.rank.required", def.requiredRankName()).getString();
             graphics.drawString(font, ellipsize(required, Math.max(20, width - buttonWidth - 42)),
-                    costX + 14, costY, 0xFFD8B15F, false);
+                    costX + 14, costY, PjmGuiUtils.TEXT_GOLD, false);
         } else {
             // Отрисовка цены с настоящими иконками предметов.
             for (GarageSnapshot.CostView c : def.cost()) {
@@ -679,7 +654,7 @@ public class GarageScreen extends PjmBaseScreen {
                 graphics.pose().popPose();
 
                 String countText = String.valueOf(c.count());
-                int countColor = def.affordable() ? 0xFFDDDDDD : 0xFFFF5555;
+                int countColor = def.affordable() ? PjmGuiUtils.TEXT_DIM : 0xFFFF5555;
                 graphics.drawString(font, countText, costX + 14, costY, countColor, true);
                 costX += 14 + font.width(countText) + 8;
             }
@@ -710,7 +685,7 @@ public class GarageScreen extends PjmBaseScreen {
         boolean roleLocked = !inst.roleAllowed();
         boolean rankLocked = inst.roleAllowed() && !inst.rankAllowed();
         boolean locked = roleLocked || rankLocked;
-        int bgColor = locked ? 0xFF1D1D22 : (isHovered ? 0xFF2A2A33 : 0xFF222229);
+        int bgColor = locked ? PjmGuiUtils.SCREEN_ROW_LOCKED : (isHovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW);
         graphics.fill(x, y, x + width, y + ROW_HEIGHT - 4, bgColor);
 
         int recycleX = x + width - ROW_RECYCLE_WIDTH - 8;
@@ -718,14 +693,14 @@ public class GarageScreen extends PjmBaseScreen {
         int buttonY = y + (ROW_HEIGHT - 4 - ROW_ACTION_HEIGHT) / 2;
         int nameWidth = Math.max(20, spawnX - x - 20);
         graphics.drawString(font, ellipsize(inst.displayName(), nameWidth), x + 12, y + 8,
-                locked ? 0xFF9A9A9A : 0xFFFFFFFF, true);
+                locked ? PjmGuiUtils.TEXT_MUTED : PjmGuiUtils.TEXT_PRIMARY, true);
         if (locked) {
             graphics.blit(LOCK_TEXTURE, x + 12, y + 24, 0, 0, 10, 10, 16, 16);
             String required = roleLocked
                     ? Component.translatable("gui.pjmbasemod.role.required", roleNames(inst.allowedRoles())).getString()
                     : Component.translatable("gui.pjmbasemod.rank.required", inst.requiredRankName()).getString();
             graphics.drawString(font, ellipsize(required, Math.max(20, spawnX - x - 34)),
-                    x + 26, y + 25, 0xFFD8B15F, false);
+                    x + 26, y + 25, PjmGuiUtils.TEXT_GOLD, false);
         }
 
         boolean spawnHovered = spawnButtonRect(y).contains(mouseX, mouseY);
@@ -753,9 +728,9 @@ public class GarageScreen extends PjmBaseScreen {
 
     private void drawRowButton(GuiGraphics graphics, int x, int y, int width, boolean enabled,
                                boolean hovered, String text, int normalColor, int hoverColor) {
-        int buttonColor = enabled ? (hovered ? hoverColor : normalColor) : 0xFF33333A;
+        int buttonColor = enabled ? (hovered ? hoverColor : normalColor) : PjmGuiUtils.BTN_DISABLED;
         graphics.fill(x, y, x + width, y + ROW_ACTION_HEIGHT, buttonColor);
-        graphics.drawCenteredString(font, ellipsize(text, width - 8), x + width / 2, y + 6, enabled ? 0xFFFFFFFF : 0xFF777777);
+        graphics.drawCenteredString(font, ellipsize(text, width - 8), x + width / 2, y + 6, enabled ? PjmGuiUtils.TEXT_PRIMARY : PjmGuiUtils.TEXT_MUTED);
     }
 
     private static String shortName(String itemId) {
@@ -826,12 +801,9 @@ public class GarageScreen extends PjmBaseScreen {
         int w = SIDEBAR_WIDTH - 16;
         int h = 118;
 
-        graphics.fill(x, y, x + w, y + h, 0xFF202029);
-        graphics.fill(x, y, x + w, y + 1, 0xFF353540);
-        graphics.fill(x, y + h - 1, x + w, y + h, 0xFF353540);
-        graphics.fill(x, y, x + 1, y + h, 0xFF353540);
-        graphics.fill(x + w - 1, y, x + w, y + h, 0xFF353540);
-        graphics.drawCenteredString(font, ellipsize(target.displayName(), w - 8), x + w / 2, y + 6, 0xFFFFFFFF);
+        graphics.fill(x, y, x + w, y + h, PjmGuiUtils.SCREEN_BG);
+        PjmGuiUtils.drawBorder(graphics, x, y, w, h, PjmGuiUtils.SCREEN_BORDER);
+        graphics.drawCenteredString(font, ellipsize(target.displayName(), w - 8), x + w / 2, y + 6, PjmGuiUtils.ACCENT);
 
         Entity entity = previewEntityFor(target);
         if (entity == null) {

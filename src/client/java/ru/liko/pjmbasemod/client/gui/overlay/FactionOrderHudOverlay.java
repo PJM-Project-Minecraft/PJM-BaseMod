@@ -41,11 +41,11 @@ public final class FactionOrderHudOverlay {
         graphics.pose().pushPose();
         RenderSystem.enableBlend();
         try {
-            graphics.fill(x, y, x + width, y + height, 0x99000000);
+            graphics.fill(x, y, x + width, y + height, 0xBB0D0D0D);
             graphics.fill(x, y, x + 2, y + height, accent);
             graphics.drawString(font, prefix, x + 8, y + 5, accent, false);
-            graphics.drawString(font, ellipsize(font, text, width - 12), x + 8, y + 16, 0xFFE8E8E8, false);
-            graphics.drawString(font, timeText, x + width - font.width(timeText) - 6, y + 5, 0xFFFFCC00, false);
+            graphics.drawString(font, ellipsize(font, text, width - 12), x + 8, y + 16, 0xFFCCCCCC, false);
+            graphics.drawString(font, timeText, x + width - font.width(timeText) - 6, y + 5, 0xFFFFAA00, false);
         } finally {
             RenderSystem.disableBlend();
             graphics.pose().popPose();

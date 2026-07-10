@@ -195,10 +195,8 @@ public class HudOverlay {
         int boxTop = top - 13;
         int boxBottom = top - 1;
         
-        // Small tactical box above center
-        graphics.fill(centerX - textWidth / 2 - 3, boxTop, centerX + textWidth / 2 + 3, boxBottom, 0xAA000000);
-        graphics.fill(centerX - textWidth / 2 - 3, boxBottom, centerX + textWidth / 2 + 3, boxBottom + 1, 0x88FFAA00);
-        
+        graphics.fill(centerX - textWidth / 2 - 3, boxTop, centerX + textWidth / 2 + 3, boxBottom, 0xBB0D0D0D);
+        graphics.fill(centerX - textWidth / 2 - 3, boxBottom, centerX + textWidth / 2 + 3, boxBottom + 1, 0xAAFFAA00);
         graphics.drawString(font, text, centerX - textWidth / 2, boxTop + 2, 0xFFFFFFFF, false);
     }
 

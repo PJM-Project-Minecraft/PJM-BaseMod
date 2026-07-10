@@ -6,6 +6,7 @@ import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 
 public final class CustomHotbarOverlay {
     
@@ -95,8 +96,8 @@ public final class CustomHotbarOverlay {
                 g.fill(x + slotSize - 1, y, x + slotSize, y + slotSize, borderColor); // Право
                 
                 if (isSelected) {
-                    // Яркая белая полоса снизу для выбранного слота
-                    g.fill(x, y + slotSize - 2, x + slotSize, y + slotSize, (bgAlpha << 24) | 0xFFFFFF);
+                    // Amber-акцентная полоса снизу для выбранного слота
+                    g.fill(x, y + slotSize - 2, x + slotSize, y + slotSize, (bgAlpha << 24) | (PjmGuiUtils.ACCENT & 0x00FFFFFF));
                 } else {
                     g.fill(x, y + slotSize - 1, x + slotSize, y + slotSize, borderColor); // Низ
                 }
@@ -107,13 +108,13 @@ public final class CustomHotbarOverlay {
                 int numBoxH = 10;
                 
                 if (isSelected) {
-                    // Белый фон, черный текст
-                    g.fill(x + 1, y + 1, x + 1 + numBoxW, y + 1 + numBoxH, (bgAlpha << 24) | 0xFFFFFF);
-                    g.drawString(mc.font, numStr, x + 3, y + 2, (bgAlpha << 24) | 0x000000, false);
+                    // Amber-фон, тёмный текст
+                    g.fill(x + 1, y + 1, x + 1 + numBoxW, y + 1 + numBoxH, (bgAlpha << 24) | (PjmGuiUtils.ACCENT & 0x00FFFFFF));
+                    g.drawString(mc.font, numStr, x + 3, y + 2, (bgAlpha << 24) | 0x0D0D0D, false);
                 } else {
-                    // Серый фон, белый текст
-                    g.fill(x + 1, y + 1, x + 1 + numBoxW, y + 1 + numBoxH, ((int)(bgAlpha * 0.5f) << 24) | 0xAAAAAA);
-                    g.drawString(mc.font, numStr, x + 3, y + 2, (bgAlpha << 24) | 0xFFFFFF, false);
+                    // Тёмный фон, приглушённый текст
+                    g.fill(x + 1, y + 1, x + 1 + numBoxW, y + 1 + numBoxH, ((int)(bgAlpha * 0.5f) << 24) | 0x0D0D0D);
+                    g.drawString(mc.font, numStr, x + 3, y + 2, ((int)(bgAlpha * 0.6f) << 24) | 0x888888, false);
                 }
                 
                 // 4. Отрисовка предмета (по центру)
@@ -140,9 +141,9 @@ public final class CustomHotbarOverlay {
                         int boxY = y + slotSize;
                         int boxH = mc.font.lineHeight + 2;
                         
-                        // Белая плашка с черным текстом под слотом
-                        g.fill(boxX, boxY, boxX + boxW, boxY + boxH, (bgAlpha << 24) | 0xFFFFFF);
-                        g.drawString(mc.font, nameStr, boxX + (boxW - nameW) / 2, boxY + 2, (bgAlpha << 24) | 0x000000, false);
+                        // Тёмная плашка с amber текстом под слотом
+                        g.fill(boxX, boxY, boxX + boxW, boxY + boxH, ((int)(bgAlpha * 0.85f) << 24) | 0x0D0D0D);
+                        g.drawString(mc.font, nameStr, boxX + (boxW - nameW) / 2, boxY + 2, (bgAlpha << 24) | (PjmGuiUtils.ACCENT & 0x00FFFFFF), false);
                     }
                 }
                 g.pose().popPose();

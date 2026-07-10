@@ -33,25 +33,25 @@ public class FactionSelectionScreen extends PjmBaseScreen {
     private static final int ROLE_ROW_HEIGHT = 32;
     private static final int CONFIRM_HEIGHT = 26;
 
-    // Палитра (общая с Warehouse/Garage)
-    private static final int COLOR_SCRIM = 0xCC050507;
-    private static final int COLOR_PANEL = 0xF216161A;
-    private static final int COLOR_BORDER = 0xFF353540;
-    private static final int COLOR_HEADER = 0xFF1F1F26;
-    private static final int COLOR_SIDEBAR = 0xFF1A1A20;
-    private static final int COLOR_ROW = 0xFF222229;
-    private static final int COLOR_ROW_HOVER = 0xFF2A2A33;
-    private static final int COLOR_ROW_LOCKED = 0xFF1D1D22;
-    private static final int COLOR_SELECT = 0xFF35506E;
-    private static final int COLOR_ROLE_SELECT = 0xFF2B3E52;
-    private static final int COLOR_GOLD = 0xFFD8B15F;
-    private static final int COLOR_LABEL = 0xFF9AA0A6;
-    private static final int COLOR_TEXT = 0xFFE8E8E8;
-    private static final int COLOR_TEXT_DIM = 0xFFB8B8B8;
-    private static final int COLOR_TEXT_MUTED = 0xFF777777;
-    private static final int COLOR_CONFIRM = 0xFF2E5A34;
-    private static final int COLOR_CONFIRM_HOVER = 0xFF3E7A46;
-    private static final int COLOR_CONFIRM_DISABLED = 0xFF33333A;
+    // Цвета берутся из PjmGuiUtils (amber-tactical палитра)
+    private static final int COLOR_SCRIM         = PjmGuiUtils.SCREEN_SCRIM;
+    private static final int COLOR_PANEL         = PjmGuiUtils.SCREEN_BG;
+    private static final int COLOR_BORDER        = PjmGuiUtils.SCREEN_BORDER;
+    private static final int COLOR_HEADER        = PjmGuiUtils.SCREEN_HEADER;
+    private static final int COLOR_SIDEBAR       = PjmGuiUtils.SCREEN_SIDEBAR;
+    private static final int COLOR_ROW           = PjmGuiUtils.SCREEN_ROW;
+    private static final int COLOR_ROW_HOVER     = PjmGuiUtils.SCREEN_ROW_HOVER;
+    private static final int COLOR_ROW_LOCKED    = PjmGuiUtils.SCREEN_ROW_LOCKED;
+    private static final int COLOR_SELECT        = PjmGuiUtils.SCREEN_SELECT;
+    private static final int COLOR_ROLE_SELECT   = PjmGuiUtils.SCREEN_SELECT;
+    private static final int COLOR_GOLD          = PjmGuiUtils.TEXT_GOLD;
+    private static final int COLOR_LABEL         = PjmGuiUtils.TEXT_LABEL;
+    private static final int COLOR_TEXT          = PjmGuiUtils.TEXT_PRIMARY;
+    private static final int COLOR_TEXT_DIM      = PjmGuiUtils.TEXT_DIM;
+    private static final int COLOR_TEXT_MUTED    = PjmGuiUtils.TEXT_MUTED;
+    private static final int COLOR_CONFIRM       = PjmGuiUtils.BTN_GREEN;
+    private static final int COLOR_CONFIRM_HOVER = PjmGuiUtils.BTN_GREEN_HOVER;
+    private static final int COLOR_CONFIRM_DISABLED = PjmGuiUtils.BTN_DISABLED;
 
     private static final ResourceLocation ROLE_ICON = ResourceLocation.fromNamespaceAndPath(
             Pjmbasemod.MODID, "textures/icon/class.png");
@@ -155,12 +155,12 @@ public class FactionSelectionScreen extends PjmBaseScreen {
         int top = guiTop() + Math.round((1.0F - eased) * 18.0F);
 
         // Корпус + обводка
-        graphics.fill(left, top, left + GUI_WIDTH, top + GUI_HEIGHT, withAlpha(COLOR_PANEL, Math.round(242 * eased)));
+        graphics.fill(left, top, left + GUI_WIDTH, top + GUI_HEIGHT, withAlpha(COLOR_PANEL, Math.round(206 * eased)));
         drawBorder(graphics, left, top, GUI_WIDTH, GUI_HEIGHT, withAlpha(COLOR_BORDER, alpha));
 
         // Хедер + цветная акцент-полоса выбранной фракции
         FactionSelectionSnapshot.TeamEntry team = selectedTeamEntry();
-        int accent = team == null ? COLOR_SELECT : 0xFF000000 | team.color();
+        int accent = team == null ? PjmGuiUtils.ACCENT : 0xFF000000 | team.color();
         graphics.fill(left, top, left + GUI_WIDTH, top + HEADER_HEIGHT, withAlpha(COLOR_HEADER, alpha));
         graphics.fill(left, top + HEADER_HEIGHT - 2, left + GUI_WIDTH, top + HEADER_HEIGHT, withAlpha(accent, Math.round(220 * eased)));
 

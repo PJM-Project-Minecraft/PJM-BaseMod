@@ -15,6 +15,7 @@ import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
 
 import java.util.ArrayList;
@@ -29,9 +30,9 @@ public class TacticalMainMenuScreen extends Screen {
     private static final int SUB_BUTTON_HEIGHT = 24;
     private static final int SUB_BUTTON_SPACING = 3;
 
-    // --- Colors ---
-    private static final int COLOR_ACCENT = 0xFFFFAA00; // Amber/Gold
-    private static final int COLOR_PANEL_BG = 0xAA0F0F0F; // Semi-transparent dark background for blur
+    // --- Colors --- (единая палитра с PjmGuiUtils)
+    private static final int COLOR_ACCENT = PjmGuiUtils.ACCENT;
+    private static final int COLOR_PANEL_BG = 0xAA0F0F0F;
 
     // --- Resources ---
     private static final ResourceLocation ICON_TEXTURE = ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID,

@@ -8,50 +8,77 @@ import net.minecraft.util.Mth;
 
 /**
  * Общие UI-константы и утилиты для всех экранов и оверлеев мода.
+ * Стиль: Amber-Tactical — полупрозрачные тёмные панели + янтарный акцент.
  */
 public final class PjmGuiUtils {
 
     // -------------------------------------------------------------------------
-    // Старые константы (оставлены для совместимости с оверлеями)
+    // Amber-Tactical палитра
     // -------------------------------------------------------------------------
-    public static final int COLOR_BACKGROUND   = 0xFF000000;
-    public static final int COLOR_PANEL        = 0xFF121212;
-    public static final int COLOR_PANEL_BORDER = 0xFF2B2B2B;
-    public static final int COLOR_ORANGE_ACCENT = 0xFFE67E22;
-    public static final int COLOR_BLUE_ACCENT  = 0xFF3498DB;
-    public static final int COLOR_RED_ACCENT   = 0xFFE74C3C;
-    public static final int COLOR_GREEN_ACCENT = 0xFF2ECC71;
-    public static final int COLOR_WHITE        = 0xFFFFFFFF;
-    public static final int COLOR_GRAY         = 0xFFB0B0B0;
 
-    // -------------------------------------------------------------------------
-    // Палитра экранов (Warehouse / Garage / Faction*)
-    // -------------------------------------------------------------------------
-    /** Фон панели (почти непрозрачный тёмный). */
-    public static final int SCREEN_BG          = 0xF216161A;
-    /** Граница панели. */
-    public static final int SCREEN_BORDER      = 0xFF353540;
-    /** Фон хедера. */
-    public static final int SCREEN_HEADER      = 0xFF1F1F26;
-    /** Фон сайдбара. */
-    public static final int SCREEN_SIDEBAR     = 0xFF1A1A20;
-    /** Фон строки по умолчанию. */
-    public static final int SCREEN_ROW         = 0xFF222229;
-    /** Фон строки при наведении. */
-    public static final int SCREEN_ROW_HOVER   = 0xFF2A2A33;
-    /** Фон заблокированной строки. */
-    public static final int SCREEN_ROW_LOCKED  = 0xFF1D1D22;
-    /** Выделенная строка (синяя). */
-    public static final int SCREEN_SELECT      = 0xFF35506E;
-    /** Затемняющий скрим поверх игрового мира. */
+    /** Фон панели (81% непрозрачности). */
+    public static final int SCREEN_BG          = 0xCE0D0D0D;
+    /** Хедер панели (87%). */
+    public static final int SCREEN_HEADER      = 0xDE080808;
+    /** Сайдбар (80%). */
+    public static final int SCREEN_SIDEBAR     = 0xCC0B0B0B;
+    /** Граница панели — слабый янтарный. */
+    public static final int SCREEN_BORDER      = 0x44FFAA00;
+    /** Скрим поверх игрового мира. */
     public static final int SCREEN_SCRIM       = 0xCC050507;
 
+    /** Фон строки. */
+    public static final int SCREEN_ROW         = 0xAA131313;
+    /** Фон строки при наведении. */
+    public static final int SCREEN_ROW_HOVER   = 0xBB1C1C1C;
+    /** Фон заблокированной строки. */
+    public static final int SCREEN_ROW_LOCKED  = 0x99080808;
+    /** Выбранная строка — янтарный тинт. */
+    public static final int SCREEN_SELECT      = 0x55FFAA00;
+
+    // Акцентный янтарный
+    public static final int ACCENT             = 0xFFFFAA00;
+    public static final int ACCENT_DIM         = 0x77FFAA00;
+
     // Цвета текста
-    public static final int TEXT_PRIMARY   = 0xFFE8E8E8;
-    public static final int TEXT_DIM       = 0xFFB8B8B8;
-    public static final int TEXT_MUTED     = 0xFF777777;
-    public static final int TEXT_LABEL     = 0xFF9AA0A6;
-    public static final int TEXT_GOLD      = 0xFFD8B15F;
+    public static final int TEXT_PRIMARY       = 0xFFFFFFFF;
+    public static final int TEXT_DIM           = 0xFFCCCCCC;
+    public static final int TEXT_MUTED         = 0xFF888888;
+    public static final int TEXT_LABEL         = 0xFFAAAAAA;
+    /** Янтарный текст (ценники, статусы). */
+    public static final int TEXT_GOLD          = 0xFFFFAA00;
+
+    // Кнопки — семантические цвета (зелёный/красный/янтарный/серый)
+    public static final int BTN_GREEN          = 0xFF2E5A34;
+    public static final int BTN_GREEN_HOVER    = 0xFF3E7A46;
+    public static final int BTN_RED            = 0xFF5A342E;
+    public static final int BTN_RED_HOVER      = 0xFF7A463E;
+    /** Вторичное действие (сдать, сохранить). */
+    public static final int BTN_AMBER          = 0xFF38301A;
+    public static final int BTN_AMBER_HOVER    = 0xFF52461E;
+    public static final int BTN_DISABLED       = 0xFF222222;
+
+    // -------------------------------------------------------------------------
+    // Обратная совместимость (legacy aliases)
+    // -------------------------------------------------------------------------
+    /** @deprecated Используй {@link #SCREEN_BG}. */
+    @Deprecated public static final int COLOR_BACKGROUND    = SCREEN_BG;
+    /** @deprecated Используй {@link #SCREEN_BG}. */
+    @Deprecated public static final int COLOR_PANEL         = SCREEN_BG;
+    /** @deprecated Используй {@link #SCREEN_BORDER}. */
+    @Deprecated public static final int COLOR_PANEL_BORDER  = SCREEN_BORDER;
+    /** @deprecated Используй {@link #ACCENT}. */
+    @Deprecated public static final int COLOR_ORANGE_ACCENT = ACCENT;
+    /** @deprecated */
+    @Deprecated public static final int COLOR_BLUE_ACCENT   = 0xFF3498DB;
+    /** @deprecated */
+    @Deprecated public static final int COLOR_RED_ACCENT    = 0xFFE74C3C;
+    /** @deprecated */
+    @Deprecated public static final int COLOR_GREEN_ACCENT  = 0xFF2ECC71;
+    /** @deprecated Используй {@link #TEXT_PRIMARY}. */
+    @Deprecated public static final int COLOR_WHITE         = TEXT_PRIMARY;
+    /** @deprecated Используй {@link #TEXT_LABEL}. */
+    @Deprecated public static final int COLOR_GRAY          = TEXT_LABEL;
 
     private PjmGuiUtils() {}
 
@@ -94,7 +121,15 @@ public final class PjmGuiUtils {
     }
 
     /**
-     * Рисует стандартную тёмную панель мода (фон + рамка + хедер + сайдбар).
+     * Рисует тонкую горизонтальную янтарную линию (2 px).
+     * Используется как акцент-разделитель под хедером.
+     */
+    public static void drawAccentLine(GuiGraphics g, int x, int y, int w) {
+        g.fill(x, y, x + w, y + 2, ACCENT_DIM);
+    }
+
+    /**
+     * Рисует стандартную панель мода (фон + рамка + хедер с акцент-линией + сайдбар).
      * Вызывать до рисования содержимого.
      *
      * @param sidebarWidth ширина левой боковой панели (0 — без сайдбара)
@@ -107,6 +142,8 @@ public final class PjmGuiUtils {
         drawBorder(g, x, y, w, h, SCREEN_BORDER);
         if (headerHeight > 0) {
             g.fill(x, y, x + w, y + headerHeight, SCREEN_HEADER);
+            // Янтарная акцент-линия под хедером
+            drawAccentLine(g, x, y + headerHeight - 2, w);
         }
         if (sidebarWidth > 0) {
             int sidebarTop = y + headerHeight;
@@ -158,28 +195,31 @@ public final class PjmGuiUtils {
     public static void drawScrollbar(GuiGraphics g, int x, int y, int height, int total, int visible, int scroll) {
         if (total <= visible) return;
         int trackW = 3;
-        g.fill(x, y, x + trackW, y + height, 0xFF15151A);
+        g.fill(x, y, x + trackW, y + height, 0x33111111);
         int thumbH = Math.max(12, height * visible / total);
         int maxScroll = total - visible;
         int thumbY = y + (height - thumbH) * scroll / Math.max(1, maxScroll);
-        g.fill(x, thumbY, x + trackW, thumbY + thumbH, 0xFF454552);
+        g.fill(x, thumbY, x + trackW, thumbY + thumbH, ACCENT_DIM);
     }
 
     // -------------------------------------------------------------------------
-    // Старые методы (совместимость)
+    // Legacy-методы (совместимость)
     // -------------------------------------------------------------------------
 
+    /** @deprecated Используй {@link #drawScreenPanel}. */
+    @Deprecated
     public static void drawDarkPanel(GuiGraphics gg, int x, int y, int w, int h) {
-        gg.fill(x, y, x + w, y + h, COLOR_PANEL);
-        gg.fill(x, y, x + w, y + 1, COLOR_PANEL_BORDER);
-        gg.fill(x, y + h - 1, x + w, y + h, COLOR_PANEL_BORDER);
-        gg.fill(x, y, x + 1, y + h, COLOR_PANEL_BORDER);
-        gg.fill(x + w - 1, y, x + w, y + h, COLOR_PANEL_BORDER);
+        gg.fill(x, y, x + w, y + h, SCREEN_BG);
+        gg.fill(x, y, x + w, y + 1, SCREEN_BORDER);
+        gg.fill(x, y + h - 1, x + w, y + h, SCREEN_BORDER);
+        gg.fill(x, y, x + 1, y + h, SCREEN_BORDER);
+        gg.fill(x + w - 1, y, x + w, y + h, SCREEN_BORDER);
     }
 
+    /** @deprecated Используй {@link #drawScreenPanel}. */
+    @Deprecated
     public static void drawRoundedPanel(GuiGraphics gg, int x, int y, int w, int h, int color) {
         gg.fill(x + 1, y, x + w - 1, y + h, color);
         gg.fill(x, y + 1, x + w, y + h - 1, color);
     }
 }
-

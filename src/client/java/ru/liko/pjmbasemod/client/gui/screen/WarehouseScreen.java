@@ -450,16 +450,9 @@ public class WarehouseScreen extends PjmBaseScreen {
         int left = guiLeft();
         int top = guiTop();
 
-        // Фон + обводка
-        graphics.fill(left, top, left + GUI_WIDTH, top + GUI_HEIGHT, 0xF216161A);
-        graphics.fill(left - 1, top - 1, left + GUI_WIDTH + 1, top, 0xFF353540);
-        graphics.fill(left - 1, top + GUI_HEIGHT, left + GUI_WIDTH + 1, top + GUI_HEIGHT + 1, 0xFF353540);
-        graphics.fill(left - 1, top, left, top + GUI_HEIGHT, 0xFF353540);
-        graphics.fill(left + GUI_WIDTH, top, left + GUI_WIDTH + 1, top + GUI_HEIGHT, 0xFF353540);
-
-        // Заголовок
-        graphics.fill(left, top, left + GUI_WIDTH, top + HEADER_HEIGHT, 0xFF1F1F26);
-        graphics.drawString(this.font, getTitle(), left + 8, top + 7, 0xFFE8E8E8, false);
+        // Фон + обводка + хедер
+        PjmGuiUtils.drawScreenPanel(graphics, left, top, GUI_WIDTH, GUI_HEIGHT, SIDEBAR_WIDTH, HEADER_HEIGHT);
+        graphics.drawString(this.font, getTitle(), left + 8, top + 7, PjmGuiUtils.TEXT_PRIMARY, false);
         drawSmoothIcon(graphics, CLOSE_ICON, left + GUI_WIDTH - 19, top + 4, 14, 14);
 
         // Личный лимит (анти-«пылесос») справа в хедере. max<0 — безлимит (OP/ранг) → «∞»; max=0 — скрыт.
@@ -476,21 +469,21 @@ public class WarehouseScreen extends PjmBaseScreen {
                     low ? 0xFFD16C6C : 0xFF6FC36F, false);
         }
 
-        // Сайдбар
-        graphics.fill(left, top + HEADER_HEIGHT, left + SIDEBAR_WIDTH, top + GUI_HEIGHT, 0xFF1A1A20);
+        // Сайдбар (фон уже нарисован drawScreenPanel)
         for (int i = 0; i < categories.size(); i++) {
             Rect r = categoryRect(i);
             boolean selected = i == selectedCategory;
-            graphics.fill(r.x(), r.y(), r.x() + r.w(), r.y() + r.h(), selected ? 0xFF35506E : 0xFF26262E);
+            graphics.fill(r.x(), r.y(), r.x() + r.w(), r.y() + r.h(), selected ? PjmGuiUtils.SCREEN_SELECT : PjmGuiUtils.SCREEN_ROW);
+            if (selected) graphics.fill(r.x(), r.y(), r.x() + 3, r.y() + r.h(), PjmGuiUtils.ACCENT);
 
             ResourceLocation icon = getCategoryIcon(categories.get(i));
             String label = Component.translatable("gui.pjmbasemod.warehouse.category." + categories.get(i)).getString();
             int textY = r.y() + (r.h() - 8) / 2;
             if (icon != null) {
                 drawSmoothIcon(graphics, icon, r.x() + 5, r.y() + (r.h() - 14) / 2, 14, 14);
-                graphics.drawString(this.font, label, r.x() + 24, textY, selected ? 0xFFFFFFFF : 0xFFB8B8B8, false);
+                graphics.drawString(this.font, label, r.x() + 24, textY, selected ? PjmGuiUtils.ACCENT : PjmGuiUtils.TEXT_DIM, false);
             } else {
-                graphics.drawString(this.font, label, r.x() + 8, textY, selected ? 0xFFFFFFFF : 0xFFB8B8B8, false);
+                graphics.drawString(this.font, label, r.x() + 8, textY, selected ? PjmGuiUtils.ACCENT : PjmGuiUtils.TEXT_DIM, false);
             }
         }
 
@@ -520,34 +513,34 @@ public class WarehouseScreen extends PjmBaseScreen {
                 currentY += 12;
             }
             
-            graphics.drawString(this.font, text, currentX, currentY, 0xFFD8B15F, false);
+            graphics.drawString(this.font, text, currentX, currentY, PjmGuiUtils.TEXT_GOLD, false);
             currentX += textWidth + 12;
         }
 
         // Строка поиска
         Rect searchRect = searchFieldRect();
-        int searchBorder = searchFocused ? 0xFF5A7BA8 : 0xFF3A3A44;
+        int searchBorder = searchFocused ? PjmGuiUtils.ACCENT_DIM : PjmGuiUtils.SCREEN_BORDER;
         graphics.fill(searchRect.x() - 1, searchRect.y() - 1, searchRect.x() + searchRect.w() + 1,
                 searchRect.y() + searchRect.h() + 1, searchBorder);
         graphics.fill(searchRect.x(), searchRect.y(), searchRect.x() + searchRect.w(),
-                searchRect.y() + searchRect.h(), 0xFF18181D);
+                searchRect.y() + searchRect.h(), PjmGuiUtils.SCREEN_ROW);
         boolean placeholder = searchQuery.isEmpty() && !searchFocused;
         String searchText = placeholder
                 ? Component.translatable("gui.pjmbasemod.warehouse.search").getString()
                 : searchQuery + (searchFocused ? "_" : "");
         graphics.drawString(this.font, ellipsize(searchText, searchRect.w() - 10),
                 searchRect.x() + 5, searchRect.y() + (searchRect.h() - 8) / 2,
-                placeholder ? 0xFF6A6A72 : 0xFFE8E8E8, false);
+                placeholder ? PjmGuiUtils.TEXT_MUTED : PjmGuiUtils.TEXT_PRIMARY, false);
 
         // Кнопка сортировки
         Rect sortRect = sortButtonRect();
         boolean sortHovered = sortRect.contains(mouseX, mouseY);
         graphics.fill(sortRect.x(), sortRect.y(), sortRect.x() + sortRect.w(), sortRect.y() + sortRect.h(),
-                sortHovered ? 0xFF3A3A46 : 0xFF26262E);
+                sortHovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW);
         String sortValue = Component.translatable("gui.pjmbasemod.warehouse.sort." + sortMode.key).getString();
         String sortLabel = Component.translatable("gui.pjmbasemod.warehouse.sort", sortValue).getString();
         graphics.drawString(this.font, ellipsize(sortLabel, sortRect.w() - 8),
-                sortRect.x() + 5, sortRect.y() + (sortRect.h() - 8) / 2, 0xFFC8C8C8, false);
+                sortRect.x() + 5, sortRect.y() + (sortRect.h() - 8) / 2, PjmGuiUtils.TEXT_DIM, false);
 
         // Список предметов
         int contentLeft = contentLeft();
@@ -562,7 +555,7 @@ public class WarehouseScreen extends PjmBaseScreen {
             boolean donateLocked = item.roleAllowed() && item.rankAllowed() && !item.donateAllowed();
             boolean locked = roleLocked || rankLocked || donateLocked;
             graphics.fill(contentLeft, y, contentLeft + contentWidth, y + ROW_HEIGHT - 3,
-                    locked ? 0xFF1D1D22 : 0xFF222229);
+                    locked ? PjmGuiUtils.SCREEN_ROW_LOCKED : PjmGuiUtils.SCREEN_ROW);
 
             int itemY = y + (ROW_HEIGHT - 3 - 16) / 2;
             ItemStack icon = GuiItemIcons.stackFor(item.itemId());
@@ -583,7 +576,7 @@ public class WarehouseScreen extends PjmBaseScreen {
             }
 
             graphics.drawString(this.font, itemName, contentLeft + 26, y + 4,
-                    locked ? 0xFF9A9A9A : 0xFFE8E8E8, false);
+                    locked ? PjmGuiUtils.TEXT_MUTED : PjmGuiUtils.TEXT_PRIMARY, false);
             String cost = Component.translatable("gui.pjmbasemod.warehouse.cost", item.pointCost()).getString();
             if (item.quantity() > 1) {
                 cost += " ×" + item.quantity();
@@ -607,13 +600,13 @@ public class WarehouseScreen extends PjmBaseScreen {
                 cost = Component.translatable("gui.pjmbasemod.donate.required").getString();
             }
             graphics.drawString(this.font, ellipsize(cost, Math.max(20, depositX - contentLeft - 32)),
-                    contentLeft + 26, y + 15, locked ? 0xFFD8B15F : 0xFF9AA0A6, false);
+                    contentLeft + 26, y + 15, locked ? PjmGuiUtils.TEXT_GOLD : PjmGuiUtils.TEXT_LABEL, false);
 
             // Кнопка «Получить»
             boolean withdrawEnabled = snapshot.canWithdraw() && item.affordable()
                     && item.roleAllowed() && item.rankAllowed() && item.donateAllowed();
             boolean withdrawHovered = withdraw.contains(mouseX, mouseY);
-            int withdrawColor = !withdrawEnabled ? 0xFF33333A : withdrawHovered ? 0xFF3E7A46 : 0xFF2E5A34;
+            int withdrawColor = !withdrawEnabled ? PjmGuiUtils.BTN_DISABLED : withdrawHovered ? PjmGuiUtils.BTN_GREEN_HOVER : PjmGuiUtils.BTN_GREEN;
             graphics.fill(withdrawX, buttonY, withdrawX + BUTTON_WIDTH, buttonY + BUTTON_HEIGHT, withdrawColor);
             Component withdrawText = !item.roleAllowed()
                     ? Component.translatable("gui.pjmbasemod.role.locked_short")
@@ -631,13 +624,13 @@ public class WarehouseScreen extends PjmBaseScreen {
             drawSmoothIcon(graphics, LOAD_ICON, wStartX, buttonY + 2, 14, 14);
             
             graphics.drawString(this.font, withdrawText, wStartX + 18, buttonY + 5,
-                    withdrawEnabled ? 0xFFFFFFFF : 0xFF777777, false);
+                    withdrawEnabled ? PjmGuiUtils.TEXT_PRIMARY : PjmGuiUtils.TEXT_MUTED, false);
 
             // Кнопка «Сдать» (если предмет принимается складом)
             if (item.depositable()) {
                 boolean depositEnabled = item.inventoryCount() > 0;
                 boolean depositHovered = deposit.contains(mouseX, mouseY);
-                int depositColor = !depositEnabled ? 0xFF33333A : depositHovered ? 0xFF456694 : 0xFF35506E;
+                int depositColor = !depositEnabled ? PjmGuiUtils.BTN_DISABLED : depositHovered ? PjmGuiUtils.BTN_AMBER_HOVER : PjmGuiUtils.BTN_AMBER;
                 graphics.fill(depositX, buttonY, depositX + BUTTON_WIDTH, buttonY + BUTTON_HEIGHT, depositColor);
                 Component depositText = depositEnabled
                         ? Component.translatable("gui.pjmbasemod.warehouse.deposit_count", item.inventoryCount())
@@ -649,7 +642,7 @@ public class WarehouseScreen extends PjmBaseScreen {
                 drawSmoothIcon(graphics, UNLOAD_ICON, dStartX, buttonY + 2, 14, 14);
                 
                 graphics.drawString(this.font, depositText, dStartX + 18, buttonY + 5,
-                        depositEnabled ? 0xFFFFFFFF : 0xFF777777, false);
+                        depositEnabled ? PjmGuiUtils.TEXT_PRIMARY : PjmGuiUtils.TEXT_MUTED, false);
             }
 
             y += ROW_HEIGHT;
@@ -657,7 +650,7 @@ public class WarehouseScreen extends PjmBaseScreen {
 
         if (items.isEmpty()) {
             Component empty = Component.translatable("gui.pjmbasemod.warehouse.empty");
-            graphics.drawString(this.font, empty, contentLeft + 4, listTop() + 8, 0xFF888888, false);
+            graphics.drawString(this.font, empty, contentLeft + 4, listTop() + 8, PjmGuiUtils.TEXT_MUTED, false);
         }
 
         renderScrollbar(graphics, mouseX, mouseY);
@@ -666,13 +659,13 @@ public class WarehouseScreen extends PjmBaseScreen {
     /** Рисует трек и перетаскиваемый бегунок скроллбара; скрыт, когда список умещается целиком. */
     private void renderScrollbar(GuiGraphics graphics, int mouseX, int mouseY) {
         Rect thumb = scrollbarThumbRect();
-        if (thumb == null) return; // всё влезает — скроллбар не нужен
+        if (thumb == null) return;
 
         Rect track = scrollbarTrackRect();
-        graphics.fill(track.x(), track.y(), track.x() + track.w(), track.y() + track.h(), 0xFF15151A);
+        graphics.fill(track.x(), track.y(), track.x() + track.w(), track.y() + track.h(), 0x33111111);
 
         boolean active = draggingScrollbar || thumb.contains(mouseX, mouseY);
-        int thumbColor = active ? 0xFF5A5A6A : 0xFF3A3A46;
+        int thumbColor = active ? PjmGuiUtils.ACCENT : PjmGuiUtils.ACCENT_DIM;
         graphics.fill(thumb.x(), thumb.y(), thumb.x() + thumb.w(), thumb.y() + thumb.h(), thumbColor);
     }
 
