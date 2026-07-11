@@ -65,10 +65,10 @@ public final class DroneRaidDefinition {
         public boolean allowCombined = true;
         /** Пул вариаций параметров волны для комбинированного налёта. Пусто — комбинированные невозможны. */
         public List<WaveProfile> combinedProfiles = new ArrayList<>();
-        /** XP-штраф атакуемой команде за КАЖДЫЙ дрон, упавший в цель (при проигрыше налёта). */
-        public int xpLossPerHit = 40;
-        /** Доля дронов, упавших в цель, при превышении которой налёт считается проигранным (0..1). */
-        public double lossThreshold = 0.5;
+        /** Минимальная доля сбитых дронов от общего числа выпущенных, ниже которой налёт считается проигранным (0..1). */
+        public double minShotDownRatio = 0.5;
+        /** Общий фиксированный штраф XP атакуемой команде при проигрыше (делится поровну между онлайн-игроками команды). */
+        public int teamFailPenaltyXp = 300;
 
         public void normalize() {
             waveCount = Mth.clamp(waveCount, 1, 20);
@@ -79,8 +79,8 @@ public final class DroneRaidDefinition {
             speed = Mth.clamp(speed, 50.0, 1000.0);
             xpPerKill = Mth.clamp(xpPerKill, 0, 10000);
             maxDurationMinutes = Mth.clamp(maxDurationMinutes, 1, 120);
-            xpLossPerHit = Mth.clamp(xpLossPerHit, 0, 10000);
-            lossThreshold = Mth.clamp(lossThreshold, 0.0, 1.0);
+            teamFailPenaltyXp = Mth.clamp(teamFailPenaltyXp, 0, 100000);
+            minShotDownRatio = Mth.clamp(minShotDownRatio, 0.0, 1.0);
             if (combinedProfiles == null) {
                 combinedProfiles = new ArrayList<>();
             } else {

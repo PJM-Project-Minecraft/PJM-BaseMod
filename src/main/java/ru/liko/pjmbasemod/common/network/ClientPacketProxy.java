@@ -14,7 +14,6 @@ import ru.liko.pjmbasemod.common.network.packet.EventMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.SignalHuntHudPacket;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointHudPacket;
-import ru.liko.pjmbasemod.common.network.packet.OpenCapturePointEditorPacket;
 import ru.liko.pjmbasemod.common.network.packet.ModerationSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenWarehousePacket;
 import ru.liko.pjmbasemod.common.network.packet.PlayerSkinSyncPacket;
@@ -60,5 +59,4 @@ public interface ClientPacketProxy {
     default void signalHuntHud(SignalHuntHudPacket payload) {}
     default void capturePointMapSync(CapturePointMapSyncPacket payload) {}
     default void capturePointHud(CapturePointHudPacket payload) {}
-    default void openCapturePointEditor(OpenCapturePointEditorPacket payload) {}
 }

@@ -2,6 +2,7 @@ package ru.liko.pjmbasemod.client.event;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.resources.ResourceLocation;
@@ -20,6 +21,7 @@ import ru.liko.pjmbasemod.client.capturepoint.ClientCapturePointState;
 import ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState;
 import ru.liko.pjmbasemod.client.gui.RadialMenuScreen;
 import ru.liko.pjmbasemod.client.gui.screen.TacticalMainMenuScreen;
+import ru.liko.pjmbasemod.client.gui.screen.TacticalPauseMenuScreen;
 import ru.liko.pjmbasemod.client.input.ModKeyBindings;
 import ru.liko.pjmbasemod.client.inventory.LockedSlotsClientState;
 import ru.liko.pjmbasemod.client.radio.RadioManager;
@@ -43,6 +45,11 @@ public final class ClientEvents {
         if (event.getNewScreen() instanceof TitleScreen && !firstTitleReplaced) {
             firstTitleReplaced = true;
             event.setNewScreen(new TacticalMainMenuScreen());
+        }
+        // Замена ванильного ESC-меню паузы на tactical-стиль (с blur-фоном по миру).
+        // Только когда showPauseMenu=true (само меню, не оверлей-«пауза» в singleplayer).
+        if (event.getNewScreen() instanceof PauseScreen pause && pause.showsPauseMenu()) {
+            event.setNewScreen(new TacticalPauseMenuScreen());
         }
     }
 

@@ -16,47 +16,49 @@ public final class PjmGuiUtils {
     // Amber-Tactical палитра
     // -------------------------------------------------------------------------
 
+    // Базовый тон — тёмный сине-стальной («штабной планшет»), а не чистый чёрный:
+    // мягче контраст, теплее янтарный акцент лёг сверху.
     /** Фон панели (81% непрозрачности). */
-    public static final int SCREEN_BG          = 0xCE0D0D0D;
+    public static final int SCREEN_BG          = 0xCE12161C;
     /** Хедер панели (87%). */
-    public static final int SCREEN_HEADER      = 0xDE080808;
+    public static final int SCREEN_HEADER      = 0xE00D1015;
     /** Сайдбар (80%). */
-    public static final int SCREEN_SIDEBAR     = 0xCC0B0B0B;
-    /** Граница панели — слабый янтарный. */
-    public static final int SCREEN_BORDER      = 0x44FFAA00;
+    public static final int SCREEN_SIDEBAR     = 0xCC0F131A;
+    /** Граница панели — янтарный. */
+    public static final int SCREEN_BORDER      = 0x66FFB020;
     /** Скрим поверх игрового мира. */
-    public static final int SCREEN_SCRIM       = 0xCC050507;
+    public static final int SCREEN_SCRIM       = 0xCC05070A;
 
     /** Фон строки. */
-    public static final int SCREEN_ROW         = 0xAA131313;
+    public static final int SCREEN_ROW         = 0xAA1B2129;
     /** Фон строки при наведении. */
-    public static final int SCREEN_ROW_HOVER   = 0xBB1C1C1C;
+    public static final int SCREEN_ROW_HOVER   = 0xBB26313D;
     /** Фон заблокированной строки. */
-    public static final int SCREEN_ROW_LOCKED  = 0x99080808;
+    public static final int SCREEN_ROW_LOCKED  = 0x99101319;
     /** Выбранная строка — янтарный тинт. */
-    public static final int SCREEN_SELECT      = 0x55FFAA00;
+    public static final int SCREEN_SELECT      = 0x55FFB020;
 
     // Акцентный янтарный
-    public static final int ACCENT             = 0xFFFFAA00;
-    public static final int ACCENT_DIM         = 0x77FFAA00;
+    public static final int ACCENT             = 0xFFFFB020;
+    public static final int ACCENT_DIM         = 0x77FFB020;
 
-    // Цвета текста
-    public static final int TEXT_PRIMARY       = 0xFFFFFFFF;
-    public static final int TEXT_DIM           = 0xFFCCCCCC;
-    public static final int TEXT_MUTED         = 0xFF888888;
-    public static final int TEXT_LABEL         = 0xFFAAAAAA;
+    // Цвета текста — тёплый офф-вайт вместо чистого белого (мягче контраст)
+    public static final int TEXT_PRIMARY       = 0xFFF2ECE0;
+    public static final int TEXT_DIM           = 0xFFC7CDD6;
+    public static final int TEXT_MUTED         = 0xFF7F8794;
+    public static final int TEXT_LABEL         = 0xFF9AA4B0;
     /** Янтарный текст (ценники, статусы). */
-    public static final int TEXT_GOLD          = 0xFFFFAA00;
+    public static final int TEXT_GOLD          = 0xFFFFB020;
 
-    // Кнопки — семантические цвета (зелёный/красный/янтарный/серый)
-    public static final int BTN_GREEN          = 0xFF2E5A34;
-    public static final int BTN_GREEN_HOVER    = 0xFF3E7A46;
-    public static final int BTN_RED            = 0xFF5A342E;
-    public static final int BTN_RED_HOVER      = 0xFF7A463E;
+    // Кнопки — насыщенные семантические цвета (зелёный/красный/янтарный/серый)
+    public static final int BTN_GREEN          = 0xFF2F7D4F;
+    public static final int BTN_GREEN_HOVER    = 0xFF3EA063;
+    public static final int BTN_RED            = 0xFF9E3B32;
+    public static final int BTN_RED_HOVER      = 0xFFC24A3E;
     /** Вторичное действие (сдать, сохранить). */
-    public static final int BTN_AMBER          = 0xFF38301A;
-    public static final int BTN_AMBER_HOVER    = 0xFF52461E;
-    public static final int BTN_DISABLED       = 0xFF222222;
+    public static final int BTN_AMBER          = 0xFF4A3A16;
+    public static final int BTN_AMBER_HOVER    = 0xFF6B531F;
+    public static final int BTN_DISABLED       = 0xFF2A2F36;
 
     // -------------------------------------------------------------------------
     // Обратная совместимость (legacy aliases)

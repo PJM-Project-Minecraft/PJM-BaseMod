@@ -67,8 +67,8 @@ public final class DroneRaidEvent implements ServerEvent {
     private boolean terrainFollow;
     private int xpPerKill;
     private int maxDurationSeconds;
-    private int xpLossPerHit;
-    private double lossThreshold;
+    private int teamFailPenaltyXp;
+    private double minShotDownRatio;
     private String composition = DroneRaidDefinition.COMPOSITION_SHAHED_ONLY;
     private final List<WaveProfile> combinedProfiles = new ArrayList<>();
 
@@ -104,8 +104,8 @@ public final class DroneRaidEvent implements ServerEvent {
         event.terrainFollow = settings.terrainFollow;
         event.xpPerKill = settings.xpPerKill;
         event.maxDurationSeconds = settings.maxDurationMinutes * 60;
-        event.xpLossPerHit = settings.xpLossPerHit;
-        event.lossThreshold = settings.lossThreshold;
+        event.teamFailPenaltyXp = settings.teamFailPenaltyXp;
+        event.minShotDownRatio = settings.minShotDownRatio;
 
         // Выбор состава: комбинированный возможен только при наличии профилей волны.
         boolean canCombined = settings.allowCombined
@@ -257,22 +257,25 @@ public final class DroneRaidEvent implements ServerEvent {
         return xpPerKill;
     }
 
-    /** Завершить налёт и рассчитать проигрыш/штраф. Вызывается менеджером из onStop. */
+    /**
+     * Завершить налёт и рассчитать проигрыш/штраф. Вызывается менеджером из onStop.
+     * Налёт проигран, если сбито меньше требуемой доли ({@code minShotDownRatio}) от всех выпущенных дронов —
+     * т.е. команда не сбила больше половины и «проебала» налёт.
+     */
     public RaidOutcome evaluateOutcome() {
         if (dronesSpawned <= 0) {
             return new RaidOutcome(false, 0, 0, 0);
         }
-        boolean lost = (double) dronesHitTarget / dronesSpawned > lossThreshold;
+        boolean lost = (double) dronesShotDown / dronesSpawned < minShotDownRatio;
         return new RaidOutcome(lost, dronesSpawned, dronesHitTarget, dronesShotDown);
     }
 
-    /** Применить штраф XP атакуемой команде при проигрыше. Вызывается из ServerEventManager.onStop. */
+    /** Применить общий фиксированный штраф XP атакуемой команде при проигрыше. Вызывается из onStop. */
     public void applyLossPenalty(MinecraftServer server) {
-        if (!teamId.isBlank() && Teams.isCombatTeam(teamId) && xpLossPerHit > 0 && dronesHitTarget > 0) {
-            int totalLoss = xpLossPerHit * dronesHitTarget;
-            RankService.penalizeTeam(server, teamId, totalLoss, "raid_loss");
-            Pjmbasemod.LOGGER.info("Events: команда '{}' потеряла {} XP за проигранный налёт '{}' ({} попаданий).",
-                    teamId, totalLoss, pointName, dronesHitTarget);
+        if (!teamId.isBlank() && Teams.isCombatTeam(teamId) && teamFailPenaltyXp > 0) {
+            RankService.penalizeTeam(server, teamId, teamFailPenaltyXp, "raid_loss");
+            Pjmbasemod.LOGGER.info("Events: команда '{}' получила общий штраф {} XP за проигранный налёт '{}' "
+                    + "(сбито {}/{}).", teamId, teamFailPenaltyXp, pointName, dronesShotDown, dronesSpawned);
         }
     }
 
@@ -308,10 +311,10 @@ public final class DroneRaidEvent implements ServerEvent {
             color = START_COLOR;
         } else if (lost) {
             subtitle = Component.translatable("event.pjmbasemod.drone_raid.end.lost.subtitle",
-                    dronesHitTarget, dronesSpawned);
+                    dronesShotDown, dronesSpawned);
             color = LOSS_COLOR;
         } else {
-            subtitle = Component.translatable("event.pjmbasemod.drone_raid.end.subtitle", dronesShotDown);
+            subtitle = Component.translatable("event.pjmbasemod.drone_raid.end.subtitle", dronesShotDown, dronesSpawned);
             color = END_COLOR;
         }
         PjmNetworking.sendToAll(server, new NotificationPacket(
@@ -359,8 +362,8 @@ public final class DroneRaidEvent implements ServerEvent {
         tag.putBoolean("TerrainFollow", terrainFollow);
         tag.putInt("XpPerKill", xpPerKill);
         tag.putInt("MaxDurationSeconds", maxDurationSeconds);
-        tag.putInt("XpLossPerHit", xpLossPerHit);
-        tag.putDouble("LossThreshold", lossThreshold);
+        tag.putInt("TeamFailPenaltyXp", teamFailPenaltyXp);
+        tag.putDouble("MinShotDownRatio", minShotDownRatio);
         tag.putString("Composition", composition);
         saveProfiles(tag);
         tag.putInt("WavesSpawned", wavesSpawned);
@@ -409,8 +412,8 @@ public final class DroneRaidEvent implements ServerEvent {
         event.terrainFollow = tag.getBoolean("TerrainFollow");
         event.xpPerKill = tag.getInt("XpPerKill");
         event.maxDurationSeconds = tag.getInt("MaxDurationSeconds");
-        event.xpLossPerHit = tag.getInt("XpLossPerHit");
-        event.lossThreshold = tag.getDouble("LossThreshold");
+        event.teamFailPenaltyXp = tag.getInt("TeamFailPenaltyXp");
+        event.minShotDownRatio = tag.getDouble("MinShotDownRatio");
         event.composition = tag.getString("Composition");
         if (event.composition.isBlank()) {
             event.composition = DroneRaidDefinition.COMPOSITION_SHAHED_ONLY;

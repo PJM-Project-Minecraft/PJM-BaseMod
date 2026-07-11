@@ -41,7 +41,6 @@ import ru.liko.pjmbasemod.common.network.packet.FactionCommanderSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointHudPacket;
-import ru.liko.pjmbasemod.common.network.packet.OpenCapturePointEditorPacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioEventPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RankXpPacket;
@@ -203,11 +202,6 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     @Override
     public void capturePointHud(CapturePointHudPacket payload) {
         ClientCapturePointState.updateHud(payload);
-    }
-
-    @Override
-    public void openCapturePointEditor(OpenCapturePointEditorPacket payload) {
-        ru.liko.pjmbasemod.client.gui.screen.CapturePointEditorScreen.open(payload.points());
     }
 
     @Override

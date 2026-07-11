@@ -8,6 +8,7 @@ import ru.liko.pjmbasemod.Pjmbasemod;
 
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
+import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
@@ -102,6 +103,13 @@ public class TacticalMainMenuScreen extends Screen {
         }, false, false, false);
         addRenderableWidget(btnMulti);
         mainButtons.add(btnMulti);
+
+        // 3. SINGLEPLAYER Button
+        TacticalButton btnSingle = new TacticalButton(startX, 0, PANEL_WIDTH - 80, BUTTON_HEIGHT, Component.translatable("menu.pjm.singleplayer"), button -> {
+            this.minecraft.setScreen(new SelectWorldScreen(this));
+        }, false, false, false);
+        addRenderableWidget(btnSingle);
+        mainButtons.add(btnSingle);
 
         // 4. CHARACTER Button
         TacticalButton btnChar = new TacticalButton(startX, 0, PANEL_WIDTH - 80, BUTTON_HEIGHT, Component.translatable("menu.pjm.character"), button -> {

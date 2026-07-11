@@ -14,7 +14,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "30";
+    public static final String VERSION = "31";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -79,7 +79,6 @@ public final class PjmNetworking {
         r.playToClient(SignalHuntHudPacket.TYPE, SignalHuntHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.signalHuntHud(p)));
         r.playToClient(CapturePointMapSyncPacket.TYPE, CapturePointMapSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.capturePointMapSync(p)));
         r.playToClient(CapturePointHudPacket.TYPE, CapturePointHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.capturePointHud(p)));
-        r.playToClient(OpenCapturePointEditorPacket.TYPE, OpenCapturePointEditorPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openCapturePointEditor(p)));
 
         Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 47);
     }

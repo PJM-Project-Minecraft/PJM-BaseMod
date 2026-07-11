@@ -23,7 +23,6 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
-import ru.liko.pjmbasemod.common.capturepoint.CapturePoint;
 import ru.liko.pjmbasemod.common.capturepoint.CapturePointManager;
 import ru.liko.pjmbasemod.common.capturepoint.CapturePointSavedData;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
@@ -42,7 +41,6 @@ import ru.liko.pjmbasemod.common.garage.VehicleRegistry;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers;
 import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
-import ru.liko.pjmbasemod.common.network.packet.OpenCapturePointEditorPacket;
 import ru.liko.pjmbasemod.common.rank.RankRegistry;
 import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.rank.RankSnapshot;
@@ -1203,8 +1201,6 @@ public final class PjmCommands {
                                         .executes(ctx -> capturePointSetOwner(ctx.getSource(),
                                                 StringArgumentType.getString(ctx, "id"),
                                                 StringArgumentType.getString(ctx, "owner"))))))
-                .then(Commands.literal("editor")
-                        .executes(ctx -> capturePointOpenEditor(ctx.getSource())))
                 .then(Commands.literal("sync")
                         .executes(ctx -> capturePointSync(ctx.getSource())));
     }
@@ -1265,17 +1261,6 @@ public final class PjmCommands {
         CapturePointManager.broadcastMapSync(source.getServer(), data, "capturepoint_owner_set");
         String ownerLabel = owner.isEmpty() ? "нейтрально" : owner;
         source.sendSuccess(() -> Component.literal("Владелец точки '" + id + "' = " + ownerLabel), true);
-        return 1;
-    }
-
-    private static int capturePointOpenEditor(CommandSourceStack source) {
-        ServerPlayer player = requirePlayer(source);
-        if (player == null) return 0;
-        CapturePointSavedData data = CapturePointSavedData.get(source.getServer());
-        int requiredTicks = Math.max(1, Config.getCapturePointCaptureTimeSeconds() * 20);
-        java.util.List<CapturePoint> points = data.snapshots(requiredTicks, null);
-        PjmNetworking.sendToPlayer(player, new OpenCapturePointEditorPacket(points));
-        source.sendSuccess(() -> Component.literal("Открыт редактор точек захвата"), true);
         return 1;
     }
 

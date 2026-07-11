@@ -119,19 +119,37 @@ public final class DroneRaidRegistry {
 
     private void writeExampleConfig(Path file) {
         FileModel example = new FileModel();
-        RaidPoint point = new RaidPoint();
-        point.name = "Аэродром";
-        point.dimension = "minecraft:overworld";
-        point.x = 120;
-        point.y = 70;
-        point.z = -340;
-        point.radius = 80;
-        point.teamId = "red";
-        example.points.add(point);
+        // По одной точке налёта на каждую боевую команду из конфига — готовый шаблон для правки.
+        List<ru.liko.pjmbasemod.Config.ConfiguredTeam> teams =
+                ru.liko.pjmbasemod.common.teams.Teams.all();
+        int offset = 0;
+        for (ru.liko.pjmbasemod.Config.ConfiguredTeam team : teams) {
+            RaidPoint point = new RaidPoint();
+            point.name = "Аэродром " + team.id();
+            point.dimension = "minecraft:overworld";
+            point.x = 120 + offset;
+            point.y = 70;
+            point.z = -340;
+            point.radius = 80;
+            point.teamId = team.id();
+            example.points.add(point);
+            offset += 500;
+        }
+        if (example.points.isEmpty()) {
+            RaidPoint point = new RaidPoint();
+            point.name = "Аэродром";
+            point.dimension = "minecraft:overworld";
+            point.x = 120;
+            point.y = 70;
+            point.z = -340;
+            point.radius = 80;
+            point.teamId = "red";
+            example.points.add(point);
+        }
 
         example.settings.allowCombined = true;
-        example.settings.xpLossPerHit = 40;
-        example.settings.lossThreshold = 0.5;
+        example.settings.teamFailPenaltyXp = 300;
+        example.settings.minShotDownRatio = 0.5;
         WaveProfile fast = new WaveProfile();
         fast.dronesPerWave = 2;
         fast.speed = 280.0;

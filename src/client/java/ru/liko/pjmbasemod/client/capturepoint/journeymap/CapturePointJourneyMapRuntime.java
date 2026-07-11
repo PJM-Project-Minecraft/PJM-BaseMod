@@ -35,11 +35,14 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
     private static final int MAP_Y = 64;
     private static final int NEUTRAL_COLOR = 0x9B9B9B;
     private static final int CONTESTED_COLOR = 0xFFC13D;
+    private static final int SELECTED_STROKE = 0xFFFFFFFF;
 
     private final IClientAPI api;
+    private CapturePointMapEditor editor;
     private boolean mappingActive;
     private int lastPointCount = -1;
     private long lastSignature = -1L;
+    private long lastEditorRevision = -1L;
     private final List<PolygonOverlay> activeOverlays = new ArrayList<>();
     private String lastLoggedError = "";
 
@@ -49,8 +52,20 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
 
     public static void initialize(IClientAPI api) {
         CapturePointJourneyMapRuntime runtime = new CapturePointJourneyMapRuntime(api);
+        CapturePointMapEditor editor = new CapturePointMapEditor(runtime, api);
+        runtime.editor = editor;
+        editor.registerEvents();
         CapturePointJourneyMapBridge.attach(runtime);
         ClientEventRegistry.MAPPING_EVENT.subscribe(Pjmbasemod.MODID, runtime::onMappingEvent);
+    }
+
+    /** Принудительная пересборка оверлеев на следующем тике (вызывается редактором). */
+    void forceRebuild() {
+        lastSignature = -1L;
+        lastEditorRevision = -1L;
+        if (mappingActive && Minecraft.getInstance().player != null) {
+            applyIfNeeded();
+        }
     }
 
     @Override
@@ -72,6 +87,7 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
     public void onLogout() {
         mappingActive = false;
         clearOverlays();
+        if (editor != null) editor.onLogout();
     }
 
     private void onMappingEvent(MappingEvent event) {
@@ -86,9 +102,16 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
     private void applyIfNeeded() {
         List<CapturePoint> points = ClientCapturePointState.points();
         long signature = signature(points);
-        if (signature == lastSignature && points.size() == lastPointCount) return;
+        long editorRevision = editor != null ? editor.revision() : 0L;
+        if (signature == lastSignature && points.size() == lastPointCount
+                && editorRevision == lastEditorRevision) {
+            return;
+        }
         lastSignature = signature;
         lastPointCount = points.size();
+        lastEditorRevision = editorRevision;
+
+        String selectedId = editor != null ? editor.selectedId() : null;
 
         try {
             if (!api.playerAccepts(Pjmbasemod.MODID, DisplayType.Polygon)) {
@@ -99,8 +122,12 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
             int fillAlpha = Config.getCapturePointJourneyMapFillAlpha();
             int borderAlpha = Config.getCapturePointJourneyMapBorderAlpha();
             for (CapturePoint cp : points) {
-                if (cp.vertices().size() < 3) continue;
-                PolygonOverlay overlay = buildOverlay(cp, fillAlpha, borderAlpha);
+                List<CapturePoint.Vertex> verts = editor != null
+                        ? editor.effectiveVertices(cp.id(), cp.vertices())
+                        : cp.vertices();
+                if (verts.size() < 3) continue;
+                boolean selected = cp.id().equals(selectedId);
+                PolygonOverlay overlay = buildOverlay(cp, verts, selected, fillAlpha, borderAlpha);
                 if (overlay != null) {
                     api.show(overlay);
                     activeOverlays.add(overlay);
@@ -115,9 +142,10 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
         }
     }
 
-    private PolygonOverlay buildOverlay(CapturePoint cp, int fillAlpha, int borderAlpha) {
-        List<BlockPos> points = new ArrayList<>(cp.vertices().size());
-        for (CapturePoint.Vertex v : cp.vertices()) {
+    private PolygonOverlay buildOverlay(CapturePoint cp, List<CapturePoint.Vertex> verts,
+                                        boolean selected, int fillAlpha, int borderAlpha) {
+        List<BlockPos> points = new ArrayList<>(verts.size());
+        for (CapturePoint.Vertex v : verts) {
             points.add(new BlockPos(v.x(), MAP_Y, v.z()));
         }
         MapPolygon polygon = new MapPolygon(points);
@@ -128,11 +156,11 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
         ShapeProperties shape = new ShapeProperties()
                 .setFillColor(color)
                 .setFillOpacity(fillAlpha / 255f)
-                .setStrokeColor(color)
+                .setStrokeColor(selected ? SELECTED_STROKE : color)
                 .setStrokeOpacity(borderAlpha / 255f)
-                .setStrokeWidth(2.5f);
+                .setStrokeWidth(selected ? 4.0f : 2.5f);
 
-        CapturePoint.Vertex centroid = CapturePoint.centroid(cp.vertices());
+        CapturePoint.Vertex centroid = CapturePoint.centroid(verts);
         String label = cp.displayName();
         if (cp.contested()) {
             label += " [оспаривается]";
