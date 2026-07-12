@@ -16,28 +16,26 @@ import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.Util;
 import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class TacticalMainMenuScreen extends Screen {
 
-    // --- Layout Constants ---
-    private static final int PANEL_WIDTH = 280;
-    private static final int BUTTON_HEIGHT = 30;
-    private static final int BUTTON_SPACING = 5;
-    private static final int SUB_BUTTON_HEIGHT = 24;
-    private static final int SUB_BUTTON_SPACING = 3;
+    // --- Layout Constants --- (BF5-стиль: плоский текстовый список)
+    private static final int NAV_X = 40;
+    private static final int NAV_WIDTH = 240;
+    private static final int BUTTON_HEIGHT = 26;
+    private static final int BUTTON_SPACING = 2;
+    private static final int BAR_HEIGHT = 22;
 
     // --- Colors --- (единая палитра с PjmGuiUtils)
     private static final int COLOR_ACCENT = PjmGuiUtils.ACCENT;
-    private static final int COLOR_PANEL_BG = 0xAA0F0F0F;
-
-    // --- Resources ---
-    private static final ResourceLocation ICON_TEXTURE = ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID,
-            "textures/icon/pjm_512x512.png");
+    private static final int COLOR_TEXT_IDLE = 0xFFB8BDC4; // стальной бело-серый
 
     // Background Slideshow
     private static final ResourceLocation[] BACKGROUNDS = {
@@ -49,6 +47,9 @@ public class TacticalMainMenuScreen extends Screen {
             ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/gui/menu_background_6.png"),
             ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/gui/menu_background_7.png")
     };
+    private static final ResourceLocation LOGO =
+            ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "textures/icon/pjm_512x512.png");
+
     private static final long SLIDE_DURATION = 10000L;
     private static final long FADE_DURATION = 2000L;
 
@@ -61,6 +62,8 @@ public class TacticalMainMenuScreen extends Screen {
 
     // --- State ---
     private long devMessageUntil = 0L;
+    private long openStart = -1L;
+    private static final float ANIM_MS = 180f;
 
     // --- Widgets ---
     private final List<TacticalButton> mainButtons = new ArrayList<>();
@@ -82,15 +85,35 @@ public class TacticalMainMenuScreen extends Screen {
         return (int) (this.height / getScale());
     }
 
+    private float animAlpha() {
+        long now = Util.getMillis();
+        if (openStart < 0) openStart = now;
+        return Math.min(1f, (now - openStart) / ANIM_MS);
+    }
+
+    private static int withAlpha(int color, float a) {
+        int base = (color >>> 24) & 0xFF;
+        int alpha = (int) (base * Math.max(0f, Math.min(1f, a)));
+        return (alpha << 24) | (color & 0x00FFFFFF);
+    }
+
+    /** Маленькая заострённая стрелка ► (основание слева, остриё справа). */
+    private static void drawArrow(GuiGraphics g, int x, int cy, int size, int color) {
+        for (int c = 0; c < size; c++) {
+            int half = size - c;
+            g.fill(x + c, cy - half, x + c + 1, cy + half, color);
+        }
+    }
+
     @Override
     protected void init() {
         super.init();
         this.mainButtons.clear();
 
-        int startX = 40;
+        int startX = NAV_X;
 
         // 1. PLAY Button — прямой коннект на основной сервер
-        btnPlay = new TacticalButton(startX, 0, PANEL_WIDTH - 80, BUTTON_HEIGHT, Component.translatable("menu.pjm.play"), button -> {
+        btnPlay = new TacticalButton(startX, 0, NAV_WIDTH, BUTTON_HEIGHT, Component.translatable("menu.pjm.play"), button -> {
             ServerData serverData = new ServerData("Project Minecraft Server", "minecraft.likonchik.xyz", ServerData.Type.OTHER);
             ConnectScreen.startConnecting(this, this.minecraft, ServerAddress.parseString(serverData.ip), serverData, false, null);
         }, false, true, false);
@@ -98,35 +121,35 @@ public class TacticalMainMenuScreen extends Screen {
         mainButtons.add(btnPlay);
 
         // 2. MULTIPLAYER Button
-        TacticalButton btnMulti = new TacticalButton(startX, 0, PANEL_WIDTH - 80, BUTTON_HEIGHT, Component.translatable("menu.pjm.multiplayer"), button -> {
+        TacticalButton btnMulti = new TacticalButton(startX, 0, NAV_WIDTH, BUTTON_HEIGHT, Component.translatable("menu.pjm.multiplayer"), button -> {
             this.minecraft.setScreen(new JoinMultiplayerScreen(this));
         }, false, false, false);
         addRenderableWidget(btnMulti);
         mainButtons.add(btnMulti);
 
         // 3. SINGLEPLAYER Button
-        TacticalButton btnSingle = new TacticalButton(startX, 0, PANEL_WIDTH - 80, BUTTON_HEIGHT, Component.translatable("menu.pjm.singleplayer"), button -> {
+        TacticalButton btnSingle = new TacticalButton(startX, 0, NAV_WIDTH, BUTTON_HEIGHT, Component.translatable("menu.pjm.singleplayer"), button -> {
             this.minecraft.setScreen(new SelectWorldScreen(this));
         }, false, false, false);
         addRenderableWidget(btnSingle);
         mainButtons.add(btnSingle);
 
         // 4. CHARACTER Button
-        TacticalButton btnChar = new TacticalButton(startX, 0, PANEL_WIDTH - 80, BUTTON_HEIGHT, Component.translatable("menu.pjm.character"), button -> {
+        TacticalButton btnChar = new TacticalButton(startX, 0, NAV_WIDTH, BUTTON_HEIGHT, Component.translatable("menu.pjm.character"), button -> {
             devMessageUntil = System.currentTimeMillis() + 3000L;
         }, false, false, false);
         addRenderableWidget(btnChar);
         mainButtons.add(btnChar);
 
         // 5. OPTIONS Button
-        TacticalButton btnOpt = new TacticalButton(startX, 0, PANEL_WIDTH - 80, BUTTON_HEIGHT, Component.translatable("menu.pjm.options"), button -> {
+        TacticalButton btnOpt = new TacticalButton(startX, 0, NAV_WIDTH, BUTTON_HEIGHT, Component.translatable("menu.pjm.options"), button -> {
             this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options));
         }, false, false, false);
         addRenderableWidget(btnOpt);
         mainButtons.add(btnOpt);
 
         // 6. QUIT Button
-        TacticalButton btnQuit = new TacticalButton(startX, 0, PANEL_WIDTH - 80, BUTTON_HEIGHT, Component.translatable("menu.pjm.exit"), button -> {
+        TacticalButton btnQuit = new TacticalButton(startX, 0, NAV_WIDTH, BUTTON_HEIGHT, Component.translatable("menu.pjm.exit"), button -> {
             this.minecraft.stop();
         }, true, false, false);
         addRenderableWidget(btnQuit);
@@ -139,11 +162,9 @@ public class TacticalMainMenuScreen extends Screen {
         int vHeight = getVHeight();
         int totalBaseHeight = mainButtons.size() * (BUTTON_HEIGHT + BUTTON_SPACING);
 
-        // Calculate dynamic starting Y centered vertically
-        int startY = (vHeight - totalBaseHeight) / 2;
-
-        // Push startY down to ensure it stays below the logo (logo takes ~60-70px)
-        if (startY < 75) startY = 75;
+        // BF5: список привязан к нижней трети экрана, над панелью управления
+        int startY = vHeight - BAR_HEIGHT - 40 - totalBaseHeight;
+        if (startY < 90) startY = 90;
 
         int currentY = startY;
 
@@ -173,57 +194,64 @@ public class TacticalMainMenuScreen extends Screen {
         int vMouseX = (int) (mouseX / scale);
         int vMouseY = (int) (mouseY / scale);
 
-        // 1. Render the base slideshow (this will be the blurred one for the panel)
+        // Полноэкранный слайд-шоу фон (без блюра — как в BF5)
         renderSlideshowBackground(guiGraphics, renderTime);
-        
-        // 2. Apply vanilla 1.21.1 full-screen blur over the slideshow
-        this.renderBlurredBackground(partialTick);
-        
-        // 3. Render the clear slideshow OUTSIDE the left panel using scissor
-        guiGraphics.enableScissor((int)(PANEL_WIDTH * scale), 0, this.width, this.height);
-        renderSlideshowBackground(guiGraphics, renderTime);
-        guiGraphics.disableScissor();
 
         guiGraphics.pose().pushPose();
         guiGraphics.pose().scale(scale, scale, 1.0f);
+        // Лёгкий slide-in слева при открытии (как в меню паузы).
+        guiGraphics.pose().translate((1f - animAlpha()) * -18f, 0f, 0f);
 
         updateButtonPositions();
 
-        // Left Panel Background (Semi-transparent overlay to tint the blur)
-        guiGraphics.fill(0, 0, PANEL_WIDTH, vHeight, COLOR_PANEL_BG);
-        
-        // Accent line on the right edge of the panel
-        guiGraphics.fill(PANEL_WIDTH - 2, 0, PANEL_WIDTH, vHeight, COLOR_ACCENT & 0x77FFFFFF);
+        float alpha = animAlpha();
 
-        // Logo & Title
-        // Scale logo down on very short screens (like 3x scale) to avoid overlap
-        boolean smallScreen = vHeight < 400;
-        int logoSize = smallScreen ? 32 : 48;
-        int logoY = smallScreen ? 15 : 25;
-        
+        // Левый скрим для читаемости — плавный попиксельный градиент (как в меню паузы).
+        int scrimWidth = (int) (vWidth * 0.5f);
+        int maxA = 0xC8;
+        for (int x = 0; x < scrimWidth; x++) {
+            float t = 1f - x / (float) scrimWidth;
+            int a = (int) (maxA * t * t);
+            if (a <= 0) continue;
+            guiGraphics.fill(x, 0, x + 1, vHeight, a << 24);
+        }
+
+        // Нижняя панель управления
+        int barY = vHeight - BAR_HEIGHT;
+        guiGraphics.fill(0, barY, vWidth, vHeight, withAlpha(0xB0000000, alpha));
+        guiGraphics.fill(0, barY, vWidth, barY + 1, withAlpha(COLOR_ACCENT & 0x66FFFFFF, alpha));
+
+        // Шапка: лого + вордмарк + акцент-черта (стиль меню паузы).
+        int logoSize = 46;
         RenderSystem.enableBlend();
-        guiGraphics.blit(ICON_TEXTURE, 20, logoY, logoSize, logoSize, 0, 0, 512, 512, 512, 512);
+        RenderSystem.defaultBlendFunc();
+        guiGraphics.setColor(1f, 1f, 1f, alpha);
+        guiGraphics.blit(LOGO, 2, 10, logoSize, logoSize, 0f, 0f, 512, 512, 512, 512);
+        guiGraphics.setColor(1f, 1f, 1f, 1f);
         RenderSystem.disableBlend();
-
+        int textX = 2 + logoSize + 16;
         guiGraphics.pose().pushPose();
-        int textX = 20 + logoSize + 12;
-        int textY = logoY + (logoSize / 2) - (smallScreen ? 10 : 15);
-        guiGraphics.pose().translate(textX, textY, 0);
-        
-        float textScale = smallScreen ? 1.2f : 1.5f;
-        guiGraphics.pose().scale(textScale, textScale, 1.0f);
-        guiGraphics.drawString(this.font, "PROJECT", 0, 0, COLOR_ACCENT, true);
-        guiGraphics.drawString(this.font, "MINECRAFT", 0, 10, 0xFFFFFFFF, true);
+        guiGraphics.pose().translate(textX, 14, 0);
+        guiGraphics.pose().scale(2.0f, 2.0f, 1.0f);
+        guiGraphics.drawString(this.font, "PROJECT", 0, 0, withAlpha(COLOR_ACCENT, alpha), false);
+        guiGraphics.drawString(this.font, "MINECRAFT", 0, 10, withAlpha(0xFFFFFFFF, alpha), false);
         guiGraphics.pose().popPose();
+        // Акцент-черта под вордмарком (MINECRAFT занимает по низ ~50px, черта ниже).
+        guiGraphics.fill(textX, 55, textX + 46, 57, withAlpha(COLOR_ACCENT, alpha));
 
         // Render Main Buttons
         for (TacticalButton btn : mainButtons) {
             btn.render(guiGraphics, vMouseX, vMouseY, partialTick);
         }
 
-        // Version Bottom Left
-        String version = "ver. " + Pjmbasemod.MODID.toUpperCase() + " 0.1";
-        guiGraphics.drawString(this.font, version, 10, vHeight - 15, 0xAAFFFFFF, true);
+        // Панель управления: подсказка слева, версия справа
+        String hint = "ЛКМ  ВЫБРАТЬ";
+        try { hint = Component.translatable("menu.pjm.hint.select").getString().toUpperCase(Locale.ROOT); } catch (Exception ignored) {}
+        drawArrow(guiGraphics, 18, barY + BAR_HEIGHT / 2, 4, withAlpha(COLOR_ACCENT, alpha));
+        guiGraphics.drawString(this.font, hint, 30, barY + (BAR_HEIGHT - 8) / 2, withAlpha(COLOR_TEXT_IDLE, alpha), false);
+
+        String version = PjmGuiUtils.versionLabel();
+        guiGraphics.drawString(this.font, version, vWidth - this.font.width(version) - 12, barY + (BAR_HEIGHT - 8) / 2, withAlpha(0xFFFFFFFF, alpha * 0.6f), false);
 
         // Dev Message Right Top
         if (System.currentTimeMillis() < devMessageUntil) {
@@ -234,10 +262,10 @@ public class TacticalMainMenuScreen extends Screen {
             }
 
             long remaining = devMessageUntil - System.currentTimeMillis();
-            int alpha = remaining < 500 ? (int) ((remaining / 500.0) * 255) : 255;
-            int colorAccent = (alpha << 24) | (COLOR_ACCENT & 0x00FFFFFF);
+            int boxAlpha = remaining < 500 ? (int) ((remaining / 500.0) * 255) : 255;
+            int colorAccent = (boxAlpha << 24) | (COLOR_ACCENT & 0x00FFFFFF);
 
-            if (alpha > 5) {
+            if (boxAlpha > 5) {
                 int textW = this.font.width(msg);
                 int boxW = textW + 20;
                 int boxH = 24;
@@ -252,6 +280,8 @@ public class TacticalMainMenuScreen extends Screen {
         
         guiGraphics.pose().popPose();
     }
+
+    // --- BF5 helpers ---
 
     // --- Custom Button ---
     private class TacticalButton extends Button {
@@ -274,51 +304,37 @@ public class TacticalMainMenuScreen extends Screen {
 
         @Override
         public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+            float ga = animAlpha();
             this.isHovered = mouseX >= getX() && mouseY >= getY() && mouseX < getX() + width && mouseY < getY() + height;
-            boolean hovered = this.isHovered;
 
-            float target = hovered ? 1.0f : 0.0f;
-            this.hoverAnim += (target - this.hoverAnim) * 0.3f;
+            float target = this.isHovered ? 1.0f : 0.0f;
+            this.hoverAnim += (target - this.hoverAnim) * 0.35f;
 
-            int targetColor = isExit ? 0xFFFF4444 : (isPlay ? 0xFF44FF44 : COLOR_ACCENT);
-            
-            // Background
-            int bgAlpha = (int) (this.hoverAnim * 120); // More opaque on hover
-            int bgColor = (bgAlpha << 24) | (targetColor & 0x00FFFFFF);
-            
-            if (isSub) {
-                guiGraphics.fill(getX(), getY(), getX() + width, getY() + height, 0x66000000); // Darker base for sub
-            } else {
-                guiGraphics.fill(getX(), getY(), getX() + width, getY() + height, 0x77000000); // Base dark transparent
+            int accent = isExit ? 0xFFFF6B6B : (isPlay ? 0xFF7CFF7C : COLOR_ACCENT);
+            int slide = (int) (this.hoverAnim * 12);
+
+            // Акцентная стрелка ► слева при наведении.
+            if (this.hoverAnim > 0.02f) {
+                drawArrow(guiGraphics, getX() + slide, getY() + height / 2, 4,
+                        withAlpha(accent, ga * this.hoverAnim));
             }
-            guiGraphics.fill(getX(), getY(), getX() + width, getY() + height, bgColor);
-            
-            // Outline border
-            int borderAlpha = (int) (Math.max(0.1f, this.hoverAnim * 0.5f) * 255);
-            int borderColor = (borderAlpha << 24) | (targetColor & 0x00FFFFFF);
-            guiGraphics.renderOutline(getX(), getY(), width, height, borderColor);
 
-            // Left accent line
-            int lineAlpha = (int) (Math.max(0.4f, this.hoverAnim) * 255);
-            int lineColor = (lineAlpha << 24) | (targetColor & 0x00FFFFFF);
-            guiGraphics.fill(getX(), getY(), getX() + 4, getY() + height, lineColor);
+            // Цвет текста: офф-вайт → акцент по наведению.
+            int r = lerp((COLOR_TEXT_IDLE >> 16) & 0xFF, (accent >> 16) & 0xFF, this.hoverAnim);
+            int gg = lerp((COLOR_TEXT_IDLE >> 8) & 0xFF, (accent >> 8) & 0xFF, this.hoverAnim);
+            int bb = lerp(COLOR_TEXT_IDLE & 0xFF, accent & 0xFF, this.hoverAnim);
+            int textColor = withAlpha((0xFF << 24) | (r << 16) | (gg << 8) | bb, ga);
 
-            // Text with slide effect
-            int textXOffset = (int) (this.hoverAnim * 8);
-            int baseTextColor = isSub ? 0xFFCCCCCC : 0xFFFFFFFF;
-            
-            int r = (int) ( ((baseTextColor >> 16) & 0xFF) + this.hoverAnim * (((targetColor >> 16) & 0xFF) - ((baseTextColor >> 16) & 0xFF)) );
-            int g = (int) ( ((baseTextColor >> 8) & 0xFF) + this.hoverAnim * (((targetColor >> 8) & 0xFF) - ((baseTextColor >> 8) & 0xFF)) );
-            int b = (int) ( (baseTextColor & 0xFF) + this.hoverAnim * ((targetColor & 0xFF) - (baseTextColor & 0xFF)) );
-            
-            // Sub buttons have overall alpha controlled by playMenuAnim
-            int finalAlpha = 255;
-            if (isSub) {
-                finalAlpha = (int) (this.alpha * 255);
-            }
-            int textColor = (finalAlpha << 24) | (r << 16) | (g << 8) | b;
+            String text = getMessage().getString().toUpperCase(Locale.ROOT);
+            guiGraphics.pose().pushPose();
+            guiGraphics.pose().translate(getX() + 14 + slide, getY() + (height - 8) / 2f, 0);
+            guiGraphics.pose().scale(1.15f, 1.15f, 1.0f);
+            guiGraphics.drawString(Minecraft.getInstance().font, text, 0, 0, textColor, false);
+            guiGraphics.pose().popPose();
+        }
 
-            guiGraphics.drawString(Minecraft.getInstance().font, getMessage(), getX() + 15 + textXOffset, getY() + (height - 8) / 2, textColor, true);
+        private int lerp(int a, int b, float t) {
+            return (int) (a + (b - a) * Math.max(0f, Math.min(1f, t)));
         }
     }
 

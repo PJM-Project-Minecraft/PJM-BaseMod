@@ -17,7 +17,6 @@ import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
-import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
 
@@ -157,6 +156,14 @@ public class TacticalPauseMenuScreen extends Screen {
         return (alpha << 24) | (color & 0x00FFFFFF);
     }
 
+    /** Маленькая заострённая стрелка ► (основание слева, остриё справа). */
+    static void drawArrow(GuiGraphics g, int x, int cy, int size, int color) {
+        for (int c = 0; c < size; c++) {
+            int half = size - c;
+            g.fill(x + c, cy - half, x + c + 1, cy + half, color);
+        }
+    }
+
     // ─────────────────────────── рендер ───────────────────────────
 
     @Override
@@ -195,7 +202,7 @@ public class TacticalPauseMenuScreen extends Screen {
         // Подсказка ESC + версия внизу слева.
         g.drawString(this.font, "◄ " + Component.translatable("menu.pjm.pause.back").getString().toUpperCase(Locale.ROOT)
                         + " [ESC]", MENU_X, vHeight - 40, withAlpha(0xFFBBBBBB, alpha), true);
-        String version = "ver. " + Pjmbasemod.MODID.toUpperCase(Locale.ROOT) + " 0.1";
+        String version = PjmGuiUtils.versionLabel();
         g.drawString(this.font, version, MENU_X, vHeight - 20, withAlpha(0x88FFFFFF, alpha), true);
 
         g.pose().popPose();
@@ -298,11 +305,10 @@ public class TacticalPauseMenuScreen extends Screen {
             int accent = accentColor();
             int slide = (int) (this.hoverAnim * 12);
 
-            // Акцентная риска слева при наведении.
+            // Акцентная стрелка ► слева при наведении.
             if (this.hoverAnim > 0.02f) {
-                int barH = height - 10;
-                int barY = getY() + 5;
-                g.fill(getX() - 10, barY, getX() - 10 + 3, barY + barH, withAlpha(accent, ga * this.hoverAnim));
+                drawArrow(g, getX() - 12 + slide, getY() + height / 2, 4,
+                        withAlpha(accent, ga * this.hoverAnim));
             }
 
             // Цвет текста: белый → акцент по наведению.

@@ -5,6 +5,8 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.neoforged.fml.ModList;
+import ru.liko.pjmbasemod.Pjmbasemod;
 
 /**
  * Общие UI-константы и утилиты для всех экранов и оверлеев мода.
@@ -83,6 +85,14 @@ public final class PjmGuiUtils {
     @Deprecated public static final int COLOR_GRAY          = TEXT_LABEL;
 
     private PjmGuiUtils() {}
+
+    /** Строка версии для футеров меню: реальная версия мода из метаданных NeoForge. */
+    public static String versionLabel() {
+        String v = ModList.get().getModContainerById(Pjmbasemod.MODID)
+                .map(c -> c.getModInfo().getVersion().toString())
+                .orElse("?");
+        return "ver. " + Pjmbasemod.MODID.toUpperCase() + " " + v;
+    }
 
     // -------------------------------------------------------------------------
     // Цветовые утилиты
