@@ -38,14 +38,12 @@ import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
  */
 public class PjmDeathScreen extends Screen {
 
-    private static final float SHARP_IN = 0.18f;      // резкое появление чёрного, сек
     private static final float CONTENT_DELAY = 0.45f; // задержка перед появлением контента, сек
     private static final float CONTENT_FADE = 0.9f;   // плавное проявление контента, сек
     private static final float BUTTON_DELAY = 2.0f;   // когда появляются кнопки, сек
     private static final float BUTTON_FADE = 0.5f;    // проявление кнопок, сек
 
     private static final int TITLE_COLOR = 0xFFC03A2E;
-    private static final int SCRIM_ALPHA = 240;
 
     // Статика: заполняется пакетом до открытия экрана, переживает resize (init()).
     private static long triggerTime = 0L;
@@ -100,9 +98,8 @@ public class PjmDeathScreen extends Screen {
         float elapsed = elapsed();
         float contentAlpha = Mth.clamp((elapsed - CONTENT_DELAY) / CONTENT_FADE, 0f, 1f);
 
-        // Резкий чёрный экран.
-        int bg = (int) (Mth.clamp(elapsed / SHARP_IN, 0f, 1f) * SCRIM_ALPHA) << 24;
-        g.fill(0, 0, this.width, this.height, bg);
+        // Резкий кат: сплошной чёрный с первого кадра, мир не просвечивает.
+        g.fill(0, 0, this.width, this.height, 0xFF000000);
 
         if (contentAlpha > 0.02f) {
             drawContent(g, contentAlpha, partialTick);

@@ -280,5 +280,14 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
             }
         }
         PjmDeathScreen.trigger(payload.message(), stack, payload.vehicleId());
+        // Резкий кат в чёрное сразу в момент смерти: не ждём ванильный
+        // ClientboundPlayerCombatKillPacket (он приходит позже и мир успевает мелькнуть).
+        Minecraft mc = Minecraft.getInstance();
+        mc.execute(() -> {
+            if (mc.player != null && mc.level != null && !mc.level.getLevelData().isHardcore()
+                    && !(mc.screen instanceof PjmDeathScreen)) {
+                mc.setScreen(new PjmDeathScreen());
+            }
+        });
     }
 }
