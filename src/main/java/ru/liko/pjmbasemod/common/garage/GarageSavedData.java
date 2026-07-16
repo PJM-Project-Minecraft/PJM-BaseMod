@@ -38,6 +38,29 @@ public final class GarageSavedData extends SavedData {
     public static final String TEAM_KEY_PREFIX = "team:";
 
     private final Map<String, List<StoredVehicle>> garages = new LinkedHashMap<>();
+    /** Техника в сборке: ключ гаража → очередь. Ресурсы уже списаны при старте сборки. */
+    private final Map<String, List<PendingCraft>> pending = new LinkedHashMap<>();
+
+    /** Незавершённая сборка: {@code finishTick} — игровое время overworld-а, когда техника попадёт в гараж. */
+    public record PendingCraft(UUID id, String defId, UUID requester, long finishTick) {
+
+        public CompoundTag save() {
+            CompoundTag tag = new CompoundTag();
+            tag.putUUID("Id", id);
+            tag.putString("DefId", defId);
+            tag.putUUID("Requester", requester);
+            tag.putLong("FinishTick", finishTick);
+            return tag;
+        }
+
+        public static PendingCraft load(CompoundTag tag) {
+            return new PendingCraft(
+                    tag.hasUUID("Id") ? tag.getUUID("Id") : UUID.randomUUID(),
+                    tag.getString("DefId"),
+                    tag.hasUUID("Requester") ? tag.getUUID("Requester") : new UUID(0L, 0L),
+                    tag.getLong("FinishTick"));
+        }
+    }
 
     public static GarageSavedData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
@@ -75,6 +98,18 @@ public final class GarageSavedData extends SavedData {
             }
             data.garages.put(key, list);
         }
+        ListTag pending = tag.getList("Pending", Tag.TAG_COMPOUND);
+        for (int i = 0; i < pending.size(); i++) {
+            CompoundTag keyTag = pending.getCompound(i);
+            String key = keyTag.getString("Key");
+            if (key.isBlank()) continue;
+            List<PendingCraft> list = new ArrayList<>();
+            ListTag crafts = keyTag.getList("Crafts", Tag.TAG_COMPOUND);
+            for (int j = 0; j < crafts.size(); j++) {
+                list.add(PendingCraft.load(crafts.getCompound(j)));
+            }
+            data.pending.put(key, list);
+        }
         return data;
     }
 
@@ -93,7 +128,44 @@ public final class GarageSavedData extends SavedData {
             owners.add(ownerTag);
         }
         tag.put("Owners", owners);
+
+        ListTag pendingList = new ListTag();
+        for (Map.Entry<String, List<PendingCraft>> entry : pending.entrySet()) {
+            if (entry.getValue().isEmpty()) continue;
+            CompoundTag keyTag = new CompoundTag();
+            keyTag.putString("Key", entry.getKey());
+            ListTag crafts = new ListTag();
+            for (PendingCraft craft : entry.getValue()) {
+                crafts.add(craft.save());
+            }
+            keyTag.put("Crafts", crafts);
+            pendingList.add(keyTag);
+        }
+        tag.put("Pending", pendingList);
         return tag;
+    }
+
+    public List<PendingCraft> pendingOf(String key) {
+        return List.copyOf(pending.getOrDefault(key, List.of()));
+    }
+
+    /** Снимок всех очередей сборки (для серверного тика). */
+    public Map<String, List<PendingCraft>> pendingAll() {
+        Map<String, List<PendingCraft>> copy = new LinkedHashMap<>();
+        pending.forEach((key, list) -> copy.put(key, List.copyOf(list)));
+        return copy;
+    }
+
+    public void addPending(String key, PendingCraft craft) {
+        pending.computeIfAbsent(key, k -> new ArrayList<>()).add(craft);
+        setDirty();
+    }
+
+    public void removePending(String key, UUID craftId) {
+        List<PendingCraft> list = pending.get(key);
+        if (list != null && list.removeIf(c -> c.id().equals(craftId))) {
+            setDirty();
+        }
     }
 
     public List<StoredVehicle> garageOf(String key) {
@@ -105,10 +177,16 @@ public final class GarageSavedData extends SavedData {
         setDirty();
     }
 
-    /** Опустошает хранимую технику во всех гаражах, сами гаражи (ключи) сохраняются. */
+    /** Опустошает хранимую технику и очереди сборки во всех гаражах, сами гаражи (ключи) сохраняются. */
     public void clearVehicles() {
         boolean changed = false;
         for (List<StoredVehicle> list : garages.values()) {
+            if (!list.isEmpty()) {
+                list.clear();
+                changed = true;
+            }
+        }
+        for (List<PendingCraft> list : pending.values()) {
             if (!list.isEmpty()) {
                 list.clear();
                 changed = true;

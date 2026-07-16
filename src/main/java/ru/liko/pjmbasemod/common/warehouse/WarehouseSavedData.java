@@ -37,10 +37,13 @@ public final class WarehouseSavedData extends SavedData {
             CompoundTag warehouseTag = list.getCompound(i);
             String id = warehouseTag.getString("Id");
             if (id.isBlank()) continue;
-            EnumMap<WarehousePoolCategory, Integer> points = new EnumMap<>(WarehousePoolCategory.class);
+            EnumMap<WarehousePoolCategory, Integer> points = emptyPoints();
             CompoundTag pointsTag = warehouseTag.getCompound("Points");
-            for (WarehousePoolCategory pool : WarehousePoolCategory.values()) {
-                points.put(pool, Math.max(0, pointsTag.getInt(pool.id())));
+            // Ключи старых пулов (weapon/equipment/special) схлопываются в supply — см. WarehousePoolCategory.byId.
+            for (String key : pointsTag.getAllKeys()) {
+                WarehousePoolCategory pool = WarehousePoolCategory.byId(key);
+                if (pool == null) continue;
+                points.merge(pool, Math.max(0, pointsTag.getInt(key)), Integer::sum);
             }
             data.stock.put(id, points);
         }

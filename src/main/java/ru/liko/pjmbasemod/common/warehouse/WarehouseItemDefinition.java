@@ -178,7 +178,7 @@ public final class WarehouseItemDefinition {
     }
 
     public WarehousePoolCategory pool() {
-        return WarehousePoolCategory.byIdOrDefault(pool, WarehousePoolCategory.SPECIAL);
+        return WarehousePoolCategory.byIdOrDefault(pool, WarehousePoolCategory.SUPPLY);
     }
 
     public String displayCategory() {

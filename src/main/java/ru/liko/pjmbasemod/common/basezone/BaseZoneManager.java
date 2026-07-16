@@ -81,23 +81,25 @@ public final class BaseZoneManager {
     }
 
     /**
-     * Отключение урона по своим внутри собственной зоны базы. Урон отменяется, если атакующий и
-     * жертва — одна scoreboard-команда, а жертва стоит в зоне, чей {@code owner} совпадает с этой
-     * командой («безопасная зона своей базы»).
+     * Неуязвимость защитников внутри своей зоны базы: игрок, стоящий в зоне, чей {@code owner}
+     * совпадает с его scoreboard-командой, не получает урон **ни от одного игрока** — ни от
+     * союзника (тимкилл), ни от врага (обстрел базы снаружи).
+     *
+     * <p>Отменяется только урон, инициированный игроком. Мобы, падение, окружение и отсчёт
+     * {@link #BASE_ZONE_DAMAGE} действуют как обычно. Урон самому себе (в т.ч. от своей
+     * взрывчатки) тоже не отменяется. Урон, который наносит сам защитник, не затрагивается —
+     * стрелять из зоны наружу можно.</p>
      *
      * @param attacker сущность-инициатор урона ({@code DamageSource.getEntity()} — для снарядов это стрелок)
      * @param victim   пострадавший игрок
      * @return {@code true}, если урон нужно отменить
      */
-    public static boolean shouldCancelFriendlyFire(Entity attacker, ServerPlayer victim) {
+    public static boolean shouldCancelPlayerDamage(Entity attacker, ServerPlayer victim) {
         if (!Config.isBaseZoneEnabled()) return false;
-        if (!(attacker instanceof ServerPlayer aggressor) || aggressor == victim) return false;
+        if (!(attacker instanceof ServerPlayer) || attacker == victim) return false;
 
-        String attackerTeam = Teams.resolvePlayerTeamId(aggressor);
         String victimTeam = Teams.resolvePlayerTeamId(victim);
-        if (attackerTeam == null || victimTeam == null || !attackerTeam.equalsIgnoreCase(victimTeam)) {
-            return false;
-        }
+        if (victimTeam == null || victimTeam.isBlank()) return false;
 
         MinecraftServer server = victim.getServer();
         if (server == null) return false;

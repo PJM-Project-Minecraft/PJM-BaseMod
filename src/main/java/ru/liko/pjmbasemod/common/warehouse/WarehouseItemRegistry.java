@@ -391,16 +391,16 @@ public final class WarehouseItemRegistry {
         // Пример ограничения по рангу: СВД доступна только начиная с ранга «сержант» и выше.
         // allowedTeams ограничивает выдачу командами (id из конфига teams); пусто/нет поля — всем командам.
         WarehouseItemDefinition svdm = new WarehouseItemDefinition("svdm", "СВДМ", "superbwarfare:svd",
-                WarehousePoolCategory.WEAPON, "weapon", 3, 4, List.of("sniper", "marksman"));
+                WarehousePoolCategory.SUPPLY, "weapon", 3, 4, List.of("sniper", "marksman"));
         svdm.setMinRank("sergeant");
         svdm.setAllowedTeams(List.of("team1"));
         // Пример компонентов (NBT) в синтаксисе команды /give: применяются поверх выданного стека.
         WarehouseItemDefinition ak74m = new WarehouseItemDefinition("ak74m", "АК-74М", "superbwarfare:ak_47",
-                WarehousePoolCategory.WEAPON, "weapon", 1, 8, List.of("assault"));
+                WarehousePoolCategory.SUPPLY, "weapon", 1, 8, List.of("assault"));
         ak74m.setComponents("[minecraft:custom_name='АК-74М',minecraft:max_stack_size=1]");
         // Пример донат-«Доступа»: предмет выдаётся только владельцу ноды pjmbasemod.access.uav.
         WarehouseItemDefinition uavTerminal = new WarehouseItemDefinition("uav_terminal", "Пульт БПЛА",
-                "minecraft:compass", WarehousePoolCategory.EQUIPMENT, "equipment", 5, 1);
+                "minecraft:compass", WarehousePoolCategory.SUPPLY, "equipment", 5, 1);
         uavTerminal.setAccess("uav");
         // Пример quantity: за 1 очко выдаётся сразу 64 патрона.
         WarehouseItemDefinition ammo545 = new WarehouseItemDefinition("ammo_545", "Патроны 5.45",
@@ -411,26 +411,26 @@ public final class WarehouseItemRegistry {
                 uavTerminal,
                 svdm,
                 new WarehouseItemDefinition("pistol", "Пистолет", "superbwarfare:glock_17",
-                        WarehousePoolCategory.WEAPON, "weapon", 1, 8),
+                        WarehousePoolCategory.SUPPLY, "weapon", 1, 8),
                 ammo545,
                 new WarehouseItemDefinition("medkit", "Аптечка", "minecraft:golden_apple",
                         WarehousePoolCategory.SUPPLY, "medicine", 1, 16),
                 new WarehouseItemDefinition("ration", "Паёк", "minecraft:cooked_beef",
                         WarehousePoolCategory.SUPPLY, "food", 1, 32),
                 new WarehouseItemDefinition("iron_helmet", "Железный шлем", "minecraft:iron_helmet",
-                        WarehousePoolCategory.EQUIPMENT, "equipment", 2, 1),
+                        WarehousePoolCategory.SUPPLY, "equipment", 2, 1),
                 new WarehouseItemDefinition("iron_chestplate", "Железный нагрудник", "minecraft:iron_chestplate",
-                        WarehousePoolCategory.EQUIPMENT, "equipment", 4, 1),
+                        WarehousePoolCategory.SUPPLY, "equipment", 4, 1),
                 new WarehouseItemDefinition("iron_leggings", "Железные поножи", "minecraft:iron_leggings",
-                        WarehousePoolCategory.EQUIPMENT, "equipment", 3, 1),
+                        WarehousePoolCategory.SUPPLY, "equipment", 3, 1),
                 new WarehouseItemDefinition("iron_boots", "Железные ботинки", "minecraft:iron_boots",
-                        WarehousePoolCategory.EQUIPMENT, "equipment", 2, 1),
+                        WarehousePoolCategory.SUPPLY, "equipment", 2, 1),
                 new WarehouseItemDefinition("metal", "Металл", "minecraft:iron_ingot",
                         WarehousePoolCategory.RAW, "raw", 1, 64),
                 new WarehouseItemDefinition("electronics", "Электроника", "minecraft:redstone",
                         WarehousePoolCategory.RAW, "raw", 1, 64),
                 new WarehouseItemDefinition("blueprint", "Чертёж", "minecraft:paper",
-                        WarehousePoolCategory.SPECIAL, "special", 5, 2));
+                        WarehousePoolCategory.SUPPLY, "special", 5, 2));
     }
 
     private void writeExampleConfig(Path file) {

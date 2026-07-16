@@ -2,6 +2,7 @@ package ru.liko.pjmbasemod.client.event;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.DeathScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -20,6 +21,7 @@ import ru.liko.pjmbasemod.client.chat.ClientChatModeState;
 import ru.liko.pjmbasemod.client.capturepoint.ClientCapturePointState;
 import ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState;
 import ru.liko.pjmbasemod.client.gui.RadialMenuScreen;
+import ru.liko.pjmbasemod.client.gui.screen.PjmDeathScreen;
 import ru.liko.pjmbasemod.client.gui.screen.TacticalMainMenuScreen;
 import ru.liko.pjmbasemod.client.gui.screen.TacticalPauseMenuScreen;
 import ru.liko.pjmbasemod.client.input.ModKeyBindings;
@@ -36,20 +38,27 @@ import ru.liko.pjmbasemod.common.network.packet.RequestModerationPacket;
 @EventBusSubscriber(modid = Pjmbasemod.MODID, value = Dist.CLIENT)
 public final class ClientEvents {
 
-    private static boolean firstTitleReplaced = false;
-
     private ClientEvents() {}
 
     @SubscribeEvent
     public static void onScreenOpening(ScreenEvent.Opening event) {
-        if (event.getNewScreen() instanceof TitleScreen && !firstTitleReplaced) {
-            firstTitleReplaced = true;
+        // Ни один путь возврата из дочерних экранов или после отключения
+        // не должен показывать ванильное меню и его панораму.
+        if (event.getNewScreen() instanceof TitleScreen) {
             event.setNewScreen(new TacticalMainMenuScreen());
         }
         // Замена ванильного ESC-меню паузы на tactical-стиль (с blur-фоном по миру).
         // Только когда showPauseMenu=true (само меню, не оверлей-«пауза» в singleplayer).
         if (event.getNewScreen() instanceof PauseScreen pause && pause.showsPauseMenu()) {
             event.setNewScreen(new TacticalPauseMenuScreen());
+        }
+        // Кинематографичный экран смерти вместо ванильного. В хардкоре не трогаем:
+        // там кнопка «наблюдать» и своя логика выхода, ради которых не стоит городить ветку.
+        if (event.getNewScreen() instanceof DeathScreen) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null && !mc.level.getLevelData().isHardcore()) {
+                event.setNewScreen(new PjmDeathScreen());
+            }
         }
     }
 
@@ -65,7 +74,7 @@ public final class ClientEvents {
         ru.liko.pjmbasemod.client.serverevent.SignalHuntActionBarHud.reset();
         RadioManager.get().reset();
         LockedSlotsClientState.reset();
-        firstTitleReplaced = false;
+        ru.liko.pjmbasemod.client.gui.screen.WelcomeGuideScreen.reset();
     }
 
     @SubscribeEvent
@@ -86,6 +95,13 @@ public final class ClientEvents {
         // чтобы нельзя было спрятать интерфейс (уровень прав синкается с сервера).
         if (mc.options.hideGui && !mc.player.hasPermissions(2)) {
             mc.options.hideGui = false;
+        }
+
+        // Руководство по серверу открываем только когда игрок реально в мире (не поверх
+        // экрана выбора фракции, который FactionMenuService держит открытым до выбора).
+        if (mc.screen == null && ru.liko.pjmbasemod.client.gui.screen.WelcomeGuideScreen.consumePending()) {
+            mc.setScreen(new ru.liko.pjmbasemod.client.gui.screen.WelcomeGuideScreen());
+            return;
         }
 
         if (mc.screen != null) return;

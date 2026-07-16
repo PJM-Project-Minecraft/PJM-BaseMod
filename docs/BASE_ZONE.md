@@ -7,7 +7,11 @@
 
 ## Поведение
 
-- **Свои** (команда-владелец) входят свободно.
+- **Свои** (команда-владелец) входят свободно и **неуязвимы для урона от любых игроков**
+  внутри своей зоны: ни союзник (тимкилл), ни враг (обстрел базы снаружи) их не достанут.
+  Отменяется только урон, инициированный игроком, — мобы, падение, окружение и урон
+  самому себе действуют как обычно. Стрелять из зоны наружу свои могут: урон, который
+  наносит защитник, не затрагивается.
 - **Враги** (любая другая команда, включая игроков без команды) при входе видят
   титр «⚠ ЧУЖАЯ БАЗА» + подзаголовок с отсчётом. Отсчёт по умолчанию 5 секунд.
 - Отсчёт **сбрасывается при выходе** из зоны; повторный вход — с начала.
@@ -43,7 +47,7 @@
 - `common/basezone/BaseZoneSavedData` — персист (`pjmbasemod_basezones`) + `findZoneAt`.
 - `common/basezone/BaseZoneManager` — enforcement в `PlayerTickEvent.Post`
   (`PjmServerEvents.onPlayerTick`): титры, отсчёт, смерть. Состояние отсчёта —
-  рантайм-`Map`, не персистится. Отмена урона по своим (`shouldCancelFriendlyFire`) и
-  отмена урона от взрывов (`shouldCancelExplosion`) — в `LivingIncomingDamageEvent`
-  (`PjmServerEvents.onIncomingDamage`).
+  рантайм-`Map`, не персистится. Неуязвимость защитников от урона игроков
+  (`shouldCancelPlayerDamage`) и отмена урона от взрывов (`shouldCancelExplosion`) —
+  в `LivingIncomingDamageEvent` (`PjmServerEvents.onIncomingDamage`).
 - `data/pjmbasemod/damage_type/base_zone.json` — кастомный источник урона.

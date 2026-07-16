@@ -29,7 +29,9 @@ public final class RankHudOverlay {
     public static final LayeredDraw.Layer OVERLAY = (graphics, deltaTracker) -> render(graphics);
 
     private static final Queue<XpPopup> POPUPS = new ArrayDeque<>();
-    private static final long POPUP_DURATION_MS = 1800L;
+    private static final long POPUP_DURATION_MS = 2200L;
+    private static final int POPUP_WIDTH = 178;
+    private static final int POPUP_HEIGHT = 30;
 
     private RankHudOverlay() {
     }
@@ -182,36 +184,36 @@ public final class RankHudOverlay {
             }
 
             float progress = age / (float) POPUP_DURATION_MS;
-            float alpha = progress < 0.75f ? 1.0f : 1.0f - ((progress - 0.75f) / 0.25f);
+            float alpha = progress < 0.10f ? progress / 0.10f
+                    : progress < 0.78f ? 1.0f : 1.0f - ((progress - 0.78f) / 0.22f);
             alpha = Mth.clamp(alpha, 0.0f, 1.0f);
-            
-            // Y position slides up as they age
-            int y = 46 + index * 18 - (int) (progress * 8.0f);
+
+            int y = 46 + index * (POPUP_HEIGHT + 5) - (int) (progress * 9.0f);
             int x = 12;
-            
-            int color = popup.delta() > 0 ? PjmGuiUtils.ACCENT : 0xFFFF5555;
-            String text = (popup.delta() > 0 ? "+" : "") + popup.delta() + " XP";
             String reason = reasonLabel(popup.reason());
-            if (!reason.isBlank()) text += " | " + reason;
-            
-            int textW = mc.font.width(text);
-            
-            // Tactical Background for popup
-            int bgAlpha = (int)(alpha * 0x99) << 24;
-            graphics.fill(x, y, x + textW + 14, y + 14, bgAlpha);
-            
-            // Left border accent
-            int lineAlpha = (int)(alpha * 0xFF) << 24;
-            graphics.fill(x, y, x + 2, y + 14, (color & 0x00FFFFFF) | lineAlpha);
-            
-            // Thin borders top and bottom
-            int borderAlpha = (int)(alpha * 0x22) << 24;
-            graphics.fill(x + 2, y, x + textW + 14, y + 1, (0xFFFFFF & 0x00FFFFFF) | borderAlpha);
-            graphics.fill(x + 2, y + 13, x + textW + 14, y + 14, (0xFFFFFF & 0x00FFFFFF) | borderAlpha);
-            
-            // Flat text rendering (no shadow)
-            int textColor = (0xFFFFFFFF & 0x00FFFFFF) | lineAlpha;
-            graphics.drawString(mc.font, text, x + 6, y + 3, textColor, false);
+
+            int color = popup.delta() > 0
+                    ? popup.accentColor() & 0x00FFFFFF
+                    : 0xFF5555;
+            String xpText = (popup.delta() > 0 ? "+" : "") + popup.delta() + " XP";
+            int textAlpha = (int) (alpha * 0xFF);
+
+            graphics.fill(x, y, x + POPUP_WIDTH, y + POPUP_HEIGHT, withAlpha(0x0B0F14, (int) (alpha * 0xD8)));
+            graphics.fill(x, y, x + 3, y + POPUP_HEIGHT, withAlpha(color, textAlpha));
+            graphics.fill(x + 3, y, x + POPUP_WIDTH, y + 1, withAlpha(0xFFFFFF, (int) (alpha * 0x28)));
+            graphics.fill(x + 3, y + POPUP_HEIGHT - 1, x + POPUP_WIDTH, y + POPUP_HEIGHT,
+                    withAlpha(0xFFFFFF, (int) (alpha * 0x20)));
+
+            String title = reason.isBlank() ? "ИЗМЕНЕНИЕ ОПЫТА" : reason;
+            graphics.drawString(mc.font, mc.font.plainSubstrByWidth(title, POPUP_WIDTH - 14), x + 9, y + 5,
+                    withAlpha(PjmGuiUtils.TEXT_DIM, textAlpha), false);
+            graphics.drawString(mc.font, xpText, x + 9, y + 17, withAlpha(color, textAlpha), false);
+            graphics.drawString(mc.font, "ОПЫТ", x + 13 + mc.font.width(xpText), y + 17,
+                    withAlpha(PjmGuiUtils.TEXT_LABEL, textAlpha), false);
+
+            int remaining = Math.max(1, Math.round((1.0f - progress) * (POPUP_WIDTH - 3)));
+            graphics.fill(x + 3, y + POPUP_HEIGHT - 2, x + 3 + remaining, y + POPUP_HEIGHT,
+                    withAlpha(color, (int) (alpha * 0xB0)));
 
             index++;
         }
@@ -220,6 +222,7 @@ public final class RankHudOverlay {
     private static String reasonLabel(String reason) {
         return switch (reason == null ? "" : reason) {
             case "kill" -> "УБИЙСТВО";
+            case "vehicle" -> "УНИЧТОЖЕННАЯ ТЕХНИКА";
             case "teamkill" -> "ТИМКИЛЛ";
             case "sector" -> "СЕКТОР";
             case "admin" -> "АДМИН";

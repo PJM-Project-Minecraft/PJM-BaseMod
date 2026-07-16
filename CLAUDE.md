@@ -36,7 +36,7 @@
 - `ru.liko.pjmbasemod.Pjmbasemod` (`@Mod`, MODID `pjmbasemod`) — регистрирует `DeferredRegister`-ы (`PjmItems`, `PjmEntities`, `PjmSounds` в `common/init/`), сетевые пакеты, config.
 - `client/ClientInit` (`@EventBusSubscriber Dist.CLIENT`) — ставит клиентский прокси, регистрирует рендеры сущностей, кейбайндинги.
 - `server/ServerInit` — серверная точка входа.
-- `Config.java` (корень пакета, не в `common/init/`) — NeoForge Config с секциями: `general`, `hud`, `teams` (TEAM_JOIN_COMMANDS), `garage`, `fleet`, `faction`, `antigrief`, `moderation`, `web`, `logging`, `baseZone`, `commands`, `events`.
+- `Config.java` (корень пакета, не в `common/init/`) — NeoForge Config с секциями: `general`, `hud`, `teams` (TEAM_JOIN_COMMANDS), `garage`, `fleet`, `faction`, `antigrief`, `moderation`, `web`, `logging`, `baseZone`, `commands`, `events`, `capturePoints` (в т.ч. пассивный доход складов), `weapons` (лимит переноса: 1 основной + 1 вторичный ствол TACZ, вторичка задаётся `secondaryGunTypes`).
 
 ## Сетевой слой
 
@@ -64,9 +64,10 @@
 `FactionCommanderService`, `FactionCommanderSavedData` — роль командира.
 `FactionJoinActions` — действия при вступлении в фракцию.
 `FactionPermissions`, `FactionManagementSnapshot` — права и синхронизация.
-`FactionDeputySavedData` + enum `DeputyPermission` (ASSIGN_ROLES/SET_ORDER/OPEN_GUI) — заместители фракции (teamId → playerId → битмаска), лимит `faction.maxDeputies`.
+`FactionDeputySavedData` + enum `DeputyPermission` (ASSIGN_ROLES/SET_ORDER/OPEN_GUI/INVITE) — заместители фракции (teamId → playerId → битмаска), лимит `faction.maxDeputies`.
+`FactionInviteSavedData` — приглашения в закрытые фракции (`teams.inviteOnly` в конфиге): teamId → (ник → срок, TTL `faction.inviteTtlMinutes`). Выдаёт командир/зам с правом INVITE/админ — вкладка «Приглашения» в GUI управления или `/pjm faction invite|uninvite|invites` (OP может указать фракцию явно). Закрытая фракция на экране выбора рисуется с замком; серверная проверка — в `FactionMenuService.handleSelection`, приглашение одноразовое.
 `FactionOrderSavedData`, `FactionOrderManager` — приказ фракции (текст + TTL): разовое уведомление + постоянная HUD-плашка у всех членов команды. Клиент: `ClientFactionOrderState`, `FactionOrderHudOverlay`.
-`FactionMenuService.Authority` — права зрителя. Конфиг-секция `faction` (maxDeputies, orderMaxLength, orderDefaultTtlMinutes, orderMaxTtlMinutes). Экран: вкладки Роль/Зам/Приказ, недоступные скрыты — [`docs/FACTION_MANAGEMENT.md`](./docs/FACTION_MANAGEMENT.md).
+`FactionMenuService.Authority` — права зрителя. Конфиг-секция `faction` (maxDeputies, orderMaxLength, orderDefaultTtlMinutes, orderMaxTtlMinutes). Экран: вкладки Роль/Зам/Приказ, недоступные скрыты; список членов строится по scoreboard-команде и включает **оффлайн**-игроков (роль и зам выдаются им наравне с онлайн), сверху — поиск по нику — [`docs/FACTION_MANAGEMENT.md`](./docs/FACTION_MANAGEMENT.md).
 
 ### role
 `RoleService`, `RoleSavedData` — боевая роль игрока (enum `CombatRole`).
@@ -88,7 +89,7 @@
 `WarehouseManager`, `WarehouseSavedData`, `WarehouseSettingsSavedData`, `WarehouseSettings`, `WarehouseSnapshot` — склад очков.
 `WarehouseItemRegistry`, `WarehouseItemDefinition`, `CrateRegistry`, `CrateDefinition` — JSON-каталоги.
 `WarehousePersonalBudgetSavedData` — личный лимит очков на игрока (анти-«пылесос», секция `warehouse` в конфиге).
-`WarehousePoolCategory` — 5 пулов: WEAPON/SUPPLY/EQUIPMENT/RAW/SPECIAL.
+`WarehousePoolCategory` — 2 пула: SUPPLY (припасы) / RAW (сырьё). Старые weapon/equipment/special схлопнуты в SUPPLY (алиасы в `byId`, суммирование в `WarehouseSavedData.load`).
 `WarehousePermissions` — права.
 `QuartermasterEntity` — NPC-кладовщик (`Mob` без ИИ, рендер `QuartermasterRenderer` через ванильную `PlayerModel`).
 Ящики: `SupplyCrateItem` × 5 (weapon_crate/supply_crate/equipment_crate/raw_crate/special_crate).
@@ -97,7 +98,7 @@
 
 ### inventory
 `InventoryLimitService`, `InventoryLimitRegistry`, `InventoryLimitConfig` — блокировка слотов инвентаря.
-`SlotMixin` (единственный mixin) — инжект в `Slot.mayPickup` / `Slot.mayPlace`, запрещает взаимодействие с заблокированными слотами.
+`SlotMixin` — инжект в `Slot.mayPickup` / `Slot.mayPlace`, запрещает взаимодействие с заблокированными слотами.
 Синхронизируется `LockedSlotsPacket` (S→C). Клиентское зеркало: `client/inventory/LockedSlotsClientState`.
 
 ### teams
@@ -114,6 +115,15 @@ owner-команда). Враг в чужой зоне получает полн
 creative/spectator игнорируют защиту. Конфиг-секция `baseZone` (enabled,
 countdownSeconds). Команды `/pjm basezone`. Enforcement — серверный, в
 `PjmServerEvents.onPlayerTick`. Документация — [`docs/BASE_ZONE.md`](./docs/BASE_ZONE.md).
+
+### vanish
+`VanishService` — ваниш админа: игрок пропадает из TAB и из мира для всех, кроме себя и других
+админов (`hasPermissions(2)`). Админы видят ванишнутых в мире и в TAB с приставкой `[V]`
+(через `PlayerEvent.TabListNameFormat` + `refreshTabListName`), поэтому к ним работает обычный `/tp`.
+Сущность скрывается через `ServerPlayerMixin` (`broadcastToPlayer` → `false`, `ChunkMap`
+снимает парность сам); TAB — рассылкой `ClientboundPlayerInfoRemovePacket`. Состояние —
+сессионный набор + флаг в `PERSISTED_NBT_TAG` (переживает релог). Команда `/pjm vanish [цель]`
+(алиас `/vanish`).
 
 ### dimension
 `PjmDimensions`, `LobbyService` — кастомные дименшены через datapack JSON.
@@ -223,7 +233,7 @@ Brigadier-дерево: `common/command/PjmCommands` (корень `/pjm`) + `Wa
 - Команды/состояние игроков — через ванильный **scoreboard** (`Teams.resolvePlayerTeamId`, `Teams.all()`, пакет `common/teams/`). Классов `PjmPlayerData`/`PjmPermissions` нет.
 - `SoundEvents` в моде = собственный `SoundEvent` (не ванильный `Holder<SoundEvent>`). Передавай напрямую в `level.playSound(...)`, без `.value()`.
 - Гаражи двух типов: `GarageType.GROUND` и `GarageType.AVIATION` — раздельные слоты и терминалы.
-- Единственный mixin — `SlotMixin` (блокировка инвентаря). Добавляй новые mixins в тот же пакет `mixin/`.
+- Mixins (пакет `mixin/`, конфиг `pjmbasemod.mixins.json`): `SlotMixin` (блокировка инвентаря), `ServerPlayerMixin` (ваниш через `broadcastToPlayer`), клиентский `AbstractClientPlayerMixin`.
 
 ## Git и контроль версий
 

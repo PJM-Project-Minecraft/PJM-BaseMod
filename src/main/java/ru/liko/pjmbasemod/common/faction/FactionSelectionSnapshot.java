@@ -12,7 +12,8 @@ public record FactionSelectionSnapshot(
         boolean required
 ) {
 
-    public record TeamEntry(String id, String displayName, int color, List<RoleEntry> roles) {
+    /** {@code locked} — фракция «по приглашению», а у зрителя приглашения нет: выбрать нельзя. */
+    public record TeamEntry(String id, String displayName, int color, boolean locked, List<RoleEntry> roles) {
     }
 
     public record RoleEntry(String id, String displayName, int color, int limit, int current) {
@@ -42,6 +43,7 @@ public record FactionSelectionSnapshot(
             buf.writeUtf(team.id());
             buf.writeUtf(team.displayName());
             buf.writeVarInt(team.color());
+            buf.writeBoolean(team.locked());
             buf.writeVarInt(team.roles().size());
             for (RoleEntry role : team.roles()) {
                 buf.writeUtf(role.id());
@@ -63,12 +65,13 @@ public record FactionSelectionSnapshot(
             String id = buf.readUtf();
             String displayName = buf.readUtf();
             int color = buf.readVarInt();
+            boolean locked = buf.readBoolean();
             int roleCount = buf.readVarInt();
             List<RoleEntry> roles = new ArrayList<>(roleCount);
             for (int j = 0; j < roleCount; j++) {
                 roles.add(new RoleEntry(buf.readUtf(), buf.readUtf(), buf.readVarInt(), buf.readInt(), buf.readVarInt()));
             }
-            teams.add(new TeamEntry(id, displayName, color, List.copyOf(roles)));
+            teams.add(new TeamEntry(id, displayName, color, locked, List.copyOf(roles)));
         }
         return new FactionSelectionSnapshot(List.copyOf(teams), currentTeam, currentRole, required);
     }

@@ -8,6 +8,7 @@ import net.neoforged.neoforge.server.permission.events.PermissionGatherEvent;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 import net.neoforged.neoforge.server.permission.nodes.PermissionTypes;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.compat.LuckPermsCompat;
 import ru.liko.pjmbasemod.common.permission.PermissionReady;
 
 import java.util.HashSet;
@@ -66,8 +67,13 @@ public final class WarehouseDonorPermissions {
         // До PlayerLoggedInEvent capability LuckPerms ещё не инициализирована — откат к ванильному OP.
         if (!PermissionReady.isReady(player)) return player.hasPermissions(2);
         PermissionNode<Boolean> node = NODES.get(def.permission());
-        // Ключ добавлен после старта и не зарегистрирован — не крашим getPermission, откатываемся к OP.
-        if (node == null) return player.hasPermissions(2);
+        // Ключ добавлен после старта и не зарегистрирован в NeoForge (правка items.json + /pjm reload
+        // без рестарта). getPermission на нём крашнул бы — спрашиваем LuckPerms по строке напрямую,
+        // так донат-ключ работает сразу; без LuckPerms откатываемся к ванильному OP.
+        if (node == null) {
+            return LuckPermsCompat.check(player, Pjmbasemod.MODID + ".warehouse.perm." + def.permission())
+                    .orElseGet(() -> player.hasPermissions(2));
+        }
         return Boolean.TRUE.equals(PermissionAPI.getPermission(player, node));
     }
 

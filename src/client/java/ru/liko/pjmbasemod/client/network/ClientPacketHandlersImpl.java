@@ -11,7 +11,14 @@ import ru.liko.pjmbasemod.client.gui.screen.FactionManagementScreen;
 import ru.liko.pjmbasemod.client.gui.screen.FactionSelectionScreen;
 import ru.liko.pjmbasemod.client.gui.screen.GarageScreen;
 import ru.liko.pjmbasemod.client.gui.screen.ModerationScreen;
+import ru.liko.pjmbasemod.client.gui.screen.ReportAdminScreen;
+import ru.liko.pjmbasemod.client.gui.screen.ReportScreen;
+import ru.liko.pjmbasemod.common.network.packet.OpenReportsPacket;
+import ru.liko.pjmbasemod.common.network.packet.OpenWelcomeGuidePacket;
+import ru.liko.pjmbasemod.common.network.packet.PlayerReportThreadPacket;
+import ru.liko.pjmbasemod.common.network.packet.ReportSyncPacket;
 import ru.liko.pjmbasemod.client.gui.screen.WarehouseScreen;
+import ru.liko.pjmbasemod.client.gui.screen.WelcomeGuideScreen;
 import ru.liko.pjmbasemod.client.config.ClientHudConfig;
 import ru.liko.pjmbasemod.client.customization.ClientSkinState;
 import ru.liko.pjmbasemod.client.inventory.LockedSlotsClientState;
@@ -39,6 +46,11 @@ import ru.liko.pjmbasemod.client.role.ClientRoleState;
 import ru.liko.pjmbasemod.common.network.ClientPacketProxy;
 import ru.liko.pjmbasemod.common.network.packet.FactionCommanderSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
+import ru.liko.pjmbasemod.common.network.packet.DeathScreenPacket;
+import ru.liko.pjmbasemod.client.gui.screen.PjmDeathScreen;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointHudPacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioEventPacket;
@@ -190,6 +202,27 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     }
 
     @Override
+    public void openReports(OpenReportsPacket payload) {
+        ReportAdminScreen.open(payload.snapshot());
+    }
+
+    @Override
+    public void reportSync(ReportSyncPacket payload) {
+        if (Minecraft.getInstance().screen instanceof ReportAdminScreen screen) {
+            screen.updateSnapshot(payload.snapshot());
+        }
+    }
+
+    @Override
+    public void playerReportThread(PlayerReportThreadPacket payload) {
+        if (Minecraft.getInstance().screen instanceof ReportScreen screen) {
+            screen.updateThread(payload.thread());
+        } else {
+            ReportScreen.open(payload.thread());
+        }
+    }
+
+    @Override
     public void eventMapSync(ru.liko.pjmbasemod.common.network.packet.EventMapSyncPacket payload) {
         ru.liko.pjmbasemod.client.serverevent.ClientServerEventState.update(payload);
     }
@@ -227,5 +260,25 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     @Override
     public void hudConfig(HudConfigPacket payload) {
         ClientHudConfig.update(payload);
+    }
+
+    @Override
+    public void openWelcomeGuide(OpenWelcomeGuidePacket payload) {
+        // Не открываем поверх экрана выбора фракции — ждём, пока игрок войдёт в мир
+        // (см. ClientEvents.onClientTick: открытие, когда mc.screen == null).
+        WelcomeGuideScreen.requestOpen();
+    }
+
+    @Override
+    public void deathScreen(DeathScreenPacket payload) {
+        ItemStack stack = ItemStack.EMPTY;
+        if (!payload.itemId().isEmpty()) {
+            ResourceLocation id = ResourceLocation.tryParse(payload.itemId());
+            if (id != null) {
+                var item = BuiltInRegistries.ITEM.getOptional(id).orElse(null);
+                if (item != null) stack = new ItemStack(item);
+            }
+        }
+        PjmDeathScreen.trigger(payload.message(), stack, payload.vehicleId());
     }
 }

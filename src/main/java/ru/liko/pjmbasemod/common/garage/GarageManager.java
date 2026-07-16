@@ -59,6 +59,8 @@ public final class GarageManager {
     private static final Map<UUID, Session> SESSIONS = new ConcurrentHashMap<>();
     /** Тип гаража, открытого игроком сейчас (определяет, какую технику показывать в снимке). */
     private static final Map<UUID, GarageType> OPEN_TYPE = new ConcurrentHashMap<>();
+    /** Счётчик серверных тиков: очередь сборки проверяется раз в секунду. */
+    private static int assemblyTickCounter;
 
     private GarageManager() {}
 
@@ -371,6 +373,19 @@ public final class GarageManager {
         }
 
         consumeCost(player, def);
+
+        // assemblyTime > 0 — техника уходит в очередь сборки и попадёт в гараж по таймеру.
+        if (def.assemblyTime() > 0) {
+            long finishTick = player.server.overworld().getGameTime() + def.assemblyTime() * 20L;
+            GarageSavedData.get(player.server).addPending(garageKey(player),
+                    new GarageSavedData.PendingCraft(UUID.randomUUID(), def.id(), player.getUUID(), finishTick));
+            player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.assembly_started",
+                    def.displayName(), formatDuration(def.assemblyTime())));
+            playGarageSound(player, SoundEvents.SMITHING_TABLE_USE, 0.9F, 0.95F);
+            resync(player);
+            return;
+        }
+
         CompoundTag nbt = buildDefaultNbt(player.serverLevel(), def.entityTypeId());
         if (nbt == null) {
             player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.entity_missing", def.entityTypeString()));
@@ -381,6 +396,52 @@ public final class GarageManager {
         player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.crafted", def.displayName()));
         playGarageSound(player, SoundEvents.SMITHING_TABLE_USE, 0.9F, 0.95F);
         resync(player);
+    }
+
+    /** Раз в секунду достраивает технику, у которой вышел таймер сборки. */
+    public static void onServerTick(net.minecraft.server.MinecraftServer server) {
+        if (++assemblyTickCounter < 20) return;
+        assemblyTickCounter = 0;
+
+        GarageSavedData data = GarageSavedData.get(server);
+        long now = server.overworld().getGameTime();
+        for (Map.Entry<String, List<GarageSavedData.PendingCraft>> entry : data.pendingAll().entrySet()) {
+            for (GarageSavedData.PendingCraft craft : entry.getValue()) {
+                if (craft.finishTick() > now) continue;
+                data.removePending(entry.getKey(), craft.id());
+
+                VehicleDefinition def = VehicleRegistry.get().get(craft.defId());
+                CompoundTag nbt = def == null || def.entityTypeId() == null
+                        ? null : buildDefaultNbt(server.overworld(), def.entityTypeId());
+                if (nbt == null) {
+                    Pjmbasemod.LOGGER.warn("Garage: сборка '{}' отменена — определение или тип сущности недоступны.",
+                            craft.defId());
+                    continue;
+                }
+                data.add(entry.getKey(), StoredVehicle.create(def.id(), def.displayName(), nbt));
+
+                ServerPlayer requester = server.getPlayerList().getPlayer(craft.requester());
+                if (requester != null) {
+                    requester.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.assembly_done",
+                            def.displayName()));
+                    playGarageSound(requester, SoundEvents.ANVIL_USE, 0.7F, 1.1F);
+                    resync(requester);
+                }
+            }
+        }
+    }
+
+    /** Человекочитаемая длительность: "1ч 5м", "5м 30с", "45с". */
+    private static String formatDuration(int seconds) {
+        if (seconds >= 3600) {
+            int minutes = (seconds % 3600) / 60;
+            return (seconds / 3600) + "ч" + (minutes > 0 ? " " + minutes + "м" : "");
+        }
+        if (seconds >= 60) {
+            int rest = seconds % 60;
+            return (seconds / 60) + "м" + (rest > 0 ? " " + rest + "с" : "");
+        }
+        return seconds + "с";
     }
 
     // ---------------------------------------------------------------- спавн
@@ -726,6 +787,8 @@ public final class GarageManager {
 
     public static GarageSnapshot buildSnapshot(ServerPlayer player) {
         GarageType type = OPEN_TYPE.getOrDefault(player.getUUID(), GarageType.GROUND);
+        List<GarageSavedData.PendingCraft> pending = GarageSavedData.get(player.server).pendingOf(garageKey(player));
+        long now = player.server.overworld().getGameTime();
         List<GarageSnapshot.DefEntry> defs = new ArrayList<>();
         for (VehicleDefinition def : VehicleRegistry.get().all()) {
             if (def.garageType() != type) continue;
@@ -744,9 +807,20 @@ public final class GarageManager {
             boolean roleAllowed = RoleService.hasAllowedRole(player, def.allowedRoles());
             boolean rankAllowed = RankService.meetsMinRank(player, def.minRank());
             String requiredRankName = RankService.rankDisplayName(def.minRank());
+            // Сколько таких машин в сборке и сколько секунд осталось до ближайшей готовой.
+            int pendingCount = 0;
+            long earliestFinish = Long.MAX_VALUE;
+            for (GarageSavedData.PendingCraft craft : pending) {
+                if (!craft.defId().equals(def.id())) continue;
+                pendingCount++;
+                earliestFinish = Math.min(earliestFinish, craft.finishTick());
+            }
+            int pendingSeconds = pendingCount == 0 ? 0
+                    : (int) Math.max(0L, (earliestFinish - now + 19L) / 20L);
             defs.add(new GarageSnapshot.DefEntry(def.id(), def.displayName(), def.entityTypeString(), iconItem,
                     def.category(), def.assemblyTime(), List.copyOf(costViews), affordable,
-                    roleAllowed, def.allowedRoles(), rankAllowed, requiredRankName));
+                    roleAllowed, def.allowedRoles(), rankAllowed, requiredRankName,
+                    pendingCount, pendingSeconds));
         }
 
         List<GarageSnapshot.InstanceEntry> instances = new ArrayList<>();

@@ -1,9 +1,10 @@
 # Система склада (Warehouse)
 
-Склад — экономика снабжения команды. Каждый **именованный склад** копит очки в пяти
+Склад — экономика снабжения команды. Каждый **именованный склад** копит очки в двух
 **пулах**. Игроки получают снаряжение у **NPC-кладовщика**, тратя очки пула, и могут
 сдавать снаряжение обратно за частичный возврат. Очки пополняются **ящиками поставок**,
-которые сбрасывают в **зону приёма** склада или вручают NPC.
+которые сбрасывают в **зону приёма** склада или вручают NPC, а пул `supply` — ещё и
+**пассивным доходом с удерживаемых точек захвата**.
 
 - Серверная логика: `common/warehouse/WarehouseManager`.
 - NPC: `common/entity/QuartermasterEntity` (рендер `QuartermasterRenderer`).
@@ -30,16 +31,47 @@
 
 ## Пулы очков
 
-Очки склада разделены на **5 пулов** (`WarehousePoolCategory`). Каждый ящик пополняет
+Очки склада разделены на **2 пула** (`WarehousePoolCategory`). Каждый ящик пополняет
 один пул, каждый выдаваемый предмет списывает очки из своего пула:
 
-| Пул | id |
-|-----|-----|
-| Оружие | `weapon` |
-| Снабжение | `supply` |
-| Снаряжение | `equipment` |
-| Сырьё | `raw` |
-| Спецсредства | `special` |
+| Пул | id | Чем пополняется |
+|-----|-----|-----------------|
+| Припасы | `supply` | Ящики, сдача снаряжения, пассивный доход с точек захвата |
+| Сырьё | `raw` | Только ящики и сдача |
+
+**Устаревшие пулы.** Раньше пулов было пять; `weapon`, `equipment` и `special` схлопнуты
+в `supply`. Править конфиги не нужно:
+
+- в `items.json` и `crates/*.json` старые значения `pool` читаются как алиасы `supply`
+  (`WarehousePoolCategory.byId`) — но в автодополнении команд их больше нет;
+- в сохранённых мирах очки старых пулов **суммируются** в `supply` при первой загрузке
+  (`WarehouseSavedData.load`), ничего не теряется;
+- `displayCategory` — **не** пул, а вкладка GUI: `weapon`/`equipment`/`special` там
+  остаются рабочими значениями.
+
+### Пассивный доход с точек захвата
+
+Раз в минуту каждая команда получает в пул `supply` своего склада
+`incomePerPointPerMinute` очков **за каждую удерживаемую точку захвата**. Начисление идёт
+только при активном захвате (`capturePoints.enabled`, в т.ч. по расписанию). Секция
+`capturePoints` в `config.json`:
+
+```jsonc
+"capturePoints": {
+  "incomeEnabled": true,
+  "incomePerPointPerMinute": 10,
+  // teamId (секция teams) → warehouseId (/pjm warehouse create).
+  // Команды без записи здесь дохода не получают.
+  "warehouseByTeam": {
+    "team1": "wh_red",
+    "team2": "wh_blue"
+  }
+}
+```
+
+Пример: команда `team1` удерживает 3 точки → её склад `wh_red` получает 30 очков `supply`
+в минуту. Склад создаётся автоматически, если его ещё нет (как при приёмке ящиков), —
+опечатка в `warehouseByTeam` проявится лишним складом в `/pjm warehouse list`.
 
 ---
 
@@ -104,7 +136,7 @@ config/pjmbasemod/warehouse/items.json
 | `id` | string | — | Уникальный id записи. Латиница, цифры, `_`, `-`; остальное нормализуется. |
 | `displayName` | string | id предмета | Имя в GUI. Если пусто — клиент подтянет локализованное имя предмета. |
 | `itemId` | string | — | Registry id предмета (`minecraft:iron_ingot`, `superbwarfare:ak_47`) или TACZ gunpack id (`tacz:ak47`, `tacz:762x39`). Необязателен, если задан `itemNbt` или блок `tacz`. |
-| `pool` | string | `special` | Пул очков: `weapon` / `supply` / `equipment` / `raw` / `special`. |
+| `pool` | string | `supply` | Пул очков: `supply` / `raw`. Устаревшие `weapon`/`equipment`/`special` читаются как `supply`. |
 | `displayCategory` | string | = `pool` | Вкладка GUI: `weapon`, `ammo`, `food`, `medicine`, `equipment`, `raw`, `vehicle`, `special`. |
 | `pointCost` | int | `1` (минимум 1) | Стоимость **одной покупки** в очках пула. |
 | `quantity` | int | `1` | Сколько штук выдаётся за одну покупку (за `pointCost` очков). |
@@ -260,11 +292,14 @@ config/pjmbasemod/warehouse/crates/<id>.json
 
 | Ящик | Пул | Очки |
 |------|-----|------|
-| `weapon_crate` | `weapon` | 3 |
+| `weapon_crate` | `supply` | 3 |
 | `supply_crate` | `supply` | 5 |
-| `equipment_crate` | `equipment` | 4 |
+| `equipment_crate` | `supply` | 4 |
 | `raw_crate` | `raw` | 5 |
-| `special_crate` | `special` | 2 |
+| `special_crate` | `supply` | 2 |
+
+Пять предметов-ящиков сохранены (разный вес поставки), но все, кроме `raw_crate`,
+теперь пополняют `supply`.
 
 Сдать ящики на склад можно двумя способами:
 - **ПКМ ящиком по NPC-кладовщику** — сдаётся весь стек в руке на склад, привязанный к NPC.

@@ -1,8 +1,10 @@
 package ru.liko.pjmbasemod.common.faction;
 
+import com.mojang.authlib.GameProfile;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.GameProfileCache;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import ru.liko.pjmbasemod.Config;
@@ -17,9 +19,11 @@ import ru.liko.pjmbasemod.common.role.RoleLimitRegistry;
 import ru.liko.pjmbasemod.common.role.RolePermissions;
 import ru.liko.pjmbasemod.common.role.RoleService;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class FactionMenuService {
@@ -77,7 +81,7 @@ public final class FactionMenuService {
         String team = Teams.resolvePlayerTeamId(target);
         if (team == null || team.isBlank()) return false;
         // Debug всегда открывает с полными правами, минуя проверки прав.
-        Authority full = new Authority(team, true, true, true, true);
+        Authority full = new Authority(team, true, true, true, true, true);
         PjmNetworking.sendToPlayer(target, new OpenFactionManagementPacket(managementSnapshot(target, full)));
         return true;
     }
@@ -89,6 +93,13 @@ public final class FactionMenuService {
         String team = Teams.resolveAlias(rawTeamId);
         if (team == null || !Teams.isCombatTeam(team)) {
             player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.selection.invalid_team"), true);
+            openSelection(player);
+            return;
+        }
+
+        if (lockedFor(player, team)) {
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.selection.invite_required",
+                    Teams.displayName(server, team)), true);
             openSelection(player);
             return;
         }
@@ -125,6 +136,7 @@ public final class FactionMenuService {
             return;
         }
 
+        FactionInviteSavedData.get(server).consume(team, player.getScoreboardName());
         FactionSelectionSavedData.get(server).markComplete(player.getUUID(), player.getName().getString(), team, role);
         FactionCommanderService.sync(player);
         FactionCommanderService.refreshTabName(player);
@@ -154,15 +166,14 @@ public final class FactionMenuService {
         }
         String team = authority.teamId();
 
-        ServerPlayer target = actor.getServer().getPlayerList().getPlayer(targetId);
+        ManagedTarget target = resolveTarget(actor.getServer(), targetId);
         if (target == null) {
             actor.displayClientMessage(Component.translatable("gui.pjmbasemod.role.target_missing"), true);
             resync(actor);
             return;
         }
 
-        String targetTeam = Teams.resolvePlayerTeamId(target);
-        if (!team.equals(targetTeam)) {
+        if (!team.equals(target.teamId())) {
             actor.displayClientMessage(Component.translatable("gui.pjmbasemod.role.target_wrong_faction"), true);
             resync(actor);
             return;
@@ -175,7 +186,8 @@ public final class FactionMenuService {
             return;
         }
 
-        RoleService.AssignmentResult result = RoleService.assignRole(actor, target, role, false);
+        RoleService.AssignmentResult result = RoleService.assignRoleTo(actor, actor.getServer(),
+                target.id(), target.name(), target.teamId(), role);
         actor.displayClientMessage(result.message(), true);
         resync(actor);
     }
@@ -190,13 +202,13 @@ public final class FactionMenuService {
         String team = authority.teamId();
         MinecraftServer server = actor.getServer();
 
-        ServerPlayer target = server.getPlayerList().getPlayer(targetId);
+        ManagedTarget target = resolveTarget(server, targetId);
         if (target == null) {
             actor.displayClientMessage(Component.translatable("gui.pjmbasemod.role.target_missing"), true);
             resync(actor);
             return;
         }
-        if (!team.equals(Teams.resolvePlayerTeamId(target))) {
+        if (!team.equals(target.teamId())) {
             actor.displayClientMessage(Component.translatable("gui.pjmbasemod.role.target_wrong_faction"), true);
             resync(actor);
             return;
@@ -212,17 +224,21 @@ public final class FactionMenuService {
             }
             data.setDeputy(team, targetId, DeputyPermission.sanitize(perms));
             actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.manage.deputy.added",
-                    target.getName().getString()), true);
+                    target.name()), true);
         } else {
             data.removeDeputy(team, targetId);
             actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.manage.deputy.removed",
-                    target.getName().getString()), true);
+                    target.name()), true);
         }
-        FactionCommanderService.refreshTabName(target);
-        // Синхронизируем цели её право открыть управление (кнопка радиалки) и обновляем
-        // дерево команд, чтобы /pjm faction manage стал доступен/недоступен без релога.
-        FactionCommanderService.sync(target);
-        server.getCommands().sendCommands(target);
+        // Оффлайн-цели рассылать нечего: статус зама лежит в SavedData, а тег в TAB, право на
+        // радиалку и дерево команд она получит при входе (FactionCommanderService.onPlayerLogin).
+        if (target.online() != null) {
+            FactionCommanderService.refreshTabName(target.online());
+            // Синхронизируем цели её право открыть управление (кнопка радиалки) и обновляем
+            // дерево команд, чтобы /pjm faction manage стал доступен/недоступен без релога.
+            FactionCommanderService.sync(target.online());
+            server.getCommands().sendCommands(target.online());
+        }
         resync(actor);
     }
 
@@ -247,12 +263,13 @@ public final class FactionMenuService {
         boolean open = full || DeputyPermission.has(perms, DeputyPermission.OPEN_GUI);
         boolean roles = full || DeputyPermission.has(perms, DeputyPermission.ASSIGN_ROLES);
         boolean order = full || DeputyPermission.has(perms, DeputyPermission.SET_ORDER);
-        return new Authority(team, open, roles, order, full);
+        boolean invite = full || DeputyPermission.has(perms, DeputyPermission.INVITE);
+        return new Authority(team, open, roles, order, full, invite);
     }
 
     public record Authority(String teamId, boolean canOpen, boolean canAssignRoles,
-                            boolean canSetOrder, boolean canManageDeputies) {
-        public static final Authority NONE = new Authority("", false, false, false, false);
+                            boolean canSetOrder, boolean canManageDeputies, boolean canInvite) {
+        public static final Authority NONE = new Authority("", false, false, false, false, false);
 
         public boolean valid() {
             return teamId != null && !teamId.isBlank();
@@ -261,10 +278,18 @@ public final class FactionMenuService {
 
     private static FactionSelectionSnapshot selectionSnapshot(ServerPlayer player, boolean required) {
         String currentTeam = Teams.resolvePlayerTeamId(player);
-        return new FactionSelectionSnapshot(teamEntries(player.getServer()),
+        return new FactionSelectionSnapshot(teamEntries(player),
                 currentTeam == null ? "" : currentTeam,
                 RoleService.currentRoleId(player),
                 required);
+    }
+
+    /** Фракция закрыта для игрока: «по приглашению», игрок не её член и приглашения нет. */
+    private static boolean lockedFor(ServerPlayer player, String teamId) {
+        if (!Config.isTeamInviteOnly(teamId)) return false;
+        if (teamId.equals(Teams.resolvePlayerTeamId(player))) return false;
+        if (RolePermissions.can(player, RolePermissions.ADMIN)) return false;
+        return !FactionInviteSavedData.get(player.getServer()).isInvited(teamId, player.getScoreboardName());
     }
 
     private static FactionManagementSnapshot managementSnapshot(ServerPlayer actor, Authority authority) {
@@ -272,19 +297,7 @@ public final class FactionMenuService {
         String team = authority.teamId();
         FactionDeputySavedData deputies = FactionDeputySavedData.get(server);
 
-        List<FactionManagementSnapshot.MemberEntry> members = new ArrayList<>();
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (!team.equals(Teams.resolvePlayerTeamId(player))) continue;
-            String commanderTeam = FactionCommanderService.activeCommanderTeam(player);
-            int perms = deputies.permissions(team, player.getUUID());
-            members.add(new FactionManagementSnapshot.MemberEntry(player.getUUID(),
-                    player.getName().getString(), RoleService.currentRoleId(player),
-                    team.equals(commanderTeam),
-                    deputies.isDeputy(team, player.getUUID()), perms));
-        }
-        members.sort(Comparator.comparing(FactionManagementSnapshot.MemberEntry::commander).reversed()
-                .thenComparing(FactionManagementSnapshot.MemberEntry::deputy, Comparator.reverseOrder())
-                .thenComparing(FactionManagementSnapshot.MemberEntry::name, String.CASE_INSENSITIVE_ORDER));
+        List<FactionManagementSnapshot.MemberEntry> members = memberEntries(server, team, deputies);
 
         FactionOrderSavedData.OrderEntry order = FactionOrderSavedData.get(server).order(team);
         long now = server.overworld().getGameTime();
@@ -298,6 +311,18 @@ public final class FactionMenuService {
                     : (int) Math.max(1, (order.expiresAtGameTime() - now) / 20);
         }
 
+        boolean inviteOnly = Config.isTeamInviteOnly(team);
+        List<FactionManagementSnapshot.InviteEntry> invites = new ArrayList<>();
+        if (inviteOnly && authority.canInvite()) {
+            long nowMs = System.currentTimeMillis();
+            for (Map.Entry<String, Long> invite : FactionInviteSavedData.get(server).invites(team).entrySet()) {
+                int minutes = invite.getValue() == 0L ? -1
+                        : (int) Math.max(1, (invite.getValue() - nowMs) / 60_000L);
+                invites.add(new FactionManagementSnapshot.InviteEntry(invite.getKey(), minutes));
+            }
+            invites.sort(Comparator.comparing(FactionManagementSnapshot.InviteEntry::name));
+        }
+
         return new FactionManagementSnapshot(team,
                 Teams.displayName(server, team),
                 Teams.color(server, team),
@@ -309,15 +334,111 @@ public final class FactionMenuService {
                 authority.canSetOrder(),
                 Config.getFactionMaxDeputies(),
                 deputies.deputyCount(team),
-                orderText, orderAuthor, orderSeconds);
+                orderText, orderAuthor, orderSeconds,
+                inviteOnly, authority.canInvite(), List.copyOf(invites));
     }
 
-    private static List<FactionSelectionSnapshot.TeamEntry> teamEntries(MinecraftServer server) {
+    /** Выдать/отозвать приглашение в закрытую фракцию. Доступно командиру, заму с правом INVITE и админу. */
+    public static void handleManageInvite(ServerPlayer actor, String playerName, boolean invite) {
+        if (actor == null || actor.getServer() == null) return;
+        String name = playerName == null ? "" : playerName.trim();
+        if (name.isBlank() || name.length() > 16) return;
+        Authority authority = authority(actor);
+        if (!authority.valid() || !authority.canInvite()) {
+            actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.manage.no_access"), true);
+            return;
+        }
+        applyInvite(actor, authority.teamId(), name, invite);
+        resync(actor);
+    }
+
+    /** Общий низ выдачи приглашения — используется и GUI, и командой (в т.ч. админской с явной фракцией). */
+    public static void applyInvite(ServerPlayer actor, String teamId, String playerName, boolean invite) {
+        MinecraftServer server = actor.getServer();
+        if (!Config.isTeamInviteOnly(teamId)) {
+            actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.invite.not_invite_only",
+                    Teams.displayName(server, teamId)), false);
+            return;
+        }
+        FactionInviteSavedData data = FactionInviteSavedData.get(server);
+        if (invite) {
+            data.invite(teamId, playerName, Config.getFactionInviteTtlMinutes());
+            actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.invite.sent",
+                    playerName, Teams.displayName(server, teamId)), false);
+            ServerPlayer target = server.getPlayerList().getPlayerByName(playerName);
+            if (target != null) {
+                target.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.invite.received",
+                        Teams.displayName(server, teamId)), false);
+            }
+        } else {
+            if (data.revoke(teamId, playerName)) {
+                actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.invite.revoked",
+                        playerName), false);
+            }
+        }
+    }
+
+    /**
+     * Члены фракции по scoreboard-команде — включая оффлайн: членство хранится по имени и
+     * переживает выход. UUID берём у живого игрока, иначе из кэша профилей; запись без
+     * профиля (в команду можно добавить и не-игрока) пропускаем.
+     */
+    private static List<FactionManagementSnapshot.MemberEntry> memberEntries(MinecraftServer server, String team,
+                                                                            FactionDeputySavedData deputies) {
+        FactionCommanderSavedData.CommanderEntry commander = FactionCommanderSavedData.get(server).commander(team);
+        List<FactionManagementSnapshot.MemberEntry> members = new ArrayList<>();
+        for (String name : Teams.memberNames(server, team)) {
+            ServerPlayer online = server.getPlayerList().getPlayerByName(name);
+            UUID id = online != null ? online.getUUID() : profileId(server, name);
+            if (id == null) continue;
+            String roleId = online != null ? RoleService.currentRoleId(online)
+                    : RoleService.storedRoleId(server, id, team);
+            members.add(new FactionManagementSnapshot.MemberEntry(id, name, roleId,
+                    commander != null && commander.playerId().equals(id),
+                    deputies.isDeputy(team, id), deputies.permissions(team, id),
+                    online != null));
+        }
+        // Командир → замы → онлайн выше оффлайна → по имени.
+        members.sort(Comparator.comparing(FactionManagementSnapshot.MemberEntry::commander).reversed()
+                .thenComparing(FactionManagementSnapshot.MemberEntry::deputy, Comparator.reverseOrder())
+                .thenComparing(FactionManagementSnapshot.MemberEntry::online, Comparator.reverseOrder())
+                .thenComparing(FactionManagementSnapshot.MemberEntry::name, String.CASE_INSENSITIVE_ORDER));
+        return members;
+    }
+
+    @Nullable
+    private static UUID profileId(MinecraftServer server, String name) {
+        GameProfileCache cache = server.getProfileCache();
+        return cache == null ? null : cache.get(name).map(GameProfile::getId).orElse(null);
+    }
+
+    /** Цель действия управления: работает и для оффлайн-игрока — имя и команда берутся из scoreboard. */
+    @Nullable
+    private static ManagedTarget resolveTarget(MinecraftServer server, UUID targetId) {
+        ServerPlayer online = server.getPlayerList().getPlayer(targetId);
+        if (online != null) {
+            return new ManagedTarget(targetId, online.getName().getString(),
+                    Teams.resolvePlayerTeamId(online), online);
+        }
+        GameProfileCache cache = server.getProfileCache();
+        if (cache == null) return null;
+        return cache.get(targetId)
+                .map(profile -> new ManagedTarget(targetId, profile.getName(),
+                        Teams.resolveTeamIdByName(server, profile.getName()), null))
+                .orElse(null);
+    }
+
+    private record ManagedTarget(UUID id, String name, @Nullable String teamId, @Nullable ServerPlayer online) {
+    }
+
+    private static List<FactionSelectionSnapshot.TeamEntry> teamEntries(ServerPlayer viewer) {
+        MinecraftServer server = viewer.getServer();
         List<FactionSelectionSnapshot.TeamEntry> teams = new ArrayList<>();
         for (var team : Teams.all()) {
             teams.add(new FactionSelectionSnapshot.TeamEntry(team.id(),
                     Teams.displayName(server, team.id()),
                     Teams.color(server, team.id()),
+                    lockedFor(viewer, team.id()),
                     roleEntries(server, team.id())));
         }
         return List.copyOf(teams);
@@ -328,7 +449,7 @@ public final class FactionMenuService {
         for (CombatRole role : CombatRole.values()) {
             roles.add(new FactionSelectionSnapshot.RoleEntry(role.id(), role.displayName(), role.color(),
                     RoleLimitRegistry.get().limitFor(teamId, role),
-                    RoleService.onlineRoleCount(server, teamId, role)));
+                    RoleService.roleCount(server, teamId, role)));
         }
         return List.copyOf(roles);
     }

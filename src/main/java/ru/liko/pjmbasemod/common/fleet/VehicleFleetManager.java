@@ -24,6 +24,8 @@ import java.util.UUID;
  */
 public final class VehicleFleetManager {
 
+    private static final String TEAM_TAG = "PjmVehicleTeam";
+
     private VehicleFleetManager() {}
 
     private static int maxPerTeam(GarageType type) {
@@ -91,17 +93,29 @@ public final class VehicleFleetManager {
     }
 
     public static void register(Entity entity, ServerPlayer player, String defId, GarageType type) {
-        if (!Config.isFleetEnabled()) return;
         MinecraftServer server = player.server;
-        VehicleFleetSavedData data = VehicleFleetSavedData.get(server);
-        long now = server.overworld().getGameTime();
         String team = Teams.resolvePlayerTeamId(player);
         if (team == null) team = "";
+        entity.getPersistentData().putString(TEAM_TAG, team);
+
+        if (!Config.isFleetEnabled()) return;
+        VehicleFleetSavedData data = VehicleFleetSavedData.get(server);
+        long now = server.overworld().getGameTime();
 
         FleetRecord record = new FleetRecord(entity.getUUID(), player.getUUID(), team, defId, type,
                 entity.level().dimension(), now, now, false, entity.blockPosition());
         data.put(record);
         data.setLastSpawn(player.getUUID(), now);
+    }
+
+    /** Команда, которой принадлежит техника на момент её выдачи из гаража. */
+    public static String teamId(MinecraftServer server, Entity entity) {
+        if (server == null || entity == null) return "";
+        String team = Teams.normalize(entity.getPersistentData().getString(TEAM_TAG));
+        if (Teams.isCombatTeam(team)) return team;
+
+        FleetRecord record = VehicleFleetSavedData.get(server).find(entity.getUUID());
+        return record == null ? "" : Teams.normalize(record.teamId);
     }
 
     public static void unregister(MinecraftServer server, UUID entityId) {

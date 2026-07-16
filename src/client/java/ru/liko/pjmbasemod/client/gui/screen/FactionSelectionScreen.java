@@ -189,25 +189,35 @@ public class FactionSelectionScreen extends PjmBaseScreen {
 
         for (int i = 0; i < snapshot.teams().size(); i++) {
             FactionSelectionSnapshot.TeamEntry team = snapshot.teams().get(i);
+            boolean locked = team.locked();
             boolean selected = i == selectedTeam;
-            boolean hovered = inside(mouseX, mouseY, x, y, rowW, TEAM_ROW_HEIGHT - 4);
+            boolean hovered = !locked && inside(mouseX, mouseY, x, y, rowW, TEAM_ROW_HEIGHT - 4);
             teamAnim[i] = lerp(teamAnim[i], selected || hovered ? 1.0F : 0.0F);
 
             int teamColor = 0xFF000000 | team.color();
-            int bg = selected ? COLOR_SELECT : lerpColor(COLOR_ROW, COLOR_ROW_HOVER, teamAnim[i]);
+            int bg = locked ? COLOR_ROW_LOCKED
+                    : selected ? COLOR_SELECT
+                    : lerpColor(COLOR_ROW, COLOR_ROW_HOVER, teamAnim[i]);
             graphics.fill(x, y, x + rowW, y + TEAM_ROW_HEIGHT - 4, bg);
             // Левая цветная акцент-линия с яркостью по hover
             int lineW = 3 + Math.round(teamAnim[i] * 1.0F);
-            graphics.fill(x, y, x + lineW, y + TEAM_ROW_HEIGHT - 4, teamColor);
+            graphics.fill(x, y, x + lineW, y + TEAM_ROW_HEIGHT - 4,
+                    locked ? withAlpha(teamColor, 120) : teamColor);
             if (selected) {
                 graphics.renderOutline(x, y, rowW, TEAM_ROW_HEIGHT - 4, withAlpha(teamColor, 200));
             }
 
             int textX = x + 12 + Math.round(teamAnim[i] * 3.0F);
-            graphics.drawString(font, ellipsize(team.displayName(), rowW - 22), textX, y + 6,
-                    selected ? 0xFFFFFFFF : COLOR_TEXT_DIM, false);
-            graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.selection.roles_count",
-                    team.roles().size()), textX, y + 17, COLOR_LABEL, false);
+            graphics.drawString(font, ellipsize(team.displayName(), rowW - (locked ? 34 : 22)), textX, y + 6,
+                    locked ? COLOR_TEXT_MUTED : selected ? 0xFFFFFFFF : COLOR_TEXT_DIM, false);
+            if (locked) {
+                drawSmoothIcon(graphics, LOCK_TEXTURE, x + rowW - 16, y + 5, 10, 10, 1.0F);
+                graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.selection.invite_only"),
+                        textX, y + 17, COLOR_GOLD, false);
+            } else {
+                graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.selection.roles_count",
+                        team.roles().size()), textX, y + 17, COLOR_LABEL, false);
+            }
             y += TEAM_ROW_HEIGHT;
         }
     }
@@ -320,6 +330,7 @@ public class FactionSelectionScreen extends PjmBaseScreen {
         for (int i = 0; i < snapshot.teams().size(); i++) {
             int y = teamY + i * TEAM_ROW_HEIGHT;
             if (inside((double)mouseX, (double)mouseY, teamX, y, teamW, TEAM_ROW_HEIGHT - 4)) {
+                if (snapshot.teams().get(i).locked()) return true;
                 if (selectedTeam != i) {
                     selectedTeam = i;
                     selectDefaultRole();
@@ -385,7 +396,7 @@ public class FactionSelectionScreen extends PjmBaseScreen {
     private boolean confirmEnabled() {
         FactionSelectionSnapshot.TeamEntry team = selectedTeamEntry();
         FactionSelectionSnapshot.RoleEntry role = selectedRole == null ? null : roleEntry(selectedRole);
-        if (team == null || role == null || submitted) return false;
+        if (team == null || role == null || submitted || team.locked()) return false;
         boolean current = team.id().equals(snapshot.currentTeam()) && role.id().equals(snapshot.currentRole());
         return role.available() || current;
     }
@@ -407,7 +418,7 @@ public class FactionSelectionScreen extends PjmBaseScreen {
     }
 
     private void selectTeam(String teamId) {
-        selectedTeam = 0;
+        selectedTeam = firstUnlockedTeam();
         if (teamId == null || teamId.isBlank()) return;
         for (int i = 0; i < snapshot.teams().size(); i++) {
             if (snapshot.teams().get(i).id().equals(teamId)) {
@@ -415,6 +426,13 @@ public class FactionSelectionScreen extends PjmBaseScreen {
                 return;
             }
         }
+    }
+
+    private int firstUnlockedTeam() {
+        for (int i = 0; i < snapshot.teams().size(); i++) {
+            if (!snapshot.teams().get(i).locked()) return i;
+        }
+        return 0;
     }
 
     private void selectDefaultRole() {

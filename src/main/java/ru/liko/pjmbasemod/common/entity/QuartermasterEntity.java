@@ -1,7 +1,11 @@
 package ru.liko.pjmbasemod.common.entity;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.item.Item;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -17,7 +21,11 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+import javax.annotation.Nullable;
+import ru.liko.pjmbasemod.common.capturepoint.CapturePointSavedData;
 import ru.liko.pjmbasemod.common.item.SupplyCrateItem;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 import java.util.ArrayList;
@@ -49,6 +57,22 @@ public class QuartermasterEntity extends Mob {
     private int withdrawLimit = 0;
     /** Задержка между выдачами в тиках. */
     private int cooldownTicks = 0;
+
+    // --- Режим раздатчика ящиков на точке захвата (пусто = обычный кладовщик) ---
+    /** id ящика для выдачи (weapon_crate/supply_crate/...); пусто — NPC не раздатчик. */
+    private String dispenserCrateId = "";
+    /** Максимальный запас ящиков у точки. */
+    private int stockMax = 0;
+    /** Текущий запас. */
+    private int stockCurrent = 0;
+    /** Секунд на восполнение +1 ящика (0 — без регена). */
+    private int regenSeconds = 0;
+    /** Игровое время, от которого отсчитывается реген (обновляется лениво). */
+    private long lastRegenTime = 0L;
+
+    /** Якорная позиция: NPC возвращается сюда, если его сдвинули (нокбэк, крючок, поршень). */
+    @Nullable
+    private Vec3 anchor;
 
     public QuartermasterEntity(EntityType<? extends Mob> type, Level level) {
         super(type, level);
@@ -136,11 +160,40 @@ public class QuartermasterEntity extends Mob {
         this.cooldownTicks = Math.max(0, cooldownTicks);
     }
 
+    public boolean isDispenser() {
+        return !dispenserCrateId.isBlank();
+    }
+
+    /** Настроить NPC как раздатчик ящиков (crateId пусто/none — снять режим). */
+    public void setDispenser(String crateId, int stockMax, int regenSeconds) {
+        this.dispenserCrateId = crateId == null || crateId.equalsIgnoreCase("none") ? "" : crateId.trim().toLowerCase(Locale.ROOT);
+        this.stockMax = Math.max(0, stockMax);
+        this.stockCurrent = this.stockMax;
+        this.regenSeconds = Math.max(0, regenSeconds);
+        this.lastRegenTime = level().getGameTime();
+    }
+
     // ---------------------------------------------------------------- поведение
+
+    @Override
+    public void tick() {
+        // Первый тик фиксирует якорь. Любой сдвиг (нокбэк не из hurt, крючок, поршень,
+        // wind charge) откатывается: push() заглушён, но прочие векторы идут мимо него.
+        if (anchor == null) anchor = position();
+        super.tick();
+        this.setDeltaMovement(0, 0, 0);
+        if (getX() != anchor.x || getY() != anchor.y || getZ() != anchor.z) {
+            this.setPos(anchor.x, anchor.y, anchor.z);
+        }
+    }
 
     @Override
     public InteractionResult mobInteract(Player player, InteractionHand hand) {
         if (!level().isClientSide() && player instanceof ServerPlayer serverPlayer) {
+            if (isDispenser()) {
+                dispense(serverPlayer);
+                return InteractionResult.CONSUME;
+            }
             ItemStack inHand = serverPlayer.getItemInHand(hand);
             if (inHand.getItem() instanceof SupplyCrateItem) {
                 WarehouseManager.handleCrateInteract(serverPlayer, this, hand);
@@ -150,6 +203,55 @@ public class QuartermasterEntity extends Mob {
             return InteractionResult.CONSUME;
         }
         return InteractionResult.sidedSuccess(level().isClientSide());
+    }
+
+    /**
+     * Выдача ящика на точке захвата: только команде-владельцу точки, из ограниченного
+     * запаса. Реген запаса ленивый — считается по игровому времени в момент обращения,
+     * без серверного тика.
+     */
+    private void dispense(ServerPlayer player) {
+        regenStock();
+        String dim = level().dimension().location().toString();
+        String owner = CapturePointSavedData.get(player.server)
+                .ownerTeamAt(dim, blockPosition().getX(), blockPosition().getZ());
+        if (owner.isBlank()) {
+            player.displayClientMessage(Component.literal("Точка ничейная — выдача недоступна."), true);
+            return;
+        }
+        String team = Teams.resolvePlayerTeamId(player);
+        if (team == null || !owner.equals(team)) {
+            player.displayClientMessage(Component.literal("Ящики выдаёт только команда-владелец точки."), true);
+            return;
+        }
+        if (stockCurrent <= 0) {
+            player.displayClientMessage(Component.literal("Запас пуст — ждите пополнения."), true);
+            return;
+        }
+        Item item = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("pjmbasemod", dispenserCrateId));
+        if (!(item instanceof SupplyCrateItem)) {
+            player.displayClientMessage(Component.literal("Ошибка: ящик '" + dispenserCrateId + "' не найден."), true);
+            return;
+        }
+        ItemStack stack = new ItemStack(item);
+        if (!player.getInventory().add(stack)) player.drop(stack, false);
+        stockCurrent--;
+        player.displayClientMessage(Component.literal("Выдан ящик · осталось " + stockCurrent + "/" + stockMax), true);
+    }
+
+    private void regenStock() {
+        if (stockCurrent >= stockMax || regenSeconds <= 0) {
+            lastRegenTime = level().getGameTime(); // держим часы актуальными, пока запас полон/реген выключен
+            return;
+        }
+        long now = level().getGameTime();
+        long per = (long) regenSeconds * 20L;
+        long elapsed = now - lastRegenTime;
+        if (elapsed >= per) {
+            int gained = (int) (elapsed / per);
+            stockCurrent = Math.min(stockMax, stockCurrent + gained);
+            lastRegenTime = stockCurrent >= stockMax ? now : lastRegenTime + (long) gained * per;
+        }
     }
 
     @Override
@@ -207,6 +309,11 @@ public class QuartermasterEntity extends Mob {
         this.teamRestriction = tag.getString("TeamRestriction");
         this.withdrawLimit = tag.getInt("WithdrawLimit");
         this.cooldownTicks = tag.getInt("CooldownTicks");
+        this.dispenserCrateId = tag.getString("DispenserCrate");
+        this.stockMax = tag.getInt("StockMax");
+        this.stockCurrent = tag.getInt("StockCurrent");
+        this.regenSeconds = tag.getInt("RegenSeconds");
+        this.lastRegenTime = tag.getLong("LastRegen");
         allowedCategories.clear();
         if (tag.contains("AllowedCategories")) {
             String joined = tag.getString("AllowedCategories");
@@ -224,6 +331,11 @@ public class QuartermasterEntity extends Mob {
         tag.putString("TeamRestriction", teamRestriction);
         tag.putInt("WithdrawLimit", withdrawLimit);
         tag.putInt("CooldownTicks", cooldownTicks);
+        tag.putString("DispenserCrate", dispenserCrateId);
+        tag.putInt("StockMax", stockMax);
+        tag.putInt("StockCurrent", stockCurrent);
+        tag.putInt("RegenSeconds", regenSeconds);
+        tag.putLong("LastRegen", lastRegenTime);
         tag.putString("AllowedCategories", String.join(",", allowedCategories));
     }
 

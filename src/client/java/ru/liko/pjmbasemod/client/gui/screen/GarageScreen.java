@@ -50,6 +50,8 @@ public class GarageScreen extends PjmBaseScreen {
             Pjmbasemod.MODID, "textures/icon/lock.png");
 
     private GarageSnapshot snapshot;
+    /** Момент получения снимка — от него локально отсчитывается остаток сборки. */
+    private long snapshotAtMs;
     private int tab; // 0 — сборка, 1 — гараж
     private int scroll;
     @Nullable
@@ -111,6 +113,7 @@ public class GarageScreen extends PjmBaseScreen {
     public GarageScreen(GarageSnapshot snapshot) {
         super(Component.translatable("gui.pjmbasemod.garage.title"), GUI_WIDTH, GUI_HEIGHT);
         this.snapshot = snapshot;
+        this.snapshotAtMs = Util.getMillis();
     }
 
     /** Открыть экран (вызывается из обработчика пакета). */
@@ -121,7 +124,27 @@ public class GarageScreen extends PjmBaseScreen {
     /** Обновить данные, если экран сейчас открыт. */
     public void updateSnapshot(GarageSnapshot snapshot) {
         this.snapshot = snapshot;
+        this.snapshotAtMs = Util.getMillis();
         clampScroll();
+    }
+
+    /** Остаток сборки, докрученный локально между синхронизациями со сервером. */
+    private int remainingSeconds(GarageSnapshot.DefEntry def) {
+        long elapsed = (Util.getMillis() - snapshotAtMs) / 1000L;
+        return (int) Math.max(0L, def.pendingSeconds() - elapsed);
+    }
+
+    /** Длительность в компактном виде: "1ч 5м", "5м 30с", "45с". */
+    private static String formatSeconds(int seconds) {
+        if (seconds >= 3600) {
+            int minutes = (seconds % 3600) / 60;
+            return (seconds / 3600) + "ч" + (minutes > 0 ? " " + minutes + "м" : "");
+        }
+        if (seconds >= 60) {
+            int rest = seconds % 60;
+            return (seconds / 60) + "м" + (rest > 0 ? " " + rest + "с" : "");
+        }
+        return seconds + "с";
     }
 
     public boolean isShowing() {
@@ -626,12 +649,15 @@ public class GarageScreen extends PjmBaseScreen {
         String name = ellipsize(def.displayName(), nameWidth);
         graphics.drawString(font, name, x + 12, y + 6, locked ? PjmGuiUtils.TEXT_MUTED : PjmGuiUtils.TEXT_PRIMARY, true);
         
+        int labelX = x + 12 + font.width(name) + 8;
         if (def.assemblyTime() > 0) {
-            int t = def.assemblyTime();
-            String timeStr = t >= 3600 ? (t / 3600) + "ч " + ((t % 3600) / 60) + "м" : (t >= 60 ? (t / 60) + "м " + (t % 60) + "с" : t + "с");
-            timeStr = timeStr.replace(" 0м", "").replace(" 0с", "");
-            int nameLen = font.width(name);
-            graphics.drawString(font, "⏱ " + timeStr, x + 12 + nameLen + 8, y + 6, PjmGuiUtils.TEXT_LABEL, false);
+            graphics.drawString(font, "⏱ " + formatSeconds(def.assemblyTime()), labelX, y + 6, PjmGuiUtils.TEXT_LABEL, false);
+            labelX += font.width("⏱ " + formatSeconds(def.assemblyTime())) + 8;
+        }
+        if (def.pendingCount() > 0) {
+            String queue = "⚙ " + formatSeconds(remainingSeconds(def))
+                    + (def.pendingCount() > 1 ? " ×" + def.pendingCount() : "");
+            graphics.drawString(font, queue, labelX, y + 6, PjmGuiUtils.TEXT_GOLD, false);
         }
         
         int costX = x + 12;
@@ -676,7 +702,7 @@ public class GarageScreen extends PjmBaseScreen {
         boolean buttonHovered = craftButtonRect(y).contains(mouseX, mouseY);
 
         drawRowButton(graphics, buttonX, buttonY, buttonWidth, canCraft, buttonHovered,
-                status, 0xFF2E5A34, 0xFF3E7A46);
+                status, PjmGuiUtils.BTN_GREEN, PjmGuiUtils.BTN_GREEN_HOVER);
     }
 
     private void drawRowGarage(GuiGraphics graphics, GarageSnapshot.InstanceEntry inst, boolean canSpawn, boolean canRecycle, int x, int y, int width, int mouseX, int mouseY) {
@@ -712,7 +738,7 @@ public class GarageScreen extends PjmBaseScreen {
                 ? Component.translatable("gui.pjmbasemod.garage.spawn_action").getString()
                 : Component.translatable("gui.pjmbasemod.garage.spawn_disabled").getString();
         drawRowButton(graphics, spawnX, buttonY, ROW_SPAWN_WIDTH, canSpawn, spawnHovered,
-                spawnStatus, 0xFF2E5A34, 0xFF3E7A46);
+                spawnStatus, PjmGuiUtils.BTN_GREEN, PjmGuiUtils.BTN_GREEN_HOVER);
 
         boolean recycleHovered = recycleButtonRect(y).contains(mouseX, mouseY);
         String recycleStatus = roleLocked
@@ -723,7 +749,7 @@ public class GarageScreen extends PjmBaseScreen {
                 ? Component.translatable("gui.pjmbasemod.garage.recycle_action").getString()
                 : Component.translatable("gui.pjmbasemod.garage.recycle_disabled").getString();
         drawRowButton(graphics, recycleX, buttonY, ROW_RECYCLE_WIDTH, canRecycle, recycleHovered,
-                recycleStatus, 0xFF5A342E, 0xFF7A463E);
+                recycleStatus, PjmGuiUtils.BTN_RED, PjmGuiUtils.BTN_RED_HOVER);
     }
 
     private void drawRowButton(GuiGraphics graphics, int x, int y, int width, boolean enabled,

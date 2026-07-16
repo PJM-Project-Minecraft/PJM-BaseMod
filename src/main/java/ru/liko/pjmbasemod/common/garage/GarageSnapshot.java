@@ -15,10 +15,15 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
                              boolean canCraft, boolean canSpawn, boolean canStore) {
 
     /** Определение каталога + рассчитанная для игрока доступность по ресурсам. */
+    /**
+     * @param pendingCount   сколько таких машин сейчас в сборке
+     * @param pendingSeconds секунд до готовности ближайшей (0, если сборок нет)
+     */
     public record DefEntry(String id, String displayName, String entityType, String iconItem, String category,
                            int assemblyTime, List<CostView> cost, boolean affordable,
                            boolean roleAllowed, List<String> allowedRoles,
-                           boolean rankAllowed, String requiredRankName) {}
+                           boolean rankAllowed, String requiredRankName,
+                           int pendingCount, int pendingSeconds) {}
 
     public record CostView(String item, int count, boolean enough) {}
 
@@ -48,6 +53,8 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
             }
             buf.writeBoolean(def.rankAllowed());
             buf.writeUtf(def.requiredRankName());
+            buf.writeVarInt(def.pendingCount());
+            buf.writeVarInt(def.pendingSeconds());
             buf.writeVarInt(def.cost().size());
             for (CostView cost : def.cost()) {
                 buf.writeUtf(cost.item());
@@ -96,6 +103,8 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
             }
             boolean rankAllowed = buf.readBoolean();
             String requiredRankName = buf.readUtf();
+            int pendingCount = buf.readVarInt();
+            int pendingSeconds = buf.readVarInt();
             int costCount = buf.readVarInt();
             List<CostView> cost = new ArrayList<>(costCount);
             for (int j = 0; j < costCount; j++) {
@@ -103,7 +112,7 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
             }
             defs.add(new DefEntry(id, displayName, entityType, icon, category, assemblyTime,
                     List.copyOf(cost), affordable, roleAllowed, List.copyOf(allowedRoles),
-                    rankAllowed, requiredRankName));
+                    rankAllowed, requiredRankName, pendingCount, pendingSeconds));
         }
 
         int instCount = buf.readVarInt();

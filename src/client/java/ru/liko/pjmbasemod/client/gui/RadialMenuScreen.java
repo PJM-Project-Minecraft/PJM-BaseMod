@@ -28,9 +28,12 @@ import ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState;
 import ru.liko.pjmbasemod.client.faction.FactionRankIcons;
 import ru.liko.pjmbasemod.client.role.ClientRoleState;
 import ru.liko.pjmbasemod.common.chat.ChatMode;
+import ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier;
+import ru.liko.pjmbasemod.common.compat.SbwVehicleSeats;
 import ru.liko.pjmbasemod.common.customization.CustomizationType;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.ChangeChatModePacket;
+import ru.liko.pjmbasemod.common.network.packet.EnterVehicleSeatPacket;
 import ru.liko.pjmbasemod.common.network.packet.RequestFactionManagementPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectCustomizationPacket;
 import ru.liko.pjmbasemod.common.network.packet.SelectRolePacket;
@@ -66,6 +69,9 @@ public class RadialMenuScreen extends Screen {
     private UUID roleTargetId;
     @Nullable
     private String roleTargetName;
+    @Nullable
+    private Entity vehicleTarget;
+    private String vehicleTargetName = "";
 
     public RadialMenuScreen(Player targetPlayer) {
         super(Component.empty());
@@ -76,6 +82,7 @@ public class RadialMenuScreen extends Screen {
     protected void init() {
         super.init();
         resolveRoleTarget();
+        resolveVehicleTarget();
         if (page == Page.MAIN) {
             buildMainActions();
         }
@@ -87,6 +94,18 @@ public class RadialMenuScreen extends Screen {
         lastHoveredIndex = -1;
         hoveredProgress = 0f;
         actions = new ArrayList<>();
+
+        if (vehicleTarget != null) {
+            actions.add(new RadialAction(
+                    Component.literal(vehicleTargetName),
+                    0xFFE0A030,
+                    new ItemStack(Items.MINECART),
+                    null,
+                    null,
+                    null,
+                    true,
+                    (SubmenuAction) p -> openVehicleSubmenu()));
+        }
 
         actions.add(new RadialAction(
                 Component.translatable("gui.pjmbasemod.radial.toggle_chat"),
@@ -142,6 +161,50 @@ public class RadialMenuScreen extends Screen {
                     false,
                     p -> {}));
         }
+    }
+
+    private void openVehicleSubmenu() {
+        page = Page.VEHICLE;
+        hoveredIndex = -1;
+        lastHoveredIndex = -1;
+        hoveredProgress = 0f;
+        actions = new ArrayList<>();
+
+        Entity vehicle = vehicleTarget;
+        int seats = vehicle == null ? 0 : SbwVehicleSeats.seatCount(vehicle);
+        int vehicleId = vehicle == null ? -1 : vehicle.getId();
+        for (int i = 0; i < seats; i++) {
+            final int seat = i;
+            boolean occupied = SbwVehicleSeats.seatOccupied(vehicle, i);
+            Component label = SbwVehicleSeats.seatLabel(vehicle, i);
+            if (occupied) {
+                label = Component.translatable("gui.pjmbasemod.radial.seat.occupied", label);
+            }
+            actions.add(new RadialAction(
+                    label,
+                    occupied ? 0xFF884040 : 0xFF40A0C0,
+                    seatIcon(vehicle, i),
+                    null,
+                    null,
+                    null,
+                    !occupied,
+                    p -> PjmNetworking.sendToServer(new EnterVehicleSeatPacket(vehicleId, seat))));
+        }
+
+        actions.add(new RadialAction(
+                Component.translatable("gui.pjmbasemod.radial.back"),
+                0xFFAAAAAA,
+                new ItemStack(Items.ARROW),
+                null,
+                null,
+                null,
+                true,
+                (SubmenuAction) p -> buildMainActions()));
+    }
+
+    private ItemStack seatIcon(Entity vehicle, int index) {
+        if (index == 0) return new ItemStack(Items.SADDLE);
+        return new ItemStack(Items.ARMOR_STAND);
     }
 
     private void openChatSubmenu() {
@@ -562,6 +625,9 @@ public class RadialMenuScreen extends Screen {
     }
 
     private Component centerText() {
+        if (page == Page.VEHICLE) {
+            return Component.literal(vehicleTargetName);
+        }
         if (page == Page.CHAT) {
             return Component.translatable("gui.pjmbasemod.radial.chat_mode");
         }
@@ -595,6 +661,23 @@ public class RadialMenuScreen extends Screen {
                 roleTargetId = player.getUUID();
                 roleTargetName = player.getName().getString();
             }
+        }
+    }
+
+    private void resolveVehicleTarget() {
+        vehicleTarget = null;
+        vehicleTargetName = "";
+        Minecraft mc = Minecraft.getInstance();
+        Entity looked = null;
+        if (mc.hitResult instanceof EntityHitResult hit) {
+            looked = hit.getEntity();
+        } else if (mc.player != null && mc.player.getVehicle() != null) {
+            // Уже сидим в технике — позволяем пересесть, не наводясь.
+            looked = mc.player.getVehicle();
+        }
+        if (SbwVehicleClassifier.isVehicleEntity(looked)) {
+            vehicleTarget = looked;
+            vehicleTargetName = looked.getDisplayName().getString();
         }
     }
 
@@ -721,7 +804,8 @@ public class RadialMenuScreen extends Screen {
         CHAT,
         ROLE,
         CHARACTER,
-        SKIN
+        SKIN,
+        VEHICLE
     }
 
     @FunctionalInterface

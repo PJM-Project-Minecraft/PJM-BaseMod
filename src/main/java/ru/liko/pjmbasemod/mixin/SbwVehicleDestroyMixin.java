@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.liko.pjmbasemod.common.logging.PjmActionLogger;
+import ru.liko.pjmbasemod.common.rank.RankService;
 
 /**
  * Логирование уничтожения техники SuperbWarfare.
@@ -33,6 +34,7 @@ public abstract class SbwVehicleDestroyMixin {
         Entity self = (Entity) (Object) this;
         if (self.level().isClientSide()) return;
         PjmActionLogger.instance().logVehicleDestroyed(getLastAttacker(), self);
+        RankService.handleVehicleDestroyed(getLastAttacker(), self);
         // Снимаем запись из учёта флота при уничтожении техники
         if (self.getServer() != null) {
             ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.unregister(self.getServer(), self.getUUID());

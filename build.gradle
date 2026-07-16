@@ -122,6 +122,10 @@ dependencies {
     // BlueMap (optional, server-side integration)
     compileOnly "de.bluecolored:bluemap-api:2.7.7"
 
+    // LuckPerms API (optional) — прямой строковый запрос прав в обход реестра нод NeoForge,
+    // чтобы донат-ключи из items.json работали сразу после /pjm reload без рестарта сервера.
+    compileOnly "net.luckperms:api:5.4"
+
     // JourneyMap API (optional, client-side integration)
     compileOnly(group: 'info.journeymap', name: 'journeymap-api-neoforge', version: project.journeymap_api_version, changing: true)
     clientCompileOnly(group: 'info.journeymap', name: 'journeymap-api-neoforge', version: project.journeymap_api_version, changing: true)

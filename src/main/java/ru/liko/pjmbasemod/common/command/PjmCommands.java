@@ -8,6 +8,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -34,6 +35,7 @@ import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
 import ru.liko.pjmbasemod.common.faction.FactionMenuService;
 import ru.liko.pjmbasemod.common.faction.FactionPermissions;
 import ru.liko.pjmbasemod.common.teams.Teams;
+import ru.liko.pjmbasemod.common.report.ReportManager;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
 import ru.liko.pjmbasemod.common.garage.GarageTerminalSavedData;
 import ru.liko.pjmbasemod.common.garage.VehicleDefinition;
@@ -53,6 +55,7 @@ import ru.liko.pjmbasemod.common.role.RoleSavedData;
 import ru.liko.pjmbasemod.common.role.RoleService;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -79,14 +82,32 @@ public final class PjmCommands {
                 // --- админ / управление миром ---
                 .then(webCommand())
                 .then(baseZoneCommand())
+                .then(vanishCommand())
                 .then(eventCommand())
                 .then(capturePointCommand())
                 .then(inventoryCommand())
                 .then(entityCommand())
                 .then(ModerationCommands.build())
+                .then(reportsCommand())
                 .then(WipeCommands.build())
                 .then(configCommand())
                 .then(debugCommand()));
+
+        // Короткий алиас /vanish — команда используется часто, отдельное дерево дешевле, чем /pjm vanish.
+        d.register(vanishCommand());
+    }
+
+    // ---------------------------------------------------------------- reports (админский GUI жалоб)
+
+    /** {@code /pjm reports} — открыть админский GUI обращений игроков. */
+    private static LiteralArgumentBuilder<CommandSourceStack> reportsCommand() {
+        return Commands.literal("reports")
+                .requires(source -> source.hasPermission(2))
+                .executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayer();
+                    if (player != null) ReportManager.openAdmin(player);
+                    return 1;
+                });
     }
 
     // ---------------------------------------------------------------- entity (удаление сущностей мода)
@@ -317,6 +338,29 @@ public final class PjmCommands {
             builder.suggest(s);
         }
         return builder.buildFuture();
+    }
+
+    // ---------------------------------------------------------------- vanish (невидимость админа)
+
+    /** {@code /pjm vanish [цель]} — переключить ваниш: игрок пропадает из TAB и из мира для остальных. */
+    private static LiteralArgumentBuilder<CommandSourceStack> vanishCommand() {
+        return Commands.literal("vanish")
+                .requires(source -> source.hasPermission(2))
+                .executes(ctx -> toggleVanish(ctx.getSource(), ctx.getSource().getPlayerOrException()))
+                .then(Commands.argument("target", EntityArgument.player())
+                        .executes(ctx -> toggleVanish(ctx.getSource(), EntityArgument.getPlayer(ctx, "target"))));
+    }
+
+    private static int toggleVanish(CommandSourceStack source, ServerPlayer target) {
+        boolean vanished = ru.liko.pjmbasemod.common.vanish.VanishService.toggle(target);
+        Component state = Component.literal(vanished ? "включён" : "выключен")
+                .withStyle(vanished ? ChatFormatting.GREEN : ChatFormatting.GRAY);
+        target.sendSystemMessage(Component.literal("Ваниш ").append(state).append(Component.literal(".")));
+        if (source.getEntity() != target) {
+            source.sendSuccess(() -> Component.literal("Ваниш для " + target.getGameProfile().getName() + " ")
+                    .append(state).append(Component.literal(".")), true);
+        }
+        return 1;
     }
 
     // ---------------------------------------------------------------- event (серверные события)
@@ -596,6 +640,35 @@ public final class PjmCommands {
                 .then(Commands.literal("manage")
                         .requires(PjmCommands::canOpenFactionManagement)
                         .executes(ctx -> factionManage(ctx.getSource())))
+                .then(Commands.literal("invite")
+                        .then(Commands.argument("player", StringArgumentType.word())
+                                .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(
+                                        ctx.getSource().getOnlinePlayerNames(), builder))
+                                .executes(ctx -> factionInvite(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "player"), null, true))
+                                .then(Commands.argument("team", StringArgumentType.word())
+                                        .requires(src -> src.hasPermission(2))
+                                        .suggests((ctx, builder) -> suggestCombatTeams(builder))
+                                        .executes(ctx -> factionInvite(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "player"),
+                                                StringArgumentType.getString(ctx, "team"), true)))))
+                .then(Commands.literal("uninvite")
+                        .then(Commands.argument("player", StringArgumentType.word())
+                                .executes(ctx -> factionInvite(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "player"), null, false))
+                                .then(Commands.argument("team", StringArgumentType.word())
+                                        .requires(src -> src.hasPermission(2))
+                                        .suggests((ctx, builder) -> suggestCombatTeams(builder))
+                                        .executes(ctx -> factionInvite(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "player"),
+                                                StringArgumentType.getString(ctx, "team"), false)))))
+                .then(Commands.literal("invites")
+                        .executes(ctx -> factionInvites(ctx.getSource(), null))
+                        .then(Commands.argument("team", StringArgumentType.word())
+                                .requires(src -> src.hasPermission(2))
+                                .suggests((ctx, builder) -> suggestCombatTeams(builder))
+                                .executes(ctx -> factionInvites(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "team")))))
                 .then(Commands.literal("commander")
                         .then(Commands.literal("set")
                                 .requires(PjmCommands::canManageFactionCommanders)
@@ -624,6 +697,60 @@ public final class PjmCommands {
     private static int factionManage(CommandSourceStack source) {
         ServerPlayer player = requirePlayer(source);
         return player != null && FactionMenuService.openManagement(player) ? 1 : 0;
+    }
+
+    /**
+     * Резолв фракции для команд приглашений: явный аргумент (только OP) или фракция игрока,
+     * если у него есть право приглашать (командир / зам с правом INVITE / админ).
+     */
+    @Nullable
+    private static String resolveInviteTeam(CommandSourceStack source, ServerPlayer actor, @Nullable String teamArg) {
+        if (teamArg != null) {
+            String team = Teams.resolveAlias(teamArg);
+            if (team == null || !Teams.isCombatTeam(team)) {
+                source.sendFailure(Component.translatable("gui.pjmbasemod.faction.selection.invalid_team"));
+                return null;
+            }
+            return team;
+        }
+        FactionMenuService.Authority authority = FactionMenuService.authority(actor);
+        if (!authority.valid() || !authority.canInvite()) {
+            source.sendFailure(Component.translatable("gui.pjmbasemod.faction.manage.no_access"));
+            return null;
+        }
+        return authority.teamId();
+    }
+
+    private static int factionInvite(CommandSourceStack source, String playerName, @Nullable String teamArg, boolean invite) {
+        ServerPlayer actor = requirePlayer(source);
+        if (actor == null) return 0;
+        String team = resolveInviteTeam(source, actor, teamArg);
+        if (team == null) return 0;
+        FactionMenuService.applyInvite(actor, team, playerName, invite);
+        return 1;
+    }
+
+    private static int factionInvites(CommandSourceStack source, @Nullable String teamArg) {
+        ServerPlayer actor = requirePlayer(source);
+        if (actor == null) return 0;
+        String team = resolveInviteTeam(source, actor, teamArg);
+        if (team == null) return 0;
+        var invites = ru.liko.pjmbasemod.common.faction.FactionInviteSavedData.get(source.getServer()).invites(team);
+        if (invites.isEmpty()) {
+            source.sendSuccess(() -> Component.translatable("gui.pjmbasemod.faction.invite.list_empty"), false);
+            return 1;
+        }
+        long now = System.currentTimeMillis();
+        source.sendSuccess(() -> Component.translatable("gui.pjmbasemod.faction.invite.list_header",
+                Teams.displayName(source.getServer(), team), invites.size()), false);
+        for (var entry : invites.entrySet()) {
+            String suffix = entry.getValue() == 0L
+                    ? Component.translatable("gui.pjmbasemod.faction.invite.no_expiry").getString()
+                    : Component.translatable("gui.pjmbasemod.faction.invite.expires_minutes",
+                            Math.max(1, (entry.getValue() - now) / 60_000L)).getString();
+            source.sendSuccess(() -> Component.literal(" - " + entry.getKey() + " (" + suffix + ")"), false);
+        }
+        return 1;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> roleCommand() {
@@ -1201,8 +1328,105 @@ public final class PjmCommands {
                                         .executes(ctx -> capturePointSetOwner(ctx.getSource(),
                                                 StringArgumentType.getString(ctx, "id"),
                                                 StringArgumentType.getString(ctx, "owner"))))))
+                .then(Commands.literal("order")
+                        .then(Commands.argument("id", StringArgumentType.word())
+                                .then(Commands.argument("order", IntegerArgumentType.integer())
+                                        .executes(ctx -> capturePointSetOrder(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "id"),
+                                                IntegerArgumentType.getInteger(ctx, "order"))))))
                 .then(Commands.literal("sync")
-                        .executes(ctx -> capturePointSync(ctx.getSource())));
+                        .executes(ctx -> capturePointSync(ctx.getSource())))
+                .then(Commands.literal("enable")
+                        .executes(ctx -> capturePointSetEnabled(ctx.getSource(), true)))
+                .then(Commands.literal("disable")
+                        .executes(ctx -> capturePointSetEnabled(ctx.getSource(), false)))
+                .then(Commands.literal("status")
+                        .executes(ctx -> capturePointStatus(ctx.getSource())))
+                .then(Commands.literal("schedule")
+                        .then(Commands.literal("on")
+                                .executes(ctx -> capturePointScheduleToggle(ctx.getSource(), true)))
+                        .then(Commands.literal("off")
+                                .executes(ctx -> capturePointScheduleToggle(ctx.getSource(), false)))
+                        .then(Commands.literal("list")
+                                .executes(ctx -> capturePointScheduleList(ctx.getSource())))
+                        .then(Commands.literal("clear")
+                                .executes(ctx -> capturePointScheduleClear(ctx.getSource())))
+                        .then(Commands.literal("add")
+                                .then(Commands.argument("start_hour", IntegerArgumentType.integer(0, 23))
+                                        .then(Commands.argument("start_minute", IntegerArgumentType.integer(0, 59))
+                                                .then(Commands.argument("end_hour", IntegerArgumentType.integer(0, 23))
+                                                        .then(Commands.argument("end_minute", IntegerArgumentType.integer(0, 59))
+                                                                .executes(ctx -> capturePointScheduleAdd(ctx.getSource(),
+                                                                        IntegerArgumentType.getInteger(ctx, "start_hour"),
+                                                                        IntegerArgumentType.getInteger(ctx, "start_minute"),
+                                                                        IntegerArgumentType.getInteger(ctx, "end_hour"),
+                                                                        IntegerArgumentType.getInteger(ctx, "end_minute"))))))))
+                        .then(Commands.literal("remove")
+                                .then(Commands.argument("index", IntegerArgumentType.integer(0))
+                                        .executes(ctx -> capturePointScheduleRemove(ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "index"))))));
+    }
+
+    private static int capturePointSetEnabled(CommandSourceStack source, boolean enabled) {
+        CapturePointManager.setEnabled(source.getServer(), enabled);
+        source.sendSuccess(() -> Component.literal("Захват точек " + (enabled ? "включён" : "выключен")), true);
+        return 1;
+    }
+
+    private static int capturePointStatus(CommandSourceStack source) {
+        boolean enabled = Config.isCapturePointsEnabled();
+        boolean schedule = Config.isCapturePointScheduleEnabled();
+        int windowCount = Config.getCapturePointScheduleWindows().size();
+        source.sendSuccess(() -> Component.literal("Захват точек: " + (enabled ? "включён" : "выключен")
+                + " | расписание: " + (schedule ? "вкл (окон: " + windowCount + ")" : "выкл")), false);
+        return 1;
+    }
+
+    private static int capturePointScheduleToggle(CommandSourceStack source, boolean on) {
+        Config.setCapturePointScheduleEnabled(on);
+        source.sendSuccess(() -> Component.literal("Расписание захвата " + (on ? "включено" : "выключено")), true);
+        return 1;
+    }
+
+    private static int capturePointScheduleAdd(CommandSourceStack source, int startHour, int startMinute, int endHour, int endMinute) {
+        Config.addCapturePointScheduleWindow(startHour, startMinute, endHour, endMinute);
+        Config.setCapturePointScheduleEnabled(true);
+        source.sendSuccess(() -> Component.literal("Добавлено окно расписания: " + formatHm(startHour, startMinute)
+                + "–" + formatHm(endHour, endMinute)), true);
+        return 1;
+    }
+
+    private static String formatHm(int hour, int minute) {
+        return String.format("%02d:%02d", hour, minute);
+    }
+
+    private static int capturePointScheduleRemove(CommandSourceStack source, int index) {
+        if (!Config.removeCapturePointScheduleWindow(index)) {
+            source.sendFailure(Component.literal("Окно расписания с индексом " + index + " не найдено"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Удалено окно расписания #" + index), true);
+        return 1;
+    }
+
+    private static int capturePointScheduleClear(CommandSourceStack source) {
+        Config.clearCapturePointScheduleWindows();
+        source.sendSuccess(() -> Component.literal("Расписание захвата очищено"), true);
+        return 1;
+    }
+
+    private static int capturePointScheduleList(CommandSourceStack source) {
+        List<Config.ScheduleWindow> windows = Config.getCapturePointScheduleWindows();
+        boolean enabled = Config.isCapturePointScheduleEnabled();
+        source.sendSuccess(() -> Component.literal("Расписание захвата: " + (enabled ? "включено" : "выключено")
+                + ", окон: " + windows.size()), false);
+        for (int i = 0; i < windows.size(); i++) {
+            Config.ScheduleWindow w = windows.get(i);
+            int idx = i;
+            source.sendSuccess(() -> Component.literal(" [" + idx + "] " + formatHm(w.startHour(), w.startMinute())
+                    + "–" + formatHm(w.endHour(), w.endMinute())), false);
+        }
+        return windows.size();
     }
 
     private static int capturePointAdd(CommandSourceStack source, String id, @Nullable String displayName) {
@@ -1243,7 +1467,7 @@ public final class PjmCommands {
             String owner = entry.ownerTeamId.isEmpty() ? "нейтрально" : entry.ownerTeamId;
             String status = entry.captureTeamId.isEmpty() ? "" : " [захват: " + entry.captureTeamId + "]";
             source.sendSuccess(() -> Component.literal(" - " + entry.id + " (" + entry.displayName + ")"
-                    + " | " + entry.dimension + " | вершин: " + entry.vertices.size()
+                    + " | order: " + entry.order + " | " + entry.dimension + " | вершин: " + entry.vertices.size()
                     + " | владелец: " + owner + status), false);
             count++;
         }
@@ -1261,6 +1485,17 @@ public final class PjmCommands {
         CapturePointManager.broadcastMapSync(source.getServer(), data, "capturepoint_owner_set");
         String ownerLabel = owner.isEmpty() ? "нейтрально" : owner;
         source.sendSuccess(() -> Component.literal("Владелец точки '" + id + "' = " + ownerLabel), true);
+        return 1;
+    }
+
+    private static int capturePointSetOrder(CommandSourceStack source, String id, int order) {
+        CapturePointSavedData data = CapturePointSavedData.get(source.getServer());
+        if (!data.setOrder(id, order)) {
+            source.sendFailure(Component.literal("Точка захвата '" + id + "' не найдена"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Порядок точки '" + id + "' = " + order
+                + " (последовательный захват: базы концов задай через setowner)"), true);
         return 1;
     }
 

@@ -9,6 +9,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
 import ru.liko.pjmbasemod.common.garage.GarageType;
 import software.bernie.geckolib.animatable.GeoEntity;
@@ -33,6 +34,10 @@ public class NotebookEntity extends Entity implements GeoEntity {
 
     @Nullable
     private UUID ownerId;
+
+    /** Якорная позиция: куда сущность возвращается, если её сдвинули (взрыв, wind charge, крючок). */
+    @Nullable
+    private Vec3 anchor;
 
     /** Тип гаража, который открывает этот терминал (наземка/авиация). */
     private GarageType garageType = GarageType.GROUND;
@@ -67,10 +72,14 @@ public class NotebookEntity extends Entity implements GeoEntity {
 
     @Override
     public void tick() {
-        // Замораживаем сущность: не даем физике/гравитации двигать или вращать ноутбук
+        // Первый тик фиксирует якорь (позиция размещения/загрузки). Далее любой сдвиг
+        // (взрыв, wind charge, крючок, поршень) откатывается — иначе "заморозка" на месте
+        // просто закрепляла бы сущность там, куда её толкнули.
+        if (anchor == null) anchor = position();
         this.setDeltaMovement(0, 0, 0);
-        // Фиксируем позицию (пересчитываем boundingBox на случай если что-то сдвинуло)
-        this.setPos(this.getX(), this.getY(), this.getZ());
+        if (getX() != anchor.x || getY() != anchor.y || getZ() != anchor.z) {
+            this.setPos(anchor.x, anchor.y, anchor.z);
+        }
         super.tick();
     }
 

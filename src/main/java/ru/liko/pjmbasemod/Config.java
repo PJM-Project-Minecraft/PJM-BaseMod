@@ -4,11 +4,14 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.neoforged.fml.loading.FMLPaths;
 
+import javax.annotation.Nullable;
+
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -95,6 +98,7 @@ public final class Config {
 
     public static boolean isSquadHud()                { return data().hud.squadHud; }
     public static boolean isDebug()                   { return data().general.debug; }
+    public static boolean isWelcomeGuideEnabled()     { return data().general.welcomeGuideEnabled; }
     public static boolean isDisableHunger()           { return data().hud.disableHunger; }
     public static boolean isDisableArmor()            { return data().hud.hideArmorBar; }
     public static long    getItemSwitchDisplayTime()  { return data().hud.itemSwitchDisplayMs; }
@@ -112,6 +116,7 @@ public final class Config {
     public static int getFactionOrderMaxLength()         { return data().faction.orderMaxLength; }
     public static int getFactionOrderDefaultTtlMinutes() { return data().faction.orderDefaultTtlMinutes; }
     public static int getFactionOrderMaxTtlMinutes()     { return data().faction.orderMaxTtlMinutes; }
+    public static int getFactionInviteTtlMinutes()       { return data().faction.inviteTtlMinutes; }
     public static boolean isAntiGriefEnabled()           { return data().antigrief.enabled; }
     public static boolean isAntiGriefExemptCreative()    { return data().antigrief.exemptCreative; }
     public static int getAntiGriefBypassPermissionLevel(){ return data().antigrief.bypassPermissionLevel; }
@@ -122,10 +127,31 @@ public final class Config {
     public static int     getBaseZoneCountdownSeconds() { return data().baseZone.countdownSeconds; }
     public static boolean isBaseZoneBlockExplosions()   { return data().baseZone.blockExplosions; }
 
+    public static boolean isNightDarknessEnabled()      { return data().nightDarkness.enabled; }
+    public static double  getNightDarknessIntensity()   { return data().nightDarkness.intensity; }
+
     public static boolean isEventsEnabled()                 { return data().events.enabled; }
     public static int     getEventsMinIntervalMinutes()     { return data().events.minIntervalMinutes; }
     public static int     getEventsMaxIntervalMinutes()     { return data().events.maxIntervalMinutes; }
     public static boolean isEventsRequireCaptureInactive()  { return data().events.requireCaptureInactive; }
+    public static int     getEventsStartDelaySeconds()      { return data().events.startDelaySeconds; }
+    public static double  getEventsSpawnChance()            { return data().events.spawnChance; }
+
+    /** Веса типов событий для случайного выбора. Пустая карта = все типы равновероятны. */
+    public static Map<String, Double> getEventTypeWeights() {
+        Map<String, Double> weights = data().events.typeWeights;
+        return weights == null ? Map.of() : weights;
+    }
+
+    public static int getWeaponsMaxPrimary()        { return data().weapons.maxPrimary; }
+    public static int getWeaponsMaxSecondary()      { return data().weapons.maxSecondary; }
+    public static int getWeaponsMaxSuperbWarfare()  { return data().weapons.maxSuperbWarfare; }
+
+    /** Является ли тип ствола TACZ вторичным (см. {@link Weapons#secondaryGunTypes}). */
+    public static boolean isSecondaryGunType(String gunType) {
+        if (gunType == null || gunType.isBlank()) return false;
+        return data().weapons.secondaryGunTypes.contains(gunType.trim().toLowerCase(Locale.ROOT));
+    }
 
     public static boolean isCapturePointsEnabled()          { return data().capturePoints.enabled; }
     public static int     getCapturePointCaptureTimeSeconds() { return data().capturePoints.captureTimeSeconds; }
@@ -133,10 +159,81 @@ public final class Config {
     public static int     getCapturePointTickIntervalTicks()   { return data().capturePoints.tickIntervalTicks; }
     public static int     getCapturePointMinAdvantage()        { return data().capturePoints.minAdvantage; }
     public static boolean isCapturePointContestedFreeze()      { return data().capturePoints.contestedFreeze; }
+    public static boolean isCapturePointSequential()           { return data().capturePoints.sequential; }
     public static boolean isCapturePointJourneyMapEnabled()    { return data().capturePoints.journeymapEnabled; }
     public static int     getCapturePointJourneyMapFillAlpha()   { return data().capturePoints.journeymapFillAlpha; }
     public static int     getCapturePointJourneyMapBorderAlpha() { return data().capturePoints.journeymapBorderAlpha; }
     public static int     getCapturePointJourneyMapNeutralColorRgb() { return data().capturePoints.journeymapNeutralColorRgb; }
+    public static boolean isCapturePointScheduleEnabled()      { return data().capturePoints.scheduleEnabled; }
+    public static boolean isCapturePointIncomeEnabled()        { return data().capturePoints.incomeEnabled; }
+    public static int     getCapturePointIncomePerPointPerMinute() { return data().capturePoints.incomePerPointPerMinute; }
+
+    /** Склад команды, куда капает доход с точек. Ключ — id команды. */
+    public static Map<String, String> getCapturePointWarehouseByTeam() {
+        Map<String, String> map = data().capturePoints.warehouseByTeam;
+        return map == null ? Map.of() : map;
+    }
+
+    /** Окна расписания захвата в неизменяемом виде (внутренняя модель наружу не отдаётся). */
+    public static List<ScheduleWindow> getCapturePointScheduleWindows() {
+        List<ScheduleWindow> result = new ArrayList<>();
+        for (ScheduleWindowData w : data().capturePoints.scheduleWindows) {
+            result.add(new ScheduleWindow(w.startHour, w.startMinute, w.endHour, w.endMinute));
+        }
+        return result;
+    }
+
+    // Сеттеры пишут файл сразу: правки приходят из команд/веб-панели, а не из редактирования JSON
+
+    public static synchronized void setCapturePointsEnabled(boolean enabled) {
+        data().capturePoints.enabled = enabled;
+        persist();
+    }
+
+    public static synchronized void setCapturePointScheduleEnabled(boolean enabled) {
+        data().capturePoints.scheduleEnabled = enabled;
+        persist();
+    }
+
+    @Nullable
+    public static Boolean getCapturePointScheduleLastState() { return data().capturePoints.scheduleLastState; }
+
+    public static synchronized void setCapturePointScheduleLastState(boolean state) {
+        data().capturePoints.scheduleLastState = state;
+        persist();
+    }
+
+    public static synchronized void addCapturePointScheduleWindow(int startHour, int startMinute, int endHour, int endMinute) {
+        ScheduleWindowData w = new ScheduleWindowData();
+        w.startHour = startHour;
+        w.startMinute = startMinute;
+        w.endHour = endHour;
+        w.endMinute = endMinute;
+        w.normalize();
+        data().capturePoints.scheduleWindows.add(w);
+        persist();
+    }
+
+    public static synchronized boolean removeCapturePointScheduleWindow(int index) {
+        List<ScheduleWindowData> windows = data().capturePoints.scheduleWindows;
+        if (index < 0 || index >= windows.size()) return false;
+        windows.remove(index);
+        persist();
+        return true;
+    }
+
+    public static synchronized void clearCapturePointScheduleWindows() {
+        data().capturePoints.scheduleWindows.clear();
+        persist();
+    }
+
+    private static void persist() {
+        try {
+            write(file(), data);
+        } catch (Exception e) {
+            Pjmbasemod.LOGGER.error("Config: не удалось сохранить {}", file(), e);
+        }
+    }
 
     public static boolean isModerationOverrideVanilla()      { return data().moderation.overrideVanillaCommands; }
     public static int  getModerationDefaultTempBanMinutes()  { return data().moderation.defaultTempBanMinutes; }
@@ -159,6 +256,15 @@ public final class Config {
         return parseTeams(data().teams.definitions);
     }
 
+    /** Фракция «по приглашению»: вступить может только приглашённый игрок. */
+    public static boolean isTeamInviteOnly(String teamId) {
+        if (teamId == null || teamId.isBlank()) return false;
+        for (String raw : data().teams.inviteOnly) {
+            if (raw != null && sanitizeId(raw).equalsIgnoreCase(teamId.trim())) return true;
+        }
+        return false;
+    }
+
     public static boolean isTeamBalancerEnabled()      { return data().teams.balancer.enabled; }
     public static int     getTeamBalancerMaxShare()    { return data().teams.balancer.maxSharePercent; }
     public static int     getTeamBalancerMinPlayers()  { return data().teams.balancer.minPlayers; }
@@ -175,6 +281,7 @@ public final class Config {
         if (teams.isEmpty()) {
             teams.add(new ConfiguredTeam("team1"));
             teams.add(new ConfiguredTeam("team2"));
+            teams.add(new ConfiguredTeam("team3"));
         }
         return List.copyOf(teams);
     }
@@ -270,9 +377,11 @@ public final class Config {
         Web web = new Web();
         Logging logging = new Logging();
         BaseZone baseZone = new BaseZone();
+        NightDarkness nightDarkness = new NightDarkness();
         Commands commands = new Commands();
         Events events = new Events();
         CapturePoints capturePoints = new CapturePoints();
+        Weapons weapons = new Weapons();
 
         /** Заменяет null-секции дефолтами и зажимает числовые значения в допустимые диапазоны. */
         void normalize() {
@@ -293,6 +402,7 @@ public final class Config {
             faction.orderMaxLength = clamp(faction.orderMaxLength, 1, 256);
             faction.orderMaxTtlMinutes = clamp(faction.orderMaxTtlMinutes, 0, 10_080);
             faction.orderDefaultTtlMinutes = clamp(faction.orderDefaultTtlMinutes, 0, faction.orderMaxTtlMinutes);
+            faction.inviteTtlMinutes = clamp(faction.inviteTtlMinutes, 0, 43_200);
             if (antigrief == null) antigrief = new AntiGrief();
             antigrief.bypassPermissionLevel = clamp(antigrief.bypassPermissionLevel, 0, 4);
             if (antigrief.allowedBreakBlocks == null) antigrief.allowedBreakBlocks = new ArrayList<>();
@@ -312,16 +422,25 @@ public final class Config {
             if (logging == null) logging = new Logging();
             if (baseZone == null) baseZone = new BaseZone();
             baseZone.countdownSeconds = clamp(baseZone.countdownSeconds, 1, 60);
+            if (nightDarkness == null) nightDarkness = new NightDarkness();
+            nightDarkness.intensity = nightDarkness.intensity < 0.0 ? 0.0 : Math.min(nightDarkness.intensity, 1.0);
             if (commands == null) commands = new Commands();
             if (events == null) events = new Events();
             events.minIntervalMinutes = clamp(events.minIntervalMinutes, 1, 10_080);
             events.maxIntervalMinutes = clamp(events.maxIntervalMinutes, events.minIntervalMinutes, 10_080);
+            events.startDelaySeconds = clamp(events.startDelaySeconds, 0, 3600);
+            events.spawnChance = events.spawnChance < 0.0 ? 0.0 : Math.min(events.spawnChance, 1.0);
+            if (events.typeWeights == null) events.typeWeights = new LinkedHashMap<>();
 
             if (capturePoints == null) capturePoints = new CapturePoints();
             capturePoints.normalize();
 
+            if (weapons == null) weapons = new Weapons();
+            weapons.normalize();
+
             if (teams.definitions == null) teams.definitions = new ArrayList<>();
             if (teams.joinCommands == null) teams.joinCommands = new ArrayList<>();
+            if (teams.inviteOnly == null) teams.inviteOnly = new ArrayList<>();
             if (teams.balancer == null) teams.balancer = new Balancer();
             teams.balancer.maxSharePercent = clamp(teams.balancer.maxSharePercent, 50, 100);
             teams.balancer.minPlayers = clamp(teams.balancer.minPlayers, 0, 256);
@@ -333,6 +452,8 @@ public final class Config {
 
     static final class General {
         boolean debug = false;
+        /** Показывать анимированное руководство по серверу при входе игрока (клиентский экран). */
+        boolean welcomeGuideEnabled = true;
     }
 
     static final class Hud {
@@ -343,7 +464,9 @@ public final class Config {
     }
 
     static final class Teams {
-        List<String> definitions = new ArrayList<>(List.of("team1", "team2"));
+        List<String> definitions = new ArrayList<>(List.of("team1", "team2", "team3"));
+        /** id фракций, вступление в которые возможно только по приглашению. */
+        List<String> inviteOnly = new ArrayList<>();
         List<String> joinCommands = new ArrayList<>();
         Balancer balancer = new Balancer();
     }
@@ -382,6 +505,8 @@ public final class Config {
         int orderMaxLength = 120;
         int orderDefaultTtlMinutes = 30;
         int orderMaxTtlMinutes = 240;
+        /** Срок жизни приглашения в закрытую фракцию, минуты; 0 = бессрочно. */
+        int inviteTtlMinutes = 1440;
     }
 
     /**
@@ -454,8 +579,42 @@ public final class Config {
         boolean blockExplosions = true;
     }
 
+    /**
+     * «True Darkness»: ночью небесный свет не освещает мир (см. {@code mixin/LightTextureMixin}).
+     * {@code intensity} — глубина затемнения в глухую ночь: 1.0 = только блочный свет,
+     * 0.5 = вдвое темнее ванили, 0.0 = ваниль.
+     */
+    static final class NightDarkness {
+        boolean enabled = true;
+        double intensity = 1.0;
+    }
+
     static final class Commands {
         List<String> startup = new ArrayList<>();
+    }
+
+    static final class Weapons {
+        /**
+         * Типы TACZ, считающиеся вторичным оружием — их можно носить вдобавок к основному.
+         * Тип берётся из индекса ганпака ({@code CommonGunIndex.getType()}): pistol, smg, rifle,
+         * sniper, shotgun, rpg, mg. Всё, чего нет в этом списке, — основное оружие.
+         */
+        List<String> secondaryGunTypes = new ArrayList<>(List.of("pistol", "smg"));
+        /** Сколько основных стволов TACZ можно нести. */
+        int maxPrimary = 1;
+        /** Сколько вторичных стволов TACZ можно нести. */
+        int maxSecondary = 1;
+        /** Сколько стволов SuperbWarfare можно нести (у SBW типов нет — общий лимит). */
+        int maxSuperbWarfare = 1;
+
+        void normalize() {
+            if (secondaryGunTypes == null) secondaryGunTypes = new ArrayList<>();
+            secondaryGunTypes.replaceAll(type -> type == null ? "" : type.trim().toLowerCase(Locale.ROOT));
+            secondaryGunTypes.removeIf(String::isBlank);
+            maxPrimary = clamp(maxPrimary, 0, 64);
+            maxSecondary = clamp(maxSecondary, 0, 64);
+            maxSuperbWarfare = clamp(maxSuperbWarfare, 0, 64);
+        }
     }
 
     static final class Events {
@@ -465,28 +624,74 @@ public final class Config {
         int maxIntervalMinutes = 180;
         /** Автозапуск только когда захват фронтлайна неактивен. */
         boolean requireCaptureInactive = true;
+        /** Задержка между анонсом события и его фактическим стартом. */
+        int startDelaySeconds = 300;
+        /** Вероятность того, что подошедший по таймеру запуск действительно состоится. */
+        double spawnChance = 1.0;
+        /** Веса типов событий при случайном выборе: id типа → вес. */
+        Map<String, Double> typeWeights = new LinkedHashMap<>(Map.of("drone_raid", 1.0, "signal_hunt", 1.0));
     }
 
     static final class CapturePoints {
         boolean enabled = true;
-        int captureTimeSeconds = 45;
+        int captureTimeSeconds = 300;
         int decayTimeSeconds = 30;
         int tickIntervalTicks = 20;
         int minAdvantage = 1;
         boolean contestedFreeze = true;
+        /** Точки захватываются строго по цепочке, а не в произвольном порядке. */
+        boolean sequential = true;
         boolean journeymapEnabled = true;
         int journeymapFillAlpha = 96;
         int journeymapBorderAlpha = 220;
         int journeymapNeutralColorRgb = 0x9B9B9B;
+        /** Захват разрешён только внутри окон {@link #scheduleWindows}. */
+        boolean scheduleEnabled = false;
+        /**
+         * Последнее применённое расписанием состояние (null — ещё не оценивалось).
+         * Переживает рестарт, чтобы ручной enable/disable не перебивался расписанием
+         * заново при каждом перезапуске сервера внутри того же окна.
+         */
+        Boolean scheduleLastState;
+        List<ScheduleWindowData> scheduleWindows = new ArrayList<>();
+        /** Начисление дохода команде за удерживаемые точки. */
+        boolean incomeEnabled = true;
+        int incomePerPointPerMinute = 10;
+        /** Склад-получатель дохода по командам: id команды → id склада. */
+        Map<String, String> warehouseByTeam = new LinkedHashMap<>();
 
         void normalize() {
             captureTimeSeconds = clamp(captureTimeSeconds, 5, 3600);
             decayTimeSeconds = clamp(decayTimeSeconds, 1, 3600);
             tickIntervalTicks = clamp(tickIntervalTicks, 1, 200);
             minAdvantage = clamp(minAdvantage, 1, 64);
+            incomePerPointPerMinute = clamp(incomePerPointPerMinute, 0, 10000);
+            if (warehouseByTeam == null) warehouseByTeam = new LinkedHashMap<>();
             journeymapFillAlpha = clamp(journeymapFillAlpha, 0, 255);
             journeymapBorderAlpha = clamp(journeymapBorderAlpha, 0, 255);
             journeymapNeutralColorRgb = clamp(journeymapNeutralColorRgb, 0, 0xFFFFFF);
+            if (scheduleWindows == null) scheduleWindows = new ArrayList<>();
+            for (ScheduleWindowData w : scheduleWindows) w.normalize();
+        }
+    }
+
+    /** Окно расписания захвата, отдаётся наружу вместо внутренней модели. */
+    public record ScheduleWindow(int startHour, int startMinute, int endHour, int endMinute) {
+        public int startTotalMinutes() { return startHour * 60 + startMinute; }
+        public int endTotalMinutes()   { return endHour * 60 + endMinute; }
+    }
+
+    static final class ScheduleWindowData {
+        int startHour = 18;
+        int startMinute = 0;
+        int endHour = 23;
+        int endMinute = 0;
+
+        void normalize() {
+            startHour = clamp(startHour, 0, 23);
+            startMinute = clamp(startMinute, 0, 59);
+            endHour = clamp(endHour, 0, 23);
+            endMinute = clamp(endMinute, 0, 59);
         }
     }
 }

@@ -12,6 +12,8 @@ import ru.liko.pjmbasemod.common.network.packet.CapturePointEditorActionPacket;
 import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
 import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.teams.Teams;
+import ru.liko.pjmbasemod.common.warehouse.WarehousePoolCategory;
+import ru.liko.pjmbasemod.common.warehouse.WarehouseSavedData;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
@@ -29,7 +31,11 @@ import java.util.Map;
  */
 public final class CapturePointManager {
 
+    /** Серверных тиков в минуте — период начисления пассивного дохода складам. */
+    private static final int MINUTE_TICKS = 20 * 60;
+
     private static int tickCounter;
+    private static int incomeTickCounter;
     private static volatile long mapSyncRevision;
     private static volatile long lastMapSyncAtMs;
     private static volatile String lastMapSyncReason = "startup";
@@ -37,7 +43,10 @@ public final class CapturePointManager {
     private CapturePointManager() {}
 
     public static void onServerTick(MinecraftServer server) {
-        if (server == null || !Config.isCapturePointsEnabled()) return;
+        if (server == null) return;
+        evaluateSchedule(server);
+        if (!Config.isCapturePointsEnabled()) return;
+        tickIncome(server);
         int interval = Math.max(1, Config.getCapturePointTickIntervalTicks());
         tickCounter++;
         if (tickCounter % interval != 0) return;
@@ -59,6 +68,12 @@ public final class CapturePointManager {
             contestedFlags.put(entry.id, teamsInside);
 
             String leader = leader(teamCounts, minAdvantage);
+            // Последовательный захват: атакующий (не владелец) может брать точку,
+            // только владея order-соседней точкой на линии фронта. Иначе — гейт.
+            if (leader != null && !leader.equals(entry.ownerTeamId)
+                    && Config.isCapturePointSequential() && !canAttack(data, entry, leader)) {
+                leader = null;
+            }
             boolean changed = applyTick(entry, leader, teamsInside >= 2, contestedFreeze, interval, decayTicks, requiredTicks);
             if (changed) {
                 anyChanged = true;
@@ -73,6 +88,100 @@ public final class CapturePointManager {
         if (anyChanged) {
             data.setDirty();
             broadcastMapSync(server, data, "capturepoint_data_changed");
+        }
+    }
+
+    /**
+     * Пассивный доход складов с удерживаемых точек: раз в минуту каждая команда получает
+     * {@code incomePerPointPerMinute} очков пула {@code SUPPLY} за каждую свою точку.
+     * Склад команды берётся из карты {@code capturePoints.warehouseByTeam} (teamId → warehouseId);
+     * команда без записи в карте дохода не получает. Начисляется только при активном захвате
+     * (вызов стоит после гейта {@code enabled}) — в межсезонье склады не капают.
+     */
+    private static void tickIncome(MinecraftServer server) {
+        if (!Config.isCapturePointIncomeEnabled()) return;
+        int perPoint = Config.getCapturePointIncomePerPointPerMinute();
+        if (perPoint <= 0) return;
+        Map<String, String> warehouseByTeam = Config.getCapturePointWarehouseByTeam();
+        if (warehouseByTeam.isEmpty()) return;
+        if (++incomeTickCounter < MINUTE_TICKS) return;
+        incomeTickCounter = 0;
+
+        Map<String, Integer> pointsOwned = new LinkedHashMap<>();
+        for (CapturePointSavedData.Entry entry : CapturePointSavedData.get(server).entries()) {
+            if (!entry.ownerTeamId.isEmpty()) pointsOwned.merge(entry.ownerTeamId, 1, Integer::sum);
+        }
+        if (pointsOwned.isEmpty()) return;
+
+        WarehouseSavedData stock = WarehouseSavedData.get(server);
+        for (Map.Entry<String, Integer> owned : pointsOwned.entrySet()) {
+            String warehouseId = warehouseByTeam.get(owned.getKey());
+            if (warehouseId == null || warehouseId.isBlank()) continue;
+            // addPoints создаёт склад, если его ещё нет — как и приёмка ящиков (WarehouseManager.depositCrate).
+            stock.addPoints(warehouseId, WarehousePoolCategory.SUPPLY, owned.getValue() * perPoint);
+        }
+    }
+
+    /**
+     * Автопереключение {@code capturePoints.enabled} по расписанию (час:минута, серверное
+     * локальное время). Реагирует только на смену состояния окна — ручной {@code /pjm
+     * capturepoint enable|disable} не перебивается до следующей границы окна.
+     */
+    private static void evaluateSchedule(MinecraftServer server) {
+        if (!Config.isCapturePointScheduleEnabled()) return;
+        List<Config.ScheduleWindow> windows = Config.getCapturePointScheduleWindows();
+        if (windows.isEmpty()) return;
+        java.time.LocalTime now = java.time.LocalTime.now();
+        int nowMinutes = now.getHour() * 60 + now.getMinute();
+        boolean shouldBeActive = false;
+        for (Config.ScheduleWindow w : windows) {
+            if (withinScheduleWindow(nowMinutes, w.startTotalMinutes(), w.endTotalMinutes())) {
+                shouldBeActive = true;
+                break;
+            }
+        }
+        // Состояние окна хранится в конфиге, а не в памяти: иначе рестарт сервера внутри
+        // окна сбрасывал бы его и расписание перебивало бы ручной enable/disable заново.
+        Boolean previous = Config.getCapturePointScheduleLastState();
+        if (previous != null && previous == shouldBeActive) return;
+        Config.setCapturePointScheduleLastState(shouldBeActive);
+        if (Config.isCapturePointsEnabled() == shouldBeActive) return;
+
+        setEnabled(server, shouldBeActive);
+        Component title = Component.literal("Точки захвата");
+        Component subtitle = Component.literal(shouldBeActive ? "Захват включён по расписанию" : "Захват выключен по расписанию");
+        PjmNetworking.sendToAll(server, new NotificationPacket(title, subtitle, shouldBeActive ? 0x4CAF50 : 0x9B9B9B, 4000));
+    }
+
+    /** @param nowMinutes, startMinutes, endMinutes — минуты от полуночи (0-1439). */
+    private static boolean withinScheduleWindow(int nowMinutes, int startMinutes, int endMinutes) {
+        if (startMinutes == endMinutes) return true;
+        if (startMinutes < endMinutes) return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+        return nowMinutes >= startMinutes || nowMinutes < endMinutes;
+    }
+
+    /**
+     * Вкл/выкл всей подсистемы захвата (команда или расписание). При выключении разом
+     * очищает HUD у всех игроков — иначе тик-цикл встаёт и последний HUD-пакет
+     * «зависает» у игрока, стоявшего в точке (см. {@link #onServerTick}). Также сразу
+     * пушит карту: при выключении — пустую (иначе оверлей JourneyMap держит устаревшие
+     * точки), при включении — актуальные точки (иначе они появятся лишь на первом
+     * изменившемся тике).
+     */
+    public static void setEnabled(MinecraftServer server, boolean enabled) {
+        if (Config.isCapturePointsEnabled() == enabled) return;
+        Config.setCapturePointsEnabled(enabled);
+        if (server == null) return;
+        if (enabled) {
+            broadcastMapSync(server, CapturePointSavedData.get(server), "enabled");
+        } else {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                PjmNetworking.sendToPlayer(player, CapturePointHudPacket.empty());
+            }
+            PjmNetworking.sendToAll(server, new CapturePointMapSyncPacket(List.of()));
+            mapSyncRevision++;
+            lastMapSyncAtMs = System.currentTimeMillis();
+            lastMapSyncReason = "disabled";
         }
     }
 
@@ -104,7 +213,7 @@ public final class CapturePointManager {
         Map<String, Integer> counts = new HashMap<>();
         if (entry.vertices.size() < 3) return counts;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (!player.isAlive() || player.isSpectator()) continue;
+            if (!player.isAlive() || player.isSpectator() || player.isCreative()) continue;
             if (!entry.dimension.equals(player.serverLevel().dimension().location().toString())) continue;
             String teamId = Teams.resolvePlayerTeamId(player);
             if (teamId == null || teamId.isBlank()) continue;
@@ -114,6 +223,26 @@ public final class CapturePointManager {
             }
         }
         return counts;
+    }
+
+    /**
+     * Гейт последовательного захвата: команда может брать {@code target}, только если владеет
+     * непосредственно order-соседней точкой (prev или next) в том же измерении. Концы линии
+     * (базы) заранее назначаются через {@code /pjm capturepoint setowner} — так цепочка стартует.
+     * Если у точки нет строгих соседей по order (все order равны, напр. неразмеченные) — гейт
+     * не применяется (поведение как у обычного KoTH).
+     * ponytail: naive O(n) на точку, O(n²) на тик — точек единицы, не оптимизирую.
+     */
+    private static boolean canAttack(CapturePointSavedData data, CapturePointSavedData.Entry target, String team) {
+        CapturePointSavedData.Entry prev = null, next = null;
+        for (CapturePointSavedData.Entry e : data.entries()) {
+            if (e == target || !e.dimension.equals(target.dimension)) continue;
+            if (e.order < target.order && (prev == null || e.order > prev.order)) prev = e;
+            if (e.order > target.order && (next == null || e.order < next.order)) next = e;
+        }
+        if (prev == null && next == null) return true;
+        return (prev != null && team.equals(prev.ownerTeamId))
+                || (next != null && team.equals(next.ownerTeamId));
     }
 
     @Nullable
@@ -195,6 +324,10 @@ public final class CapturePointManager {
     }
 
     private static void sendHud(MinecraftServer server, ServerPlayer player, CapturePointSavedData data, int requiredTicks) {
+        if (player.isSpectator() || player.isCreative()) {
+            PjmNetworking.sendToPlayer(player, CapturePointHudPacket.empty());
+            return;
+        }
         String dim = player.serverLevel().dimension().location().toString();
         Vec3 pos = player.position();
         int blockX = (int) Math.floor(pos.x);

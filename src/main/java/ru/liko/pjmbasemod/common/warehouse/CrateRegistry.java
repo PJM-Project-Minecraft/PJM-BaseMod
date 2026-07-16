@@ -93,11 +93,11 @@ public final class CrateRegistry {
 
     private List<CrateDefinition> exampleDefinitions() {
         return List.of(
-                new CrateDefinition("weapon_crate", WarehousePoolCategory.WEAPON, 3),
+                new CrateDefinition("weapon_crate", WarehousePoolCategory.SUPPLY, 3),
                 new CrateDefinition("supply_crate", WarehousePoolCategory.SUPPLY, 5),
-                new CrateDefinition("equipment_crate", WarehousePoolCategory.EQUIPMENT, 4),
+                new CrateDefinition("equipment_crate", WarehousePoolCategory.SUPPLY, 4),
                 new CrateDefinition("raw_crate", WarehousePoolCategory.RAW, 5),
-                new CrateDefinition("special_crate", WarehousePoolCategory.SPECIAL, 2));
+                new CrateDefinition("special_crate", WarehousePoolCategory.SUPPLY, 2));
     }
 
     private void writeMissingExamples(Path dir) {

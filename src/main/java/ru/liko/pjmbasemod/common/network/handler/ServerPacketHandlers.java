@@ -23,6 +23,7 @@ import ru.liko.pjmbasemod.common.network.packet.OpenModerationPacket;
 import ru.liko.pjmbasemod.common.network.packet.RequestModerationPacket;
 import ru.liko.pjmbasemod.common.network.packet.HudConfigPacket;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionDeputyPacket;
+import ru.liko.pjmbasemod.common.network.packet.ManageFactionInvitePacket;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionRolePacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioSwitchPacket;
 import ru.liko.pjmbasemod.common.network.packet.RequestFactionManagementPacket;
@@ -106,6 +107,11 @@ public final class ServerPacketHandlers {
     public static void handleManageFactionDeputy(ManageFactionDeputyPacket p, ServerPlayer player) {
         if (player == null) return;
         FactionMenuService.handleManageDeputy(player, p.targetId(), p.deputy(), p.perms());
+    }
+
+    public static void handleManageFactionInvite(ManageFactionInvitePacket p, ServerPlayer player) {
+        if (player == null) return;
+        FactionMenuService.handleManageInvite(player, p.playerName(), p.invite());
     }
 
     public static void handleSetFactionOrder(SetFactionOrderPacket p, ServerPlayer player) {

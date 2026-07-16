@@ -21,10 +21,10 @@ import ru.liko.pjmbasemod.common.network.packet.CapturePointHudPacket;
  */
 public final class CapturePointHudOverlay {
 
-    private static final int BAR_HEIGHT_IDLE = 24;
-    private static final int BAR_HEIGHT_PROGRESS = 42;
-    private static final int BAR_WIDTH = 200;
-    private static final int BAR_Y = 8;
+    private static final int BAR_HEIGHT_IDLE = 16;
+    private static final int BAR_HEIGHT_PROGRESS = 30;
+    private static final int BAR_WIDTH = 160;
+    private static final int BAR_Y = 76;
 
     private static final int NEUTRAL_ACCENT = 0xFF9AA0A6;
     private static final int TITLE_COLOR = 0xFFDDDDDD;
@@ -41,18 +41,19 @@ public final class CapturePointHudOverlay {
 
     private static void render(GuiGraphics g, DeltaTracker deltaTracker) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.options.hideGui || mc.screen != null) {
-            fadeOut();
-            return;
-        }
-
-        CapturePointHudPacket hud = ClientCapturePointState.hud();
         long now = System.currentTimeMillis();
         float dt = Math.min(0.1f, (now - lastFrameTime) / 1000f);
         lastFrameTime = now;
 
+        if (mc.player == null || mc.options.hideGui || mc.screen != null) {
+            fadeOut(dt);
+            return;
+        }
+
+        CapturePointHudPacket hud = ClientCapturePointState.hud();
+
         if (hud == null) {
-            fadeOut();
+            fadeOut(dt);
             if (animAlpha > 0.01f) {
                 drawBar(g, mc.font, null, (int) animHeight, animAlpha, deltaTracker);
             }
@@ -67,10 +68,7 @@ public final class CapturePointHudOverlay {
         drawBar(g, mc.font, hud, (int) animHeight, animAlpha, deltaTracker);
     }
 
-    private static void fadeOut() {
-        long now = System.currentTimeMillis();
-        float dt = Math.min(0.1f, (now - lastFrameTime) / 1000f);
-        lastFrameTime = now;
+    private static void fadeOut(float dt) {
         animHeight = Math.max(BAR_HEIGHT_IDLE, animHeight - 60f * dt);
         animAlpha = Math.max(0f, animAlpha - 6f * dt);
     }
@@ -111,7 +109,7 @@ public final class CapturePointHudOverlay {
             // Имя точки + владелец
             String ownerText = hud.ownerTeamName().isEmpty() ? "нейтрально" : hud.ownerTeamName();
             String line1 = hud.pointName() + " · " + ownerText;
-            g.drawCenteredString(font, line1, screenWidth / 2, y + 6, withAlpha(TITLE_COLOR, a));
+            g.drawCenteredString(font, line1, screenWidth / 2, y + 3, withAlpha(TITLE_COLOR, a));
 
             if (height >= BAR_HEIGHT_PROGRESS - 2) {
                 // Состояние — цвет из scoreboard team (ownerColor/captureColor из пакета)
@@ -127,17 +125,17 @@ public final class CapturePointHudOverlay {
                     state = "Под контролем";
                     stateBase = hud.ownerColor() == 0 ? NEUTRAL_ACCENT : hud.ownerColor();
                 }
-                g.drawCenteredString(font, state, screenWidth / 2, y + 16, withAlpha(stateBase, a));
+                g.drawCenteredString(font, state, screenWidth / 2, y + 13, withAlpha(stateBase, a));
 
                 // Процент справа от состояния
                 String pct = hud.progressPercent() + "%";
-                g.drawString(font, pct, right - 6 - font.width(pct), y + 16, withAlpha(PERCENT_COLOR, a), false);
+                g.drawString(font, pct, right - 6 - font.width(pct), y + 13, withAlpha(PERCENT_COLOR, a), false);
 
                 // Полоса прогресса (плоская, без контура)
                 int barX = x + 12;
-                int barY = y + height - 8;
+                int barY = y + height - 6;
                 int barW = BAR_WIDTH - 24;
-                int barH = 4;
+                int barH = 3;
                 g.fill(barX, barY, barX + barW, barY + barH, withAlpha(0x222229, a));
                 int fillW = (int) (barW * Mth.clamp(hud.progressPercent() / 100f, 0f, 1f));
                 if (fillW > 0) g.fill(barX, barY, barX + fillW, barY + barH, withAlpha(accent, a));

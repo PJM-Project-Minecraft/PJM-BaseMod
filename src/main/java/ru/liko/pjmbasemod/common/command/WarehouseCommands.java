@@ -8,10 +8,13 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import ru.liko.pjmbasemod.common.item.SupplyCrateItem;
 import ru.liko.pjmbasemod.common.customization.SkinRegistry;
 import ru.liko.pjmbasemod.common.entity.QuartermasterEntity;
 import ru.liko.pjmbasemod.common.teams.Teams;
@@ -181,7 +184,17 @@ public final class WarehouseCommands {
                                         .executes(ctx -> npcCooldown(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "ticks")))))
                         .then(Commands.literal("categories")
                                 .then(Commands.argument("list", StringArgumentType.greedyString())
-                                        .executes(ctx -> npcCategories(ctx.getSource(), StringArgumentType.getString(ctx, "list"))))));
+                                        .executes(ctx -> npcCategories(ctx.getSource(), StringArgumentType.getString(ctx, "list")))))
+                        .then(Commands.literal("dispenser")
+                                .then(Commands.literal("none")
+                                        .executes(ctx -> npcDispenser(ctx.getSource(), "none", 0, 0)))
+                                .then(Commands.argument("crateId", StringArgumentType.word())
+                                        .then(Commands.argument("stock", IntegerArgumentType.integer(1, 999))
+                                                .then(Commands.argument("regenSeconds", IntegerArgumentType.integer(0, 86400))
+                                                        .executes(ctx -> npcDispenser(ctx.getSource(),
+                                                                StringArgumentType.getString(ctx, "crateId"),
+                                                                IntegerArgumentType.getInteger(ctx, "stock"),
+                                                                IntegerArgumentType.getInteger(ctx, "regenSeconds"))))))));
     }
 
     // ---------------------------------------------------------------- склады
@@ -616,6 +629,26 @@ public final class WarehouseCommands {
         if (npc == null) return 0;
         npc.setCooldownTicks(ticks);
         source.sendSuccess(() -> Component.literal("Задержка выдачи NPC: " + ticks + " тиков."), true);
+        return 1;
+    }
+
+    private static int npcDispenser(CommandSourceStack source, String crateId, int stock, int regenSeconds) {
+        QuartermasterEntity npc = requireNearestNpc(source);
+        if (npc == null) return 0;
+        if (crateId.equalsIgnoreCase("none")) {
+            npc.setDispenser("none", 0, 0);
+            source.sendSuccess(() -> Component.literal("NPC снова обычный кладовщик (режим раздатчика снят)."), true);
+            return 1;
+        }
+        String id = crateId.trim().toLowerCase(Locale.ROOT);
+        if (!(BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("pjmbasemod", id)) instanceof SupplyCrateItem)) {
+            source.sendFailure(Component.literal("Нет такого ящика: '" + id + "' (напр. weapon_crate, supply_crate, equipment_crate, raw_crate, special_crate)."));
+            return 0;
+        }
+        npc.setDispenser(id, stock, regenSeconds);
+        source.sendSuccess(() -> Component.literal("NPC-раздатчик: '" + id + "', запас " + stock
+                + (regenSeconds > 0 ? ", реген +1 каждые " + regenSeconds + " с." : ", без регена.")
+                + " Выдаёт только команде-владельцу точки."), true);
         return 1;
     }
 

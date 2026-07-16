@@ -6,13 +6,17 @@ import java.util.Locale;
 /**
  * Пул очков поставки склада. Каждый ящик начисляет очки в один из пулов, а каждый
  * выдаваемый предмет списывает очки из соответствующего пула.
+ *
+ * <p>Пулов два: {@link #SUPPLY} — всё снабжение (оружие, снаряжение, спец), пополняется
+ * ящиками и пассивным доходом с захваченных точек; {@link #RAW} — сырьё, только ящики/сдача.</p>
+ *
+ * <p>Исторические пулы {@code weapon}/{@code equipment}/{@code special} схлопнуты в
+ * {@link #SUPPLY} и продолжают распознаваться {@link #byId} как алиасы — старые
+ * {@code items.json}/{@code crates/} читаются без правок.</p>
  */
 public enum WarehousePoolCategory {
-    WEAPON,
     SUPPLY,
-    EQUIPMENT,
-    RAW,
-    SPECIAL;
+    RAW;
 
     /** Ключ пула в нижнем регистре (для JSON, команд, NBT). */
     public String id() {
@@ -24,7 +28,7 @@ public enum WarehousePoolCategory {
         return "gui.pjmbasemod.warehouse.pool." + id();
     }
 
-    /** Разбор по id; null если не распознан. */
+    /** Разбор по id (включая устаревшие алиасы); null если не распознан. */
     @Nullable
     public static WarehousePoolCategory byId(@Nullable String raw) {
         if (raw == null) return null;
@@ -32,7 +36,10 @@ public enum WarehousePoolCategory {
         for (WarehousePoolCategory category : values()) {
             if (category.name().equals(value)) return category;
         }
-        return null;
+        return switch (value) {
+            case "WEAPON", "EQUIPMENT", "SPECIAL" -> SUPPLY;
+            default -> null;
+        };
     }
 
     /** Разбор по id с дефолтом. */

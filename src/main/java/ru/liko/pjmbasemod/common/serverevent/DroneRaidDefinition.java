@@ -50,6 +50,8 @@ public final class DroneRaidDefinition {
         public int waveCount = 3;
         public int dronesPerWave = 4;
         public int waveIntervalSeconds = 45;
+        /** Интервал (сек) между запуском отдельных дронов внутри волны — чтобы не летели все разом. 0 = минимальный (1 дрон/сек). */
+        public int droneSpawnIntervalSeconds = 2;
         /** Дистанция спавна дронов от цели (блоки). Должна быть меньше shahed136MaxDistance в конфиге WRBDrones. */
         public int spawnDistance = 600;
         /** Высота полёта (абсолютная Y); фактически берётся max(spawnAltitude, y точки + 60). */
@@ -74,6 +76,7 @@ public final class DroneRaidDefinition {
             waveCount = Mth.clamp(waveCount, 1, 20);
             dronesPerWave = Mth.clamp(dronesPerWave, 1, 16);
             waveIntervalSeconds = Mth.clamp(waveIntervalSeconds, 5, 600);
+            droneSpawnIntervalSeconds = Mth.clamp(droneSpawnIntervalSeconds, 0, 30);
             spawnDistance = Mth.clamp(spawnDistance, 100, 4000);
             spawnAltitude = Mth.clamp(spawnAltitude, 80, 320);
             speed = Mth.clamp(speed, 50.0, 1000.0);

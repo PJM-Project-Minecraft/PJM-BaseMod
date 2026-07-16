@@ -7,6 +7,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -72,6 +73,11 @@ public final class VehicleFleetSavedData extends SavedData {
 
     public void remove(UUID entityId) {
         if (active.remove(entityId) != null) setDirty();
+    }
+
+    @Nullable
+    public FleetRecord find(UUID entityId) {
+        return active.get(entityId);
     }
 
     /** Копия для безопасной итерации при реконсиляции. */

@@ -12,6 +12,7 @@ import ru.liko.pjmbasemod.common.network.packet.RoleSyncPacket;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class RoleService {
@@ -83,6 +84,27 @@ public final class RoleService {
             return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.target_no_team"));
         }
 
+        return assignRoleTo(actor, target.getServer(), target.getUUID(), target.getName().getString(),
+                targetTeam, role);
+    }
+
+    /**
+     * Назначение роли по UUID — цель может быть оффлайн: роль живёт в {@link RoleSavedData},
+     * а живой {@link ServerPlayer} нужен лишь для синхронизации и уведомления. Лимиты считаются
+     * по сохранённым записям (см. {@link #roleCount}), поэтому для оффлайн-цели они те же.
+     *
+     * @param targetTeam команда цели (у оффлайн-игрока берётся из scoreboard по имени)
+     */
+    public static AssignmentResult assignRoleTo(@Nullable ServerPlayer actor, MinecraftServer server,
+                                                UUID targetId, String targetName, String targetTeam,
+                                                @Nullable CombatRole role) {
+        if (server == null || targetId == null) {
+            return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.target_missing"));
+        }
+        if (targetTeam == null || targetTeam.isBlank()) {
+            return AssignmentResult.failure(Component.translatable("gui.pjmbasemod.role.target_no_team"));
+        }
+
         // Боевую роль назначает только ADMIN | командир целевой фракции | заместитель с ASSIGN_ROLES.
         // Само-выдача роли игроком удалена вместе с донат-ролями (донат теперь — «Доступ», см. common/access).
         if (actor != null && !RolePermissions.can(actor, RolePermissions.ADMIN)) {
@@ -99,28 +121,41 @@ public final class RoleService {
             }
         }
 
-        RoleSavedData data = RoleSavedData.get(target.getServer());
+        ServerPlayer online = server.getPlayerList().getPlayer(targetId);
+        RoleSavedData data = RoleSavedData.get(server);
         if (role == null) {
-            RoleSavedData.RoleEntry removed = data.clearRole(target.getUUID());
-            sync(target);
-            if (removed != null) {
-                target.displayClientMessage(Component.translatable("gui.pjmbasemod.role.cleared_target"), true);
+            RoleSavedData.RoleEntry removed = data.clearRole(targetId);
+            if (online != null) {
+                sync(online);
+                if (removed != null) {
+                    online.displayClientMessage(Component.translatable("gui.pjmbasemod.role.cleared_target"), true);
+                }
             }
-            return AssignmentResult.success(Component.translatable("gui.pjmbasemod.role.cleared",
-                    target.getName().getString()));
+            return AssignmentResult.success(Component.translatable("gui.pjmbasemod.role.cleared", targetName));
         }
 
-        AssignmentResult capResult = validateRoleCap(target.getServer(), target.getUUID(), targetTeam, role);
+        AssignmentResult capResult = validateRoleCap(server, targetId, targetTeam, role);
         if (!capResult.success()) {
             return capResult;
         }
 
-        data.setRole(target.getUUID(), target.getName().getString(), targetTeam, role);
-        sync(target);
-        target.displayClientMessage(Component.translatable("gui.pjmbasemod.role.assigned_target",
-                Component.translatable(role.translationKey())), true);
+        data.setRole(targetId, targetName, targetTeam, role);
+        if (online != null) {
+            sync(online);
+            online.displayClientMessage(Component.translatable("gui.pjmbasemod.role.assigned_target",
+                    Component.translatable(role.translationKey())), true);
+        }
         return AssignmentResult.success(Component.translatable("gui.pjmbasemod.role.assigned",
-                target.getName().getString(), Component.translatable(role.translationKey())));
+                targetName, Component.translatable(role.translationKey())));
+    }
+
+    /** Роль по сохранённой записи — для оффлайн-игрока, у которого не спросить живую команду. */
+    public static String storedRoleId(MinecraftServer server, UUID playerId, String teamId) {
+        if (server == null || playerId == null) return "";
+        RoleSavedData.RoleEntry entry = RoleSavedData.get(server).entry(playerId);
+        if (entry == null || !Teams.normalize(teamId).equals(entry.teamId())) return "";
+        CombatRole role = CombatRole.byIdOrAlias(entry.roleId());
+        return role == null ? "" : role.id();
     }
 
     public static AssignmentResult assignRoleById(ServerPlayer actor, UUID targetId, String roleId) {
@@ -193,7 +228,7 @@ public final class RoleService {
                     "gui.pjmbasemod.role.limit_disabled", roleName, teamName));
         }
 
-        int current = onlineRoleCount(server, teamId, role, targetId);
+        int current = roleCount(server, teamId, role, targetId);
         if (current >= limit) {
             return AssignmentResult.failure(Component.translatable(
                     "gui.pjmbasemod.role.limit_full", roleName, teamName, current, limit));
@@ -201,21 +236,33 @@ public final class RoleService {
         return AssignmentResult.success(Component.empty());
     }
 
-    public static int onlineRoleCount(MinecraftServer server, String teamId, CombatRole role) {
-        return onlineRoleCount(server, teamId, role, null);
+    public static int roleCount(MinecraftServer server, String teamId, CombatRole role) {
+        return roleCount(server, teamId, role, null);
     }
 
-    public static int onlineRoleCount(MinecraftServer server, String teamId, CombatRole role,
-                                      @Nullable UUID excludedPlayerId) {
+    /**
+     * Сколько игроков команды держат роль — по {@link RoleSavedData}, а НЕ по списку онлайна:
+     * роль персистентна и переживает выход, поэтому оффлайн-игрок обязан занимать слот лимита.
+     * Иначе двое вышедших снайперов освобождают места, на них выдаются новые, и после
+     * возвращения первых лимит оказывается превышен вдвое.
+     *
+     * <p>Команда берётся из самой записи ({@code entry.teamId()}) — у оффлайн-игрока живую
+     * команду не спросить. Записи с устаревшей командой чистит {@link #cleanupInvalidFor}
+     * при входе и в тике.</p>
+     *
+     * @param excludedPlayerId игрок, которого не считать (переназначение самому себе)
+     */
+    public static int roleCount(MinecraftServer server, String teamId, CombatRole role,
+                                @Nullable UUID excludedPlayerId) {
         if (server == null || role == null) return 0;
         String team = Teams.normalize(teamId);
         if (team.isBlank()) return 0;
         int count = 0;
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (excludedPlayerId != null && excludedPlayerId.equals(player.getUUID())) continue;
-            if (!team.equals(Teams.resolvePlayerTeamId(player))) continue;
-            CombatRole current = currentRole(player);
-            if (current == role) count++;
+        for (Map.Entry<UUID, RoleSavedData.RoleEntry> stored : RoleSavedData.get(server).entries().entrySet()) {
+            if (excludedPlayerId != null && excludedPlayerId.equals(stored.getKey())) continue;
+            RoleSavedData.RoleEntry entry = stored.getValue();
+            if (!team.equals(entry.teamId())) continue;
+            if (CombatRole.byIdOrAlias(entry.roleId()) == role) count++;
         }
         return count;
     }

@@ -18,27 +18,28 @@ public final class PjmGuiUtils {
     // Amber-Tactical палитра
     // -------------------------------------------------------------------------
 
-    // Базовый тон — тёмный сине-стальной («штабной планшет»), а не чистый чёрный:
-    // мягче контраст, теплее янтарный акцент лёг сверху.
-    /** Фон панели (81% непрозрачности). */
-    public static final int SCREEN_BG          = 0xCE12161C;
-    /** Хедер панели (87%). */
-    public static final int SCREEN_HEADER      = 0xE00D1015;
-    /** Сайдбар (80%). */
-    public static final int SCREEN_SIDEBAR     = 0xCC0F131A;
-    /** Граница панели — янтарный. */
-    public static final int SCREEN_BORDER      = 0x66FFB020;
+    // Стиль BF5-«glass»: тёмный сине-стальной тон делаем ПОЛУПРОЗРАЧНЫМ, чтобы сквозь
+    // панель читался размытый мир (blur из renderBackground) — так уходит ощущение
+    // тяжёлой чёрной коробки, а рамка/тинты приглушены до «еле заметных».
+    /** Фон панели (~70% — стекло, сквозь него виден blur). */
+    public static final int SCREEN_BG          = 0xB20E1319;
+    /** Хедер панели (~77% — чуть плотнее корпуса для отделения). */
+    public static final int SCREEN_HEADER      = 0xC40B0F14;
+    /** Сайдбар (~61% — самый «стеклянный» слой). */
+    public static final int SCREEN_SIDEBAR     = 0x9C0C1015;
+    /** Граница панели — приглушённое тёплое золото (~23%, без «свечения»). */
+    public static final int SCREEN_BORDER      = 0x3AB98A46;
     /** Скрим поверх игрового мира. */
-    public static final int SCREEN_SCRIM       = 0xCC05070A;
+    public static final int SCREEN_SCRIM       = 0xC005070A;
 
-    /** Фон строки. */
-    public static final int SCREEN_ROW         = 0xAA1B2129;
-    /** Фон строки при наведении. */
-    public static final int SCREEN_ROW_HOVER   = 0xBB26313D;
-    /** Фон заблокированной строки. */
-    public static final int SCREEN_ROW_LOCKED  = 0x99101319;
-    /** Выбранная строка — янтарный тинт. */
-    public static final int SCREEN_SELECT      = 0x55FFB020;
+    /** Фон строки (~54%). */
+    public static final int SCREEN_ROW         = 0x8A19212B;
+    /** Фон строки при наведении (~65%). */
+    public static final int SCREEN_ROW_HOVER   = 0xA6273340;
+    /** Фон заблокированной строки (~49%). */
+    public static final int SCREEN_ROW_LOCKED  = 0x7E0E1116;
+    /** Выбранная строка — мягкий золотой тинт. */
+    public static final int SCREEN_SELECT      = 0x4DE0A83C;
 
     // Акцентный янтарный
     public static final int ACCENT             = 0xFFFFB020;
@@ -52,11 +53,11 @@ public final class PjmGuiUtils {
     /** Янтарный текст (ценники, статусы). */
     public static final int TEXT_GOLD          = 0xFFFFB020;
 
-    // Кнопки — насыщенные семантические цвета (зелёный/красный/янтарный/серый)
-    public static final int BTN_GREEN          = 0xFF2F7D4F;
-    public static final int BTN_GREEN_HOVER    = 0xFF3EA063;
-    public static final int BTN_RED            = 0xFF9E3B32;
-    public static final int BTN_RED_HOVER      = 0xFFC24A3E;
+    // Кнопки — приглушённые «военные» тона (олива/кирпич/янтарь/серый), не кислотные
+    public static final int BTN_GREEN          = 0xFF37674A;
+    public static final int BTN_GREEN_HOVER    = 0xFF467E5B;
+    public static final int BTN_RED            = 0xFF8B3A32;
+    public static final int BTN_RED_HOVER      = 0xFFA6483D;
     /** Вторичное действие (сдать, сохранить). */
     public static final int BTN_AMBER          = 0xFF4A3A16;
     public static final int BTN_AMBER_HOVER    = 0xFF6B531F;

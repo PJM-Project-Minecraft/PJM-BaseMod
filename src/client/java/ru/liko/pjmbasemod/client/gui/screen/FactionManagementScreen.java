@@ -14,12 +14,14 @@ import ru.liko.pjmbasemod.common.faction.FactionManagementSnapshot;
 import ru.liko.pjmbasemod.common.faction.FactionSelectionSnapshot;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionDeputyPacket;
+import ru.liko.pjmbasemod.common.network.packet.ManageFactionInvitePacket;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionRolePacket;
 import ru.liko.pjmbasemod.common.network.packet.SetFactionOrderPacket;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 public class FactionManagementScreen extends PjmBaseScreen {
@@ -34,7 +36,7 @@ public class FactionManagementScreen extends PjmBaseScreen {
     private static final int ORDER_MAX_LEN = 120;
     private static final int[] TTL_PRESETS = {0, 15, 30, 60, 120, 240}; // 0 = бессрочно (минуты)
 
-    private enum Tab { ROLE, DEPUTY, ORDER }
+    private enum Tab { ROLE, DEPUTY, ORDER, INVITE }
 
     private FactionManagementSnapshot snapshot;
     private int selectedMember;
@@ -43,8 +45,11 @@ public class FactionManagementScreen extends PjmBaseScreen {
 
     private Tab activeTab;
     private EditBox orderEditBox;
+    private EditBox searchBox;
+    private EditBox inviteBox;
     private int roleScroll;
     private int deputyScroll;
+    private int inviteScroll;
     private int ttlIndex = 2; // default 30 мин
 
     public FactionManagementScreen(FactionManagementSnapshot snapshot) {
@@ -61,8 +66,9 @@ public class FactionManagementScreen extends PjmBaseScreen {
         this.snapshot = snapshot;
         selectedMember = 0;
         if (previous != null) {
-            for (int i = 0; i < snapshot.members().size(); i++) {
-                if (previous.equals(snapshot.members().get(i).playerId())) {
+            List<FactionManagementSnapshot.MemberEntry> members = visibleMembers();
+            for (int i = 0; i < members.size(); i++) {
+                if (previous.equals(members.get(i).playerId())) {
                     selectedMember = i;
                     break;
                 }
@@ -84,6 +90,43 @@ public class FactionManagementScreen extends PjmBaseScreen {
         this.orderEditBox.setTextColor(0xFFE8E8E8);
         this.orderEditBox.setValue(currentOrder);
         this.addWidget(this.orderEditBox);
+
+        String currentInvite = this.inviteBox != null ? this.inviteBox.getValue() : "";
+        this.inviteBox = new EditBox(this.font, 0, 0, 100, 22, Component.empty());
+        this.inviteBox.setMaxLength(16);
+        this.inviteBox.setBordered(false);
+        this.inviteBox.setTextColor(0xFFE8E8E8);
+        this.inviteBox.setValue(currentInvite);
+        this.addWidget(this.inviteBox);
+
+        String currentSearch = this.searchBox != null ? this.searchBox.getValue() : "";
+        this.searchBox = new EditBox(this.font, 0, 0, 100, 12, Component.empty());
+        this.searchBox.setMaxLength(32);
+        this.searchBox.setBordered(false);
+        this.searchBox.setTextColor(0xFFE8E8E8);
+        this.searchBox.setValue(currentSearch);
+        this.searchBox.setResponder(value -> {
+            scroll = 0;
+            selectedMember = 0;
+            clampScroll();
+        });
+        this.addWidget(this.searchBox);
+    }
+
+    /** Члены после фильтра поиска — весь UI списка работает по этому списку, а не по снапшоту. */
+    private List<FactionManagementSnapshot.MemberEntry> visibleMembers() {
+        String query = searchBox == null ? "" : searchBox.getValue().trim().toLowerCase(Locale.ROOT);
+        if (query.isEmpty()) return snapshot.members();
+        List<FactionManagementSnapshot.MemberEntry> filtered = new ArrayList<>();
+        for (FactionManagementSnapshot.MemberEntry member : snapshot.members()) {
+            if (member.name().toLowerCase(Locale.ROOT).contains(query)) filtered.add(member);
+        }
+        return filtered;
+    }
+
+    /** Верх списка членов: под заголовком и полем поиска. */
+    private int memberListTop(int top) {
+        return top + HEADER_HEIGHT + 38;
     }
 
     private List<Tab> availableTabs() {
@@ -91,6 +134,7 @@ public class FactionManagementScreen extends PjmBaseScreen {
         if (snapshot.viewerCanAssignRoles()) tabs.add(Tab.ROLE);
         if (snapshot.viewerCanManageDeputies()) tabs.add(Tab.DEPUTY);
         if (snapshot.viewerCanSetOrder()) tabs.add(Tab.ORDER);
+        if (snapshot.inviteOnly() && snapshot.viewerCanInvite()) tabs.add(Tab.INVITE);
         return tabs;
     }
 
@@ -106,14 +150,15 @@ public class FactionManagementScreen extends PjmBaseScreen {
     }
 
     private int rowsVisible() {
-        return Math.max(1, (GUI_HEIGHT - HEADER_HEIGHT - 20) / MEMBER_ROW_HEIGHT);
+        return Math.max(1, (GUI_HEIGHT - HEADER_HEIGHT - 46) / MEMBER_ROW_HEIGHT);
     }
 
     private void clampScroll() {
-        int max = Math.max(0, snapshot.members().size() - rowsVisible());
+        int visible = visibleMembers().size();
+        int max = Math.max(0, visible - rowsVisible());
         if (scroll > max) scroll = max;
         if (scroll < 0) scroll = 0;
-        if (selectedMember >= snapshot.members().size()) selectedMember = Math.max(0, snapshot.members().size() - 1);
+        if (selectedMember >= visible) selectedMember = Math.max(0, visible - 1);
         
         int roleRowsVisible = Math.max(1, (GUI_HEIGHT - 32 - contentTop(0) - 30) / ROLE_ROW_HEIGHT);
         int maxRoles = Math.max(0, snapshot.roles().size() - roleRowsVisible);
@@ -124,6 +169,11 @@ public class FactionManagementScreen extends PjmBaseScreen {
         int maxDeps = Math.max(0, DeputyPermission.values().length - deputyRowsVisible);
         if (deputyScroll > maxDeps) deputyScroll = maxDeps;
         if (deputyScroll < 0) deputyScroll = 0;
+
+        int inviteRowsVisible = Math.max(1, (GUI_HEIGHT - 10 - contentTop(0) - 58) / 20);
+        int maxInvites = Math.max(0, snapshot.invites().size() - inviteRowsVisible);
+        if (inviteScroll > maxInvites) inviteScroll = maxInvites;
+        if (inviteScroll < 0) inviteScroll = 0;
     }
 
     @Override
@@ -152,6 +202,15 @@ public class FactionManagementScreen extends PjmBaseScreen {
                  int y = contentTop(guiTop()) + 66;
                  if (mouseX >= x && mouseX <= x + w && mouseY >= y) {
                      deputyScroll += dir;
+                     clampScroll();
+                     return true;
+                 }
+            } else if (activeTab == Tab.INVITE) {
+                 int x = guiLeft() + SIDEBAR_WIDTH + 12;
+                 int w = GUI_WIDTH - SIDEBAR_WIDTH - 24;
+                 int y = contentTop(guiTop()) + 58;
+                 if (mouseX >= x && mouseX <= x + w && mouseY >= y) {
+                     inviteScroll += dir;
                      clampScroll();
                      return true;
                  }
@@ -189,24 +248,28 @@ public class FactionManagementScreen extends PjmBaseScreen {
             drawDeputyPanel(graphics, left, top, mouseX, mouseY);
         } else if (activeTab == Tab.ORDER) {
             drawOrderPanel(graphics, left, top, mouseX, mouseY);
+        } else if (activeTab == Tab.INVITE) {
+            drawInvitePanel(graphics, left, top, mouseX, mouseY);
         }
     }
 
     private void drawMembers(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
         int x = left + 8;
-        int y = top + HEADER_HEIGHT + 8;
-        graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.members"), x, y, PjmGuiUtils.TEXT_LABEL, false);
-        y += 14;
+        int right = left + SIDEBAR_WIDTH - 8;
+        graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.members"),
+                x, top + HEADER_HEIGHT + 8, PjmGuiUtils.TEXT_LABEL, false);
 
-        List<FactionManagementSnapshot.MemberEntry> members = snapshot.members();
+        drawSearchBox(graphics, x, top + HEADER_HEIGHT + 20, right - x, mouseX, mouseY);
+
+        int y = memberListTop(top);
+        List<FactionManagementSnapshot.MemberEntry> members = visibleMembers();
         int rows = rowsVisible();
         for (int i = scroll; i < members.size() && i < scroll + rows; i++) {
             FactionManagementSnapshot.MemberEntry member = members.get(i);
             boolean selected = i == selectedMember;
-            boolean hovered = mouseX >= x && mouseX <= left + SIDEBAR_WIDTH - 8
-                    && mouseY >= y && mouseY <= y + MEMBER_ROW_HEIGHT - 4;
+            boolean hovered = mouseX >= x && mouseX <= right && mouseY >= y && mouseY <= y + MEMBER_ROW_HEIGHT - 4;
             int bg = selected ? PjmGuiUtils.SCREEN_SELECT : hovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW;
-            graphics.fill(x, y, left + SIDEBAR_WIDTH - 8, y + MEMBER_ROW_HEIGHT - 4, bg);
+            graphics.fill(x, y, right, y + MEMBER_ROW_HEIGHT - 4, bg);
             int textX = x + 8;
             if (member.commander()) {
                 FactionRankIcons.draw(graphics, FactionRankIcons.COMMANDER, x + 6, y + 4, 16);
@@ -215,17 +278,37 @@ public class FactionManagementScreen extends PjmBaseScreen {
                 FactionRankIcons.draw(graphics, FactionRankIcons.DEPUTY, x + 6, y + 4, 16);
                 textX = x + 26;
             }
-            int avail = (left + SIDEBAR_WIDTH - 8) - textX - 4;
-            graphics.drawString(font, ellipsize(member.name(), avail),
-                    textX, y + 5, selected ? PjmGuiUtils.ACCENT : PjmGuiUtils.TEXT_DIM, false);
+            // Точка статуса справа: зелёная — онлайн, серая — оффлайн.
+            graphics.fill(right - 8, y + 9, right - 4, y + 13,
+                    member.online() ? 0xFF7CD68A : 0xFF5A5A62);
+            int avail = right - textX - 14;
+            int nameColor = selected ? PjmGuiUtils.ACCENT : member.online() ? PjmGuiUtils.TEXT_DIM : PjmGuiUtils.TEXT_MUTED;
+            graphics.drawString(font, ellipsize(member.name(), avail), textX, y + 5, nameColor, false);
             graphics.drawString(font, roleName(member.roleId()), textX, y + 16,
                     member.roleId().isBlank() ? PjmGuiUtils.TEXT_MUTED : PjmGuiUtils.TEXT_GOLD, false);
             y += MEMBER_ROW_HEIGHT;
         }
 
         if (members.isEmpty()) {
-            graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.no_members"),
+            graphics.drawString(font, Component.translatable(snapshot.members().isEmpty()
+                            ? "gui.pjmbasemod.faction.manage.no_members"
+                            : "gui.pjmbasemod.faction.manage.search.no_match"),
                     x, y + 4, 0xFF777777, false);
+        }
+    }
+
+    private void drawSearchBox(GuiGraphics graphics, int x, int y, int w, int mouseX, int mouseY) {
+        if (searchBox == null) return;
+        boolean focused = searchBox.isFocused();
+        graphics.fill(x, y, x + w, y + 14, focused ? 0xBB151510 : PjmGuiUtils.SCREEN_ROW);
+        drawBorder(graphics, x, y, w, 14, focused ? PjmGuiUtils.ACCENT_DIM : PjmGuiUtils.SCREEN_BORDER);
+        searchBox.setX(x + 5);
+        searchBox.setY(y + 3);
+        searchBox.setWidth(w - 10);
+        searchBox.render(graphics, mouseX, mouseY, 0);
+        if (!focused && searchBox.getValue().isEmpty()) {
+            graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.search.placeholder"),
+                    x + 5, y + 3, PjmGuiUtils.TEXT_MUTED, false);
         }
     }
 
@@ -254,6 +337,7 @@ public class FactionManagementScreen extends PjmBaseScreen {
             case ROLE -> Component.translatable("gui.pjmbasemod.faction.manage.tab.role");
             case DEPUTY -> Component.translatable("gui.pjmbasemod.faction.manage.tab.deputy");
             case ORDER -> Component.translatable("gui.pjmbasemod.faction.manage.tab.order");
+            case INVITE -> Component.translatable("gui.pjmbasemod.faction.manage.tab.invite");
         };
     }
 
@@ -357,6 +441,7 @@ public class FactionManagementScreen extends PjmBaseScreen {
             case ASSIGN_ROLES -> Component.translatable("gui.pjmbasemod.faction.manage.deputy.perm.assign_roles");
             case SET_ORDER -> Component.translatable("gui.pjmbasemod.faction.manage.deputy.perm.set_order");
             case OPEN_GUI -> Component.translatable("gui.pjmbasemod.faction.manage.deputy.perm.open_gui");
+            case INVITE -> Component.translatable("gui.pjmbasemod.faction.manage.deputy.perm.invite");
         };
     }
 
@@ -425,6 +510,69 @@ public class FactionManagementScreen extends PjmBaseScreen {
                 x + w / 2, y + 7, PjmGuiUtils.TEXT_PRIMARY);
     }
 
+    private void drawInvitePanel(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        int x = left + SIDEBAR_WIDTH + 12;
+        int y = contentTop(top);
+        int w = GUI_WIDTH - SIDEBAR_WIDTH - 24;
+
+        graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.invite.title"),
+                x, y, PjmGuiUtils.TEXT_LABEL, false);
+        y += 12;
+
+        // Поле ввода ника + кнопка «Пригласить» в одной строке
+        int boxH = 22;
+        int btnW = 74;
+        int boxW = w - btnW - 8;
+        boolean focused = inviteBox.isFocused();
+        graphics.fill(x, y, x + boxW, y + boxH, focused ? 0xBB151510 : PjmGuiUtils.SCREEN_ROW);
+        drawBorder(graphics, x, y, boxW, boxH, focused ? PjmGuiUtils.ACCENT_DIM : PjmGuiUtils.SCREEN_BORDER);
+        inviteBox.setX(x + 6);
+        inviteBox.setY(y + 3);
+        inviteBox.setWidth(boxW - 12);
+        inviteBox.render(graphics, mouseX, mouseY, 0);
+        if (!focused && inviteBox.getValue().isEmpty()) {
+            graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.invite.placeholder"),
+                    x + 6, y + 7, PjmGuiUtils.TEXT_MUTED, false);
+        }
+
+        int btnX = x + boxW + 8;
+        boolean canSend = !inviteBox.getValue().isBlank();
+        boolean btnHovered = canSend && mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= y && mouseY <= y + boxH;
+        graphics.fill(btnX, y, btnX + btnW, y + boxH,
+                !canSend ? PjmGuiUtils.BTN_DISABLED : btnHovered ? PjmGuiUtils.BTN_GREEN_HOVER : PjmGuiUtils.BTN_GREEN);
+        graphics.drawCenteredString(font, Component.translatable("gui.pjmbasemod.faction.manage.invite.button"),
+                btnX + btnW / 2, y + 7, canSend ? PjmGuiUtils.TEXT_PRIMARY : PjmGuiUtils.TEXT_MUTED);
+        y += boxH + 10;
+
+        // Список активных приглашений: ник + остаток срока + ✕ для отзыва
+        graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.manage.invite.active",
+                snapshot.invites().size()), x, y, PjmGuiUtils.TEXT_LABEL, false);
+        y += 14;
+
+        List<FactionManagementSnapshot.InviteEntry> invites = snapshot.invites();
+        if (invites.isEmpty()) {
+            graphics.drawString(font, Component.translatable("gui.pjmbasemod.faction.invite.list_empty"),
+                    x, y + 2, PjmGuiUtils.TEXT_MUTED, false);
+            return;
+        }
+        int rowH = 20;
+        int rowsVisible = Math.max(1, (top + GUI_HEIGHT - 10 - y) / rowH);
+        for (int i = inviteScroll; i < invites.size() && i < inviteScroll + rowsVisible; i++) {
+            FactionManagementSnapshot.InviteEntry invite = invites.get(i);
+            boolean hovered = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + rowH - 2;
+            graphics.fill(x, y, x + w, y + rowH - 2, hovered ? PjmGuiUtils.SCREEN_ROW_HOVER : PjmGuiUtils.SCREEN_ROW);
+            graphics.drawString(font, ellipsize(invite.name(), w - 90), x + 6, y + 5, PjmGuiUtils.TEXT_PRIMARY, false);
+            String expiry = invite.minutesRemaining() < 0
+                    ? Component.translatable("gui.pjmbasemod.faction.invite.no_expiry").getString()
+                    : Component.translatable("gui.pjmbasemod.faction.invite.expires_minutes",
+                            invite.minutesRemaining()).getString();
+            graphics.drawString(font, expiry, x + w - font.width(expiry) - 22, y + 5, PjmGuiUtils.TEXT_MUTED, false);
+            boolean removeHovered = mouseX >= x + w - 16 && mouseX <= x + w - 4 && mouseY >= y && mouseY <= y + rowH - 2;
+            graphics.drawString(font, "✕", x + w - 13, y + 5, removeHovered ? 0xFFD06060 : 0xFFB05050, false);
+            y += rowH;
+        }
+    }
+
     private String ttlLabel() {
         int ttl = TTL_PRESETS[ttlIndex];
         return ttl <= 0
@@ -446,12 +594,20 @@ public class FactionManagementScreen extends PjmBaseScreen {
             return true;
         }
 
-        // Список членов
+        // Поле поиска — фокус ставит сам EditBox через Screen.mouseClicked
         int memberX = left + 8;
-        int memberY = top + HEADER_HEIGHT + 22;
-        for (int i = scroll; i < snapshot.members().size() && i < scroll + rowsVisible(); i++) {
+        int memberRight = left + SIDEBAR_WIDTH - 8;
+        int searchY = top + HEADER_HEIGHT + 20;
+        if (mouseX >= memberX && mouseX <= memberRight && mouseY >= searchY && mouseY <= searchY + 14) {
+            return super.mouseClickedScaled(mouseX, mouseY, button);
+        }
+
+        // Список членов
+        int memberY = memberListTop(top);
+        List<FactionManagementSnapshot.MemberEntry> members = visibleMembers();
+        for (int i = scroll; i < members.size() && i < scroll + rowsVisible(); i++) {
             int y = memberY + (i - scroll) * MEMBER_ROW_HEIGHT;
-            if (mouseX >= memberX && mouseX <= left + SIDEBAR_WIDTH - 8
+            if (mouseX >= memberX && mouseX <= memberRight
                     && mouseY >= y && mouseY <= y + MEMBER_ROW_HEIGHT - 4) {
                 selectedMember = i;
                 PjmUiSounds.playClick();
@@ -479,6 +635,7 @@ public class FactionManagementScreen extends PjmBaseScreen {
         if (activeTab == Tab.ROLE) return roleClick(left, top, mouseX, mouseY);
         if (activeTab == Tab.DEPUTY) return deputyClick(left, top, mouseX, mouseY);
         if (activeTab == Tab.ORDER) return orderClick(left, top, mouseX, mouseY, button);
+        if (activeTab == Tab.INVITE) return inviteClick(left, top, mouseX, mouseY, button);
         return super.mouseClickedScaled(mouseX, mouseY, button);
     }
 
@@ -587,6 +744,47 @@ public class FactionManagementScreen extends PjmBaseScreen {
         return true;
     }
 
+    private boolean inviteClick(int left, int top, int mouseX, int mouseY, int button) {
+        int x = left + SIDEBAR_WIDTH + 12;
+        int w = GUI_WIDTH - SIDEBAR_WIDTH - 24;
+        int y = contentTop(top) + 12;
+        int boxH = 22;
+        int btnW = 74;
+        int boxW = w - btnW - 8;
+
+        // Поле ввода — фокус ставит сам EditBox
+        if (mouseX >= x && mouseX <= x + boxW && mouseY >= y && mouseY <= y + boxH) {
+            return super.mouseClickedScaled(mouseX, mouseY, button);
+        }
+        int btnX = x + boxW + 8;
+        if (mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= y && mouseY <= y + boxH) {
+            sendInvite();
+            return true;
+        }
+        y += boxH + 10 + 14;
+
+        List<FactionManagementSnapshot.InviteEntry> invites = snapshot.invites();
+        int rowH = 20;
+        int rowsVisible = Math.max(1, (top + GUI_HEIGHT - 10 - y) / rowH);
+        for (int i = inviteScroll; i < invites.size() && i < inviteScroll + rowsVisible; i++) {
+            if (mouseX >= x + w - 16 && mouseX <= x + w - 4 && mouseY >= y && mouseY <= y + rowH - 2) {
+                PjmUiSounds.playPress();
+                PjmNetworking.sendToServer(new ManageFactionInvitePacket(invites.get(i).name(), false));
+                return true;
+            }
+            y += rowH;
+        }
+        return true;
+    }
+
+    private void sendInvite() {
+        if (inviteBox == null || inviteBox.getValue().isBlank()) return;
+        PjmUiSounds.playPress();
+        PjmNetworking.sendToServer(new ManageFactionInvitePacket(inviteBox.getValue().trim(), true));
+        inviteBox.setValue("");
+        inviteBox.setFocused(false);
+    }
+
     private void sendOrder() {
         if (orderEditBox == null || orderEditBox.getValue().isBlank()) return;
         PjmUiSounds.playPress();
@@ -602,6 +800,11 @@ public class FactionManagementScreen extends PjmBaseScreen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // ESC в поиске снимает фокус, а не закрывает экран.
+        if (searchBox != null && searchBox.isFocused() && keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            searchBox.setFocused(false);
+            return true;
+        }
         if (activeTab == Tab.ORDER && orderEditBox != null && orderEditBox.isFocused()) {
             if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
                 sendOrder();
@@ -612,12 +815,22 @@ public class FactionManagementScreen extends PjmBaseScreen {
                 return true;
             }
         }
+        if (activeTab == Tab.INVITE && inviteBox != null && inviteBox.isFocused()) {
+            if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+                sendInvite();
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                inviteBox.setFocused(false);
+                return true;
+            }
+        }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Nullable
     private FactionManagementSnapshot.MemberEntry selectedMemberEntry() {
-        List<FactionManagementSnapshot.MemberEntry> members = snapshot.members();
+        List<FactionManagementSnapshot.MemberEntry> members = visibleMembers();
         return selectedMember >= 0 && selectedMember < members.size() ? members.get(selectedMember) : null;
     }
 

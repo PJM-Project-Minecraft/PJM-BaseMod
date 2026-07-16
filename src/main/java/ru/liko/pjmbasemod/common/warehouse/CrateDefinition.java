@@ -29,7 +29,7 @@ public final class CrateDefinition {
     public void setId(String id) { this.id = id; }
 
     public WarehousePoolCategory pool() {
-        return WarehousePoolCategory.byIdOrDefault(pool, WarehousePoolCategory.SPECIAL);
+        return WarehousePoolCategory.byIdOrDefault(pool, WarehousePoolCategory.SUPPLY);
     }
 
     public int points() { return Math.max(1, points); }

@@ -19,6 +19,9 @@ import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
 import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
+import ru.liko.pjmbasemod.common.network.PjmNetworking;
+import ru.liko.pjmbasemod.common.network.packet.RequestMyReportPacket;
+import ru.liko.pjmbasemod.common.network.packet.RequestReportsPacket;
 
 /**
  * Кастомное меню паузы (ESC) в стиле BF5 «Game Menu»: слева — крупный заголовок,
@@ -76,10 +79,17 @@ public class TacticalPauseMenuScreen extends Screen {
                 b -> this.minecraft.setScreen(new StatsScreen(this, this.minecraft.player.getStats())),
                 MenuItem.Kind.NORMAL);
         addItem(Component.translatable("menu.pjm.character"), b -> {}, MenuItem.Kind.NORMAL);
+        addItem(Component.translatable("menu.pjm.pause.report"),
+                b -> PjmNetworking.sendToServer(RequestMyReportPacket.INSTANCE), MenuItem.Kind.NORMAL);
+        if (this.minecraft.player != null && this.minecraft.player.hasPermissions(2)) {
+            addItem(Component.translatable("menu.pjm.pause.reports_admin"),
+                    b -> PjmNetworking.sendToServer(RequestReportsPacket.INSTANCE), MenuItem.Kind.NORMAL);
+        }
         addItem(Component.translatable("menu.pjm.options"),
                 b -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options)),
                 MenuItem.Kind.NORMAL);
-        addItem(Component.translatable("menu.pjm.pause.disconnect"), b -> this.onDisconnect(), MenuItem.Kind.EXIT);
+        addItem(Component.translatable("menu.pjm.pause.disconnect"),
+                b -> disconnectToTitle(this.minecraft), MenuItem.Kind.EXIT);
 
         updateItemPositions();
     }
@@ -99,24 +109,25 @@ public class TacticalPauseMenuScreen extends Screen {
         }
     }
 
-    private void onDisconnect() {
-        boolean isLocalServer = this.minecraft.isLocalServer();
-        ServerData serverdata = this.minecraft.getCurrentServer();
-        this.minecraft.level.disconnect();
+    /** Отключение от мира и возврат в главное меню. Общее для меню паузы и экрана смерти. */
+    static void disconnectToTitle(Minecraft mc) {
+        boolean isLocalServer = mc.isLocalServer();
+        ServerData serverdata = mc.getCurrentServer();
+        mc.level.disconnect();
         if (isLocalServer) {
-            this.minecraft.disconnect(new net.minecraft.client.gui.screens.GenericMessageScreen(
+            mc.disconnect(new net.minecraft.client.gui.screens.GenericMessageScreen(
                     Component.translatable("menu.savingLevel")));
         } else {
-            this.minecraft.disconnect();
+            mc.disconnect();
         }
 
         TitleScreen titlescreen = new TitleScreen();
         if (isLocalServer) {
-            this.minecraft.setScreen(titlescreen);
+            mc.setScreen(titlescreen);
         } else if (serverdata != null && serverdata.isRealm()) {
-            this.minecraft.setScreen(new RealmsMainScreen(titlescreen));
+            mc.setScreen(new RealmsMainScreen(titlescreen));
         } else {
-            this.minecraft.setScreen(new JoinMultiplayerScreen(titlescreen));
+            mc.setScreen(new JoinMultiplayerScreen(titlescreen));
         }
     }
 

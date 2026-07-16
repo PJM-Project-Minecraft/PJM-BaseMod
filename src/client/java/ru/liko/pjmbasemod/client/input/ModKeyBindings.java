@@ -15,7 +15,7 @@ public final class ModKeyBindings {
     public static final String CATEGORY = "key.categories." + Pjmbasemod.MODID;
 
     public static final KeyMapping OPEN_RADIAL_MENU = new KeyMapping(
-            "key.pjmbasemod.radial_menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_Q, CATEGORY);
+            "key.pjmbasemod.radial_menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, CATEGORY);
     public static final KeyMapping RADIAL_MENU = OPEN_RADIAL_MENU;
 
     public static final KeyMapping CYCLE_CHAT_MODE = new KeyMapping(

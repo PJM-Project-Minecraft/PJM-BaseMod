@@ -8,6 +8,7 @@ public final class RankConfig {
 
     private boolean enabled = true;
     private int enemyKillXp = 100;
+    private int enemyVehicleDestroyXp = 250;
     private int teamKillXp = -300;
     private int sectorCaptureXp = 250;
     private boolean allowDemotion = true;
@@ -57,6 +58,11 @@ public final class RankConfig {
 
     public int enemyKillXp() {
         return enemyKillXp;
+    }
+
+    /** Награда за уничтожение техники вражеской команды. */
+    public int enemyVehicleDestroyXp() {
+        return enemyVehicleDestroyXp;
     }
 
     public int teamKillXp() {

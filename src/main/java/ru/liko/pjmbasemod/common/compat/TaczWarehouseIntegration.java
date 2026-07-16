@@ -170,6 +170,26 @@ final class TaczWarehouseIntegration {
     }
 
     /**
+     * Тип ствола из индекса ганпака ({@code CommonGunIndex.getType()}): {@code pistol}, {@code smg},
+     * {@code rifle}, {@code sniper}, {@code shotgun}, {@code rpg}, {@code mg}. Это произвольная
+     * строка из JSON ганпака, а не enum: {@code GunTabType} задаёт лишь набор ванильных вкладок и
+     * сопоставляется с этой строкой по имени ({@code AbstractGunItem.fillItemCategory}), поэтому
+     * сторонний пак может объявить свой тип. Возвращает {@code null}, если стек — не ствол или
+     * ганпак не загружен (индекса ещё нет).
+     */
+    @Nullable
+    static String gunType(ItemStack stack) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof IGun iGun)) return null;
+        ResourceLocation gunId = iGun.getGunId(stack);
+        if (gunId == null) return null;
+        return TimelessAPI.getCommonGunIndex(gunId)
+                .map(index -> index.getType())
+                .filter(type -> type != null && !type.isBlank())
+                .map(type -> type.toLowerCase(Locale.ROOT))
+                .orElse(null);
+    }
+
+    /**
      * Считывает реальный TACZ-id «простого» предмета — патрона ({@link IAmmo}) или обвеса ({@link IAttachment}).
      * Это предметы, у которых один базовый Item на все варианты, а конкретика хранится в NBT (как GunId у стволов).
      * Возвращает {@code null}, если стек — не патрон и не обвес, либо id пустой. Стволы тут не обрабатываются

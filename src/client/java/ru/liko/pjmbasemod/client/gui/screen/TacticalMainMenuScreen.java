@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import ru.liko.pjmbasemod.Pjmbasemod;
 
+import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
@@ -32,6 +33,9 @@ public class TacticalMainMenuScreen extends Screen {
     private static final int BUTTON_HEIGHT = 26;
     private static final int BUTTON_SPACING = 2;
     private static final int BAR_HEIGHT = 22;
+
+    /** Магазин проекта — открывается через ванильный экран подтверждения ссылки. */
+    static final String DONATE_URL = "https://shop.likonchik.xyz";
 
     // --- Colors --- (единая палитра с PjmGuiUtils)
     private static final int COLOR_ACCENT = PjmGuiUtils.ACCENT;
@@ -148,7 +152,14 @@ public class TacticalMainMenuScreen extends Screen {
         addRenderableWidget(btnOpt);
         mainButtons.add(btnOpt);
 
-        // 6. QUIT Button
+        // 6. DONATE Button — внешний магазин, ванильное подтверждение перехода по ссылке
+        TacticalButton btnDonate = new TacticalButton(startX, 0, NAV_WIDTH, BUTTON_HEIGHT, Component.translatable("menu.pjm.donate"), button -> {
+            ConfirmLinkScreen.confirmLinkNow(this, DONATE_URL);
+        }, false, false, false);
+        addRenderableWidget(btnDonate);
+        mainButtons.add(btnDonate);
+
+        // 7. QUIT Button
         TacticalButton btnQuit = new TacticalButton(startX, 0, NAV_WIDTH, BUTTON_HEIGHT, Component.translatable("menu.pjm.exit"), button -> {
             this.minecraft.stop();
         }, true, false, false);
@@ -366,6 +377,12 @@ public class TacticalMainMenuScreen extends Screen {
     public void mouseMoved(double mouseX, double mouseY) {
         float scale = getScale();
         super.mouseMoved(mouseX / scale, mouseY / scale);
+    }
+
+    @Override
+    public boolean shouldCloseOnEsc() {
+        // Это корневой экран: под ним не должно быть ванильного TitleScreen.
+        return false;
     }
 
     private void preloadNextTexture(GuiGraphics guiGraphics) {

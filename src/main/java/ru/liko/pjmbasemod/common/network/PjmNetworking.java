@@ -10,11 +10,12 @@ import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
 import ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers;
 import ru.liko.pjmbasemod.common.network.packet.*;
+import ru.liko.pjmbasemod.common.report.ReportManager;
 import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "31";
+    public static final String VERSION = "40";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -42,14 +43,20 @@ public final class PjmNetworking {
         r.playToServer(WithdrawItemPacket.TYPE,        WithdrawItemPacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> WarehouseManager.handleWithdraw((ServerPlayer) ctx.player(), p.defId(), p.count())));
         r.playToServer(DepositItemPacket.TYPE,         DepositItemPacket.STREAM_CODEC,         (p, ctx) -> ctx.enqueueWork(() -> WarehouseManager.handleDeposit((ServerPlayer) ctx.player(), p.defId(), p.count())));
         r.playToServer(SelectRolePacket.TYPE,          SelectRolePacket.STREAM_CODEC,          (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleSelectRole(p, (ServerPlayer) ctx.player())));
+        r.playToServer(EnterVehicleSeatPacket.TYPE,    EnterVehicleSeatPacket.STREAM_CODEC,    (p, ctx) -> ctx.enqueueWork(() -> ru.liko.pjmbasemod.common.compat.SbwVehicleSeats.handleEnterSeat((ServerPlayer) ctx.player(), p.vehicleId(), p.seat())));
         r.playToServer(SubmitFactionSelectionPacket.TYPE, SubmitFactionSelectionPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleSubmitFactionSelection(p, (ServerPlayer) ctx.player())));
         r.playToServer(ManageFactionRolePacket.TYPE,   ManageFactionRolePacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleManageFactionRole(p, (ServerPlayer) ctx.player())));
         r.playToServer(ManageFactionDeputyPacket.TYPE, ManageFactionDeputyPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleManageFactionDeputy(p, (ServerPlayer) ctx.player())));
+        r.playToServer(ManageFactionInvitePacket.TYPE, ManageFactionInvitePacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleManageFactionInvite(p, (ServerPlayer) ctx.player())));
         r.playToServer(SetFactionOrderPacket.TYPE,     SetFactionOrderPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleSetFactionOrder(p, (ServerPlayer) ctx.player())));
         r.playToServer(RequestFactionManagementPacket.TYPE, RequestFactionManagementPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestFactionManagement(p, (ServerPlayer) ctx.player())));
         r.playToServer(RequestModerationPacket.TYPE,   RequestModerationPacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestModeration(p, (ServerPlayer) ctx.player())));
         r.playToServer(ModerationActionPacket.TYPE,    ModerationActionPacket.STREAM_CODEC,    (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleModerationAction(p, (ServerPlayer) ctx.player())));
         r.playToServer(CapturePointEditorActionPacket.TYPE, CapturePointEditorActionPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ru.liko.pjmbasemod.common.capturepoint.CapturePointManager.handleEditorAction(p, (ServerPlayer) ctx.player())));
+        r.playToServer(SubmitReportPacket.TYPE,        SubmitReportPacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> ReportManager.submit((ServerPlayer) ctx.player(), p.category(), p.text())));
+        r.playToServer(RequestReportsPacket.TYPE,      RequestReportsPacket.STREAM_CODEC,      (p, ctx) -> ctx.enqueueWork(() -> ReportManager.openAdmin((ServerPlayer) ctx.player())));
+        r.playToServer(ReportActionPacket.TYPE,        ReportActionPacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> ReportManager.handleAction((ServerPlayer) ctx.player(), p.id(), p.action(), p.text())));
+        r.playToServer(RequestMyReportPacket.TYPE,     RequestMyReportPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> ReportManager.openMyReport((ServerPlayer) ctx.player())));
 
         // ===== Server → Client =====
         r.playToClient(SyncPjmDataPacket.TYPE,  SyncPjmDataPacket.STREAM_CODEC,  (p, ctx) -> ctx.enqueueWork(() -> CLIENT.syncPlayerData(p)));
@@ -79,8 +86,13 @@ public final class PjmNetworking {
         r.playToClient(SignalHuntHudPacket.TYPE, SignalHuntHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.signalHuntHud(p)));
         r.playToClient(CapturePointMapSyncPacket.TYPE, CapturePointMapSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.capturePointMapSync(p)));
         r.playToClient(CapturePointHudPacket.TYPE, CapturePointHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.capturePointHud(p)));
+        r.playToClient(OpenReportsPacket.TYPE, OpenReportsPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openReports(p)));
+        r.playToClient(ReportSyncPacket.TYPE, ReportSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.reportSync(p)));
+        r.playToClient(PlayerReportThreadPacket.TYPE, PlayerReportThreadPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.playerReportThread(p)));
+        r.playToClient(OpenWelcomeGuidePacket.TYPE, OpenWelcomeGuidePacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openWelcomeGuide(p)));
+        r.playToClient(DeathScreenPacket.TYPE, DeathScreenPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.deathScreen(p)));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 47);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 55);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {

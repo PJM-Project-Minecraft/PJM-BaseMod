@@ -4,10 +4,12 @@
   "package": "ru.liko.pjmbasemod.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "ServerPlayerMixin",
     "SlotMixin"
   ],
   "client": [
-    "AbstractClientPlayerMixin"
+    "AbstractClientPlayerMixin",
+    "LightTextureMixin"
   ],
   "server": [],
   "injectors": {

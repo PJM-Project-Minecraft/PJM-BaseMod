@@ -5,8 +5,10 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.capturepoint.CapturePoint;
+import ru.liko.pjmbasemod.common.fleet.VehicleFleetManager;
 import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.RankSyncPacket;
@@ -51,6 +53,8 @@ public final class RankService {
      */
     public static boolean meetsMinRank(ServerPlayer player, @Nullable String minRankId) {
         if (minRankId == null || minRankId.isBlank()) return true;
+        // Командир фракции («генерал») игнорирует ограничения по званию — доступ ко всему складу/гаражу.
+        if (ru.liko.pjmbasemod.common.faction.FactionCommanderService.isActiveCommander(player)) return true;
         RankDefinition required = RankRegistry.get().byId(minRankId);
         if (required == null) return true;
         RankDefinition playerRank = RankRegistry.get().rankForXp(xp(player));
@@ -115,6 +119,20 @@ public final class RankService {
         } else {
             addXp(killer, config.enemyKillXp(), "kill");
         }
+    }
+
+    /** Начисляет XP за уничтожение техники команды-противника. */
+    public static void handleVehicleDestroyed(@Nullable Entity attacker, Entity vehicle) {
+        RankConfig config = RankRegistry.get().config();
+        if (!config.enabled() || config.enemyVehicleDestroyXp() == 0
+                || !(attacker instanceof ServerPlayer player) || vehicle == null || player.getServer() == null) return;
+
+        String attackerTeam = Teams.resolvePlayerTeamId(player);
+        String vehicleTeam = VehicleFleetManager.teamId(player.getServer(), vehicle);
+        if (!Teams.isCombatTeam(attackerTeam) || !Teams.isCombatTeam(vehicleTeam)
+                || attackerTeam.equals(vehicleTeam)) return;
+
+        addXp(player, config.enemyVehicleDestroyXp(), "vehicle");
     }
 
     /**

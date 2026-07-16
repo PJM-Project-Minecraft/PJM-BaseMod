@@ -93,6 +93,21 @@ public final class SbwVehicleClassifier {
         return null;
     }
 
+    /** FQN базового класса техники SuperbWarfare — для runtime-проверки без compile-time зависимости. */
+    private static final String VEHICLE_CLASS = "com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity";
+
+    /**
+     * Является ли entity техникой SuperbWarfare (для 3D-превью на экране смерти). Проверка по
+     * иерархии классов, т.к. класс SBW отсутствует на этапе компиляции. Без SuperbWarfare — {@code false}.
+     */
+    public static boolean isVehicleEntity(@Nullable net.minecraft.world.entity.Entity entity) {
+        if (entity == null) return false;
+        for (Class<?> c = entity.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            if (c.getName().equals(VEHICLE_CLASS)) return true;
+        }
+        return false;
+    }
+
     /** Является ли entity id летающей техникой SuperbWarfare. */
     public static boolean isAircraft(@Nullable String entityId) {
         return entityId != null && aircraftIds.contains(entityId.trim().toLowerCase(Locale.ROOT));

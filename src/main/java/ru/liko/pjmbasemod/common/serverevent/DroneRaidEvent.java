@@ -61,6 +61,7 @@ public final class DroneRaidEvent implements ServerEvent {
     private int waveCount;
     private int dronesPerWave;
     private int waveIntervalSeconds;
+    private int droneSpawnInterval;
     private int spawnDistance;
     private int spawnAltitude;
     private float speed;
@@ -83,6 +84,14 @@ public final class DroneRaidEvent implements ServerEvent {
     private boolean lost;
     private final Set<UUID> aliveDrones = new LinkedHashSet<>();
 
+    // Поштучный запуск дронов волны: не выпускаем всю волну разом, а по одному с интервалом.
+    private int pendingInWave;        // дронов текущей волны, ещё не запущенных
+    private int droneSpawnCountdown;  // секунд до следующего одиночного запуска
+    private double pendingSpeed;      // параметры волны, зафиксированные на её старте
+    private int pendingAltitude;
+    private int pendingDistance;
+    private boolean pendingTerrain;
+
     private DroneRaidEvent() {
     }
 
@@ -98,6 +107,7 @@ public final class DroneRaidEvent implements ServerEvent {
         event.waveCount = settings.waveCount;
         event.dronesPerWave = settings.dronesPerWave;
         event.waveIntervalSeconds = settings.waveIntervalSeconds;
+        event.droneSpawnInterval = settings.droneSpawnIntervalSeconds;
         event.spawnDistance = settings.spawnDistance;
         event.spawnAltitude = settings.spawnAltitude;
         event.speed = (float) settings.speed;
@@ -159,11 +169,22 @@ public final class DroneRaidEvent implements ServerEvent {
         if (wavesSpawned < waveCount) {
             secondsToNextWave--;
             if (secondsToNextWave <= 0) {
-                spawnWave(level);
+                beginWave(level);
                 wavesSpawned++;
                 secondsToNextWave = waveIntervalSeconds;
             }
-        } else if (aliveDrones.isEmpty()) {
+        }
+
+        // Поштучный запуск дронов волны «по очереди»: один дрон раз в droneSpawnInterval секунд.
+        if (pendingInWave > 0) {
+            droneSpawnCountdown--;
+            if (droneSpawnCountdown <= 0) {
+                spawnOneDrone(level);
+                droneSpawnCountdown = droneSpawnInterval;
+            }
+        }
+
+        if (wavesSpawned >= waveCount && pendingInWave == 0 && aliveDrones.isEmpty()) {
             finished = true;
         }
 
@@ -174,45 +195,51 @@ public final class DroneRaidEvent implements ServerEvent {
         }
     }
 
-    private void spawnWave(ServerLevel level) {
-        ThreadLocalRandom random = ThreadLocalRandom.current();
+    /** Ставит волну в очередь на поштучный запуск: фиксирует её параметры, дроны полетят по одному. */
+    private void beginWave(ServerLevel level) {
         WaveProfile profile = currentWaveProfile();
         int count = resolve(profile.dronesPerWave, dronesPerWave);
-        double waveSpeed = resolve(profile.speed, (double) speed);
-        int waveAltitude = resolve(profile.spawnAltitude, spawnAltitude);
-        int waveDistance = resolve(profile.spawnDistance, spawnDistance);
-        boolean waveTerrain = resolve(profile.terrainFollow, terrainFollow);
-        int spawned = 0;
-        for (int i = 0; i < count; i++) {
-            double spawnAngle = random.nextDouble() * Math.PI * 2;
-            double spawnY = Math.max(waveAltitude, targetY + 60);
-            Vec3 spawnPos = new Vec3(
-                    targetX + Math.cos(spawnAngle) * waveDistance,
-                    spawnY,
-                    targetZ + Math.sin(spawnAngle) * waveDistance);
+        pendingSpeed = resolve(profile.speed, (double) speed);
+        pendingAltitude = resolve(profile.spawnAltitude, spawnAltitude);
+        pendingDistance = resolve(profile.spawnDistance, spawnDistance);
+        pendingTerrain = resolve(profile.terrainFollow, terrainFollow);
+        // ponytail: при экстремально коротком waveInterval и длинном интервале запуска волны могут наложиться —
+        // копим счётчик (дроны не теряются), используя параметры последней волны. Для дефолтных конфигов не наступает.
+        pendingInWave += count;
+        droneSpawnCountdown = 0; // первый дрон волны — сразу в этом же тике
+        Pjmbasemod.LOGGER.info("Events: налёт '{}' — волна {}/{}, {} дронов по очереди (интервал {}с, speed={}км/ч, alt={}, dist={}).",
+                pointName, wavesSpawned + 1, waveCount, count, droneSpawnInterval, pendingSpeed, pendingAltitude, pendingDistance);
+    }
 
-            // Цель — случайная точка внутри зоны налёта.
-            double offsetAngle = random.nextDouble() * Math.PI * 2;
-            double offsetDist = Math.sqrt(random.nextDouble()) * radius;
-            Vec3 target = new Vec3(
-                    targetX + Math.cos(offsetAngle) * offsetDist,
-                    targetY,
-                    targetZ + Math.sin(offsetAngle) * offsetDist);
+    /** Запускает ровно один дрон текущей волны по её зафиксированным параметрам. */
+    private void spawnOneDrone(ServerLevel level) {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        double spawnAngle = random.nextDouble() * Math.PI * 2;
+        double spawnY = Math.max(pendingAltitude, targetY + 60);
+        Vec3 spawnPos = new Vec3(
+                targetX + Math.cos(spawnAngle) * pendingDistance,
+                spawnY,
+                targetZ + Math.sin(spawnAngle) * pendingDistance);
 
-            // Курс на цель: запуск Shahed идёт по yRot.
-            Vec3 toTarget = target.subtract(spawnPos);
-            float yRot = (float) Math.toDegrees(Mth.atan2(-toTarget.x, toTarget.z));
+        // Цель — случайная точка внутри зоны налёта.
+        double offsetAngle = random.nextDouble() * Math.PI * 2;
+        double offsetDist = Math.sqrt(random.nextDouble()) * radius;
+        Vec3 target = new Vec3(
+                targetX + Math.cos(offsetAngle) * offsetDist,
+                targetY,
+                targetZ + Math.sin(offsetAngle) * offsetDist);
 
-            UUID uuid = WrbDronesCompat.spawnShahed(level, spawnPos, yRot, target,
-                    (float) waveSpeed, (float) spawnY, waveTerrain, EVENT_DRONE_TAG);
-            if (uuid != null) {
-                aliveDrones.add(uuid);
-                dronesSpawned++;
-                spawned++;
-            }
+        // Курс на цель: запуск Shahed идёт по yRot.
+        Vec3 toTarget = target.subtract(spawnPos);
+        float yRot = (float) Math.toDegrees(Mth.atan2(-toTarget.x, toTarget.z));
+
+        UUID uuid = WrbDronesCompat.spawnShahed(level, spawnPos, yRot, target,
+                (float) pendingSpeed, (float) spawnY, pendingTerrain, EVENT_DRONE_TAG);
+        if (uuid != null) {
+            aliveDrones.add(uuid);
+            dronesSpawned++;
         }
-        Pjmbasemod.LOGGER.info("Events: налёт '{}' — волна {}/{}, запущено {} дронов (speed={}км/ч, alt={}, dist={}).",
-                pointName, wavesSpawned + 1, waveCount, spawned, waveSpeed, waveAltitude, waveDistance);
+        pendingInWave--;
     }
 
     /** Профиль текущей волны (для комбинированного налёта) или пустой (для одинаковых волн). */
@@ -326,8 +353,8 @@ public final class DroneRaidEvent implements ServerEvent {
 
     @Override
     public String statusLine() {
-        return String.format("налёт дронов '%s' [%s]: волна %d/%d, в воздухе %d, сбито %d, попало %d/%d, прошло %d сек",
-                pointName, composition, wavesSpawned, waveCount, aliveDrones.size(),
+        return String.format("налёт дронов '%s' [%s]: волна %d/%d, в очереди %d, в воздухе %d, сбито %d, попало %d/%d, прошло %d сек",
+                pointName, composition, wavesSpawned, waveCount, pendingInWave, aliveDrones.size(),
                 dronesShotDown, dronesHitTarget, dronesSpawned, elapsedSeconds);
     }
 
@@ -356,6 +383,7 @@ public final class DroneRaidEvent implements ServerEvent {
         tag.putInt("WaveCount", waveCount);
         tag.putInt("DronesPerWave", dronesPerWave);
         tag.putInt("WaveIntervalSeconds", waveIntervalSeconds);
+        tag.putInt("DroneSpawnInterval", droneSpawnInterval);
         tag.putInt("SpawnDistance", spawnDistance);
         tag.putInt("SpawnAltitude", spawnAltitude);
         tag.putFloat("Speed", speed);
@@ -372,6 +400,12 @@ public final class DroneRaidEvent implements ServerEvent {
         tag.putInt("DronesShotDown", dronesShotDown);
         tag.putInt("DronesHitTarget", dronesHitTarget);
         tag.putInt("DronesSpawned", dronesSpawned);
+        tag.putInt("PendingInWave", pendingInWave);
+        tag.putInt("DroneSpawnCountdown", droneSpawnCountdown);
+        tag.putDouble("PendingSpeed", pendingSpeed);
+        tag.putInt("PendingAltitude", pendingAltitude);
+        tag.putInt("PendingDistance", pendingDistance);
+        tag.putBoolean("PendingTerrain", pendingTerrain);
         ListTag drones = new ListTag();
         for (UUID uuid : aliveDrones) {
             drones.add(NbtUtils.createUUID(uuid));
@@ -406,6 +440,7 @@ public final class DroneRaidEvent implements ServerEvent {
         event.waveCount = tag.getInt("WaveCount");
         event.dronesPerWave = tag.getInt("DronesPerWave");
         event.waveIntervalSeconds = tag.getInt("WaveIntervalSeconds");
+        event.droneSpawnInterval = tag.getInt("DroneSpawnInterval");
         event.spawnDistance = tag.getInt("SpawnDistance");
         event.spawnAltitude = tag.getInt("SpawnAltitude");
         event.speed = tag.getFloat("Speed");
@@ -425,6 +460,12 @@ public final class DroneRaidEvent implements ServerEvent {
         event.dronesShotDown = tag.getInt("DronesShotDown");
         event.dronesHitTarget = tag.getInt("DronesHitTarget");
         event.dronesSpawned = tag.getInt("DronesSpawned");
+        event.pendingInWave = tag.getInt("PendingInWave");
+        event.droneSpawnCountdown = tag.getInt("DroneSpawnCountdown");
+        event.pendingSpeed = tag.getDouble("PendingSpeed");
+        event.pendingAltitude = tag.getInt("PendingAltitude");
+        event.pendingDistance = tag.getInt("PendingDistance");
+        event.pendingTerrain = tag.getBoolean("PendingTerrain");
         ListTag drones = tag.getList("AliveDrones", Tag.TAG_INT_ARRAY);
         for (Tag droneTag : drones) {
             event.aliveDrones.add(NbtUtils.loadUUID(droneTag));

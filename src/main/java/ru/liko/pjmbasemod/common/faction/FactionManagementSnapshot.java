@@ -20,11 +20,18 @@ public record FactionManagementSnapshot(
         int deputyCount,
         String orderText,
         String orderAuthor,
-        int orderSecondsRemaining
+        int orderSecondsRemaining,
+        boolean inviteOnly,
+        boolean viewerCanInvite,
+        List<InviteEntry> invites
 ) {
 
     public record MemberEntry(UUID playerId, String name, String roleId, boolean commander,
-                              boolean deputy, int deputyPerms) {
+                              boolean deputy, int deputyPerms, boolean online) {
+    }
+
+    /** Активное приглашение: ник и остаток срока в минутах ({@code -1} — бессрочно). */
+    public record InviteEntry(String name, int minutesRemaining) {
     }
 
     public static void write(FriendlyByteBuf buf, FactionManagementSnapshot snapshot) {
@@ -41,6 +48,7 @@ public record FactionManagementSnapshot(
             buf.writeBoolean(member.commander());
             buf.writeBoolean(member.deputy());
             buf.writeVarInt(member.deputyPerms());
+            buf.writeBoolean(member.online());
         }
 
         buf.writeVarInt(snapshot.roles().size());
@@ -60,6 +68,14 @@ public record FactionManagementSnapshot(
         buf.writeUtf(snapshot.orderText());
         buf.writeUtf(snapshot.orderAuthor());
         buf.writeInt(snapshot.orderSecondsRemaining());
+
+        buf.writeBoolean(snapshot.inviteOnly());
+        buf.writeBoolean(snapshot.viewerCanInvite());
+        buf.writeVarInt(snapshot.invites().size());
+        for (InviteEntry invite : snapshot.invites()) {
+            buf.writeUtf(invite.name());
+            buf.writeInt(invite.minutesRemaining());
+        }
     }
 
     public static FactionManagementSnapshot read(FriendlyByteBuf buf) {
@@ -72,7 +88,7 @@ public record FactionManagementSnapshot(
         List<MemberEntry> members = new ArrayList<>(memberCount);
         for (int i = 0; i < memberCount; i++) {
             members.add(new MemberEntry(buf.readUUID(), buf.readUtf(), buf.readUtf(),
-                    buf.readBoolean(), buf.readBoolean(), buf.readVarInt()));
+                    buf.readBoolean(), buf.readBoolean(), buf.readVarInt(), buf.readBoolean()));
         }
 
         int roleCount = buf.readVarInt();
@@ -91,9 +107,18 @@ public record FactionManagementSnapshot(
         String orderAuthor = buf.readUtf();
         int orderSecondsRemaining = buf.readInt();
 
+        boolean inviteOnly = buf.readBoolean();
+        boolean viewerCanInvite = buf.readBoolean();
+        int inviteCount = buf.readVarInt();
+        List<InviteEntry> invites = new ArrayList<>(inviteCount);
+        for (int i = 0; i < inviteCount; i++) {
+            invites.add(new InviteEntry(buf.readUtf(), buf.readInt()));
+        }
+
         return new FactionManagementSnapshot(teamId, teamName, teamColor, canManage,
                 List.copyOf(members), List.copyOf(roles),
                 viewerCanAssignRoles, viewerCanManageDeputies, viewerCanSetOrder,
-                maxDeputies, deputyCount, orderText, orderAuthor, orderSecondsRemaining);
+                maxDeputies, deputyCount, orderText, orderAuthor, orderSecondsRemaining,
+                inviteOnly, viewerCanInvite, List.copyOf(invites));
     }
 }

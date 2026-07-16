@@ -72,6 +72,25 @@ public final class Teams {
         return exists(current) ? current : null;
     }
 
+    /**
+     * Команда по scoreboard-имени игрока — работает и для оффлайн-игрока: членство в
+     * scoreboard-команде хранится по имени и переживает выход с сервера.
+     */
+    @Nullable
+    public static String resolveTeamIdByName(@Nullable MinecraftServer server, @Nullable String scoreboardName) {
+        if (server == null || scoreboardName == null || scoreboardName.isBlank()) return null;
+        PlayerTeam team = server.getScoreboard().getPlayersTeam(scoreboardName);
+        if (team == null) return null;
+        String current = normalize(team.getName());
+        return exists(current) ? current : null;
+    }
+
+    /** Все члены команды по scoreboard-именам, включая оффлайн. Пустой список, если команды нет. */
+    public static List<String> memberNames(@Nullable MinecraftServer server, String teamId) {
+        PlayerTeam team = scoreboardTeam(server, teamId);
+        return team == null ? List.of() : List.copyOf(team.getPlayers());
+    }
+
     @Nullable
     public static String resolveAlias(String scoreboardNameOrId) {
         String current = normalize(scoreboardNameOrId);

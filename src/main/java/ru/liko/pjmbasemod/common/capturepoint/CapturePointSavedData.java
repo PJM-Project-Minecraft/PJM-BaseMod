@@ -62,6 +62,15 @@ public final class CapturePointSavedData extends SavedData {
         return points.get(key(id));
     }
 
+    /** Команда-владелец точки, содержащей блок (x,z) в измерении; "" — нет точки/нейтрально. */
+    public String ownerTeamAt(String dimension, int x, int z) {
+        for (Entry e : points.values()) {
+            if (!e.dimension.equals(dimension) || e.vertices.size() < 3) continue;
+            if (CapturePoint.contains(e.vertices, x, z)) return e.ownerTeamId == null ? "" : e.ownerTeamId;
+        }
+        return "";
+    }
+
     /** Снапшоты всех точек для sync-пакета. */
     public List<CapturePoint> snapshots(int requiredTicks, @Nullable Map<String, Integer> contestedFlags) {
         List<CapturePoint> result = new ArrayList<>();
@@ -120,6 +129,14 @@ public final class CapturePointSavedData extends SavedData {
         return true;
     }
 
+    public boolean setOrder(String id, int order) {
+        Entry entry = entry(id);
+        if (entry == null) return false;
+        entry.order = order;
+        setDirty();
+        return true;
+    }
+
     public void clearAll() {
         if (points.isEmpty()) return;
         points.clear();
@@ -143,6 +160,8 @@ public final class CapturePointSavedData extends SavedData {
         public int ownerColor = 0x9B9B9B;
         public String captureTeamId = "";
         public int progressTicks = 0;
+        /** Порядок на линии фронта (для последовательного захвата). Соседи по order — цепочка. */
+        public int order = 0;
 
         CapturePoint snapshot(int requiredTicks, boolean contested) {
             int percent;
@@ -168,6 +187,7 @@ public final class CapturePointSavedData extends SavedData {
             tag.putInt("ownerColor", ownerColor);
             tag.putString("capture", captureTeamId);
             tag.putInt("progress", progressTicks);
+            tag.putInt("order", order);
             ListTag vlist = new ListTag();
             for (CapturePoint.Vertex v : vertices) {
                 CompoundTag vt = new CompoundTag();
@@ -189,6 +209,7 @@ public final class CapturePointSavedData extends SavedData {
             entry.ownerColor = tag.getInt("ownerColor");
             entry.captureTeamId = tag.getString("capture");
             entry.progressTicks = Math.max(0, tag.getInt("progress"));
+            entry.order = tag.getInt("order");
             ListTag vlist = tag.getList("vertices", Tag.TAG_COMPOUND);
             List<CapturePoint.Vertex> vertices = new ArrayList<>();
             for (int i = 0; i < vlist.size(); i++) {

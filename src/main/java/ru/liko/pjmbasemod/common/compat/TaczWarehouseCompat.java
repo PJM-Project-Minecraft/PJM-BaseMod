@@ -35,6 +35,16 @@ public final class TaczWarehouseCompat {
     }
 
     /**
+     * Тип TACZ-ствола в нижнем регистре ({@code pistol}, {@code smg}, {@code rifle}, {@code sniper},
+     * {@code shotgun}, {@code rpg}, {@code mg} — или произвольный тип из стороннего ганпака).
+     * {@code null}, если TACZ не загружен, стек — не ствол, либо индекс ганпака недоступен.
+     */
+    @Nullable
+    public static String gunType(ItemStack stack) {
+        return isLoaded() ? TaczWarehouseIntegration.gunType(stack) : null;
+    }
+
+    /**
      * Считывает реальный TACZ-id «простого» предмета (патрон/обвес) — у которого один базовый Item,
      * а конкретика в NBT. Возвращает {@code null}, если TACZ не загружен или стек — не патрон/обвес.
      * Стволы не обрабатывает (для них {@link #captureGun}). Сборка по id — через {@link #createStack}.
