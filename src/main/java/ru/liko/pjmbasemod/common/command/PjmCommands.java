@@ -448,6 +448,7 @@ public final class PjmCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> garageCommand() {
         return Commands.literal("garage")
                 .then(Commands.literal("open")
+                        .requires(source -> source.hasPermission(2))
                         .executes(ctx -> openGarage(ctx.getSource()))
                         .then(Commands.argument("type", StringArgumentType.word())
                                 .suggests((ctx, builder) -> suggestGarageTypes(builder))
