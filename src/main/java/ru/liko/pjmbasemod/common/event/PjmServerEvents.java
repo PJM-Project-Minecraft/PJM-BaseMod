@@ -158,9 +158,24 @@ public final class PjmServerEvents {
 
     /** Читаемая причина убийства: имя оружия в руке киллера, иначе id типа урона. */
     private static String killCause(ServerPlayer killer, LivingDeathEvent event) {
+        // Сначала точный резолв по источнику урона (пуля TACZ / снаряд и техника SBW):
+        // предмет в руке к моменту смерти может быть уже другим.
+        String resolved = ru.liko.pjmbasemod.common.logging.KillWeaponResolver.resolve(event.getSource());
+        if (resolved != null) return resolved;
         ItemStack weapon = killer.getMainHandItem();
         if (!weapon.isEmpty()) return weapon.getHoverName().getString();
         return event.getSource().type().msgId();
+    }
+
+    /** Лог всех команд, выполненных игроками (консоль и командные блоки не пишем). */
+    @SubscribeEvent
+    public static void onCommand(net.neoforged.neoforge.event.CommandEvent event) {
+        var source = event.getParseResults().getContext().getSource();
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return;
+        String raw = event.getParseResults().getReader().getString();
+        PjmActionLogger.instance().logSubsystem(ru.liko.pjmbasemod.common.logging.LogCategory.COMMAND,
+                player.getGameProfile().getName() + ": /" + raw);
     }
 
     @SubscribeEvent

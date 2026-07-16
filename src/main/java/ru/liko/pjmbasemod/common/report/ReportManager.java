@@ -64,6 +64,11 @@ public final class ReportManager {
         }
         if (report == null) return;
 
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.REPORT,
+                String.format("%s: #%d [%s] %s", isNew ? "новый репорт" : "сообщение в репорте",
+                        report.id(), category.name().toLowerCase(java.util.Locale.ROOT), text));
+
         // Обновить открытый экран игрока.
         PjmNetworking.sendToPlayer(reporter, new PlayerReportThreadPacket(toThread(report)));
 

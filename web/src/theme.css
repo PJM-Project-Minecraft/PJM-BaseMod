@@ -1,4 +1,4 @@
-/* PJM Web Panel — Apple-тёмная glass-тема (blur + минимализм) */
+/* PJM Web Panel — строгий тёмный минимализм: плоские панели, один акцент, без blur/градиентов */
 
 @font-face {
   font-family: 'Inter';
@@ -9,76 +9,74 @@
 }
 
 :root {
-  /* — Базовый графит (нейтральный, без синевы) — */
-  --bg: #050507;
-  --bg-elev: #0a0a0c;
+  /* — Поверхности: фон → панель → вложение — */
+  --bg: #0d0e10;
+  --bg-elev: #121316;
 
-  /* — Glass-слои: фон → контейнер → вложение → фокус — */
-  --glass-1-bg: rgba(20, 20, 24, 0.55);
-  --glass-1-blur: 40px;
-  --glass-1-border: rgba(255, 255, 255, 0.08);
+  /* Имена glass-* сохранены для совместимости классов, но слои теперь плоские. */
+  --glass-1-bg: #15161a;
+  --glass-1-border: #26282e;
 
-  --glass-2-bg: rgba(15, 15, 18, 0.60);
-  --glass-2-blur: 20px;
-  --glass-2-border: rgba(255, 255, 255, 0.06);
+  --glass-2-bg: #191b1f;
+  --glass-2-border: #2b2d34;
 
-  --glass-3-bg: rgba(10, 10, 12, 0.70);
-  --glass-3-border: rgba(255, 255, 255, 0.05);
+  --glass-3-bg: #101114;
+  --glass-3-border: #26282e;
 
   /* — Текст — */
-  --text: #f5f5f7;
-  --text-2: #c7c7cc;
-  --muted: #8e8e93;
-  --muted-2: #636366;
+  --text: #e6e7e9;
+  --text-2: #b9bbc0;
+  --muted: #85878d;
+  --muted-2: #55575e;
 
-  /* — Акцент: системный синий Apple — */
-  --accent: #0A84FF;
-  --accent-2: #409CFF;
-  --accent-dim: rgba(10, 132, 255, 0.35);
-  --accent-glow: rgba(10, 132, 255, 0.30);
-  --accent-active-bg: rgba(10, 132, 255, 0.16);
+  /* — Единственный акцент — */
+  --accent: #4d8df7;
+  --accent-2: #6ba1f9;
+  --accent-dim: rgba(77, 141, 247, 0.35);
+  --accent-glow: rgba(77, 141, 247, 0.0); /* свечения отключены */
+  --accent-active-bg: rgba(77, 141, 247, 0.13);
 
-  /* — Статусы: системные цвета Apple — */
-  --ok: #30D158;
-  --warn: #FF9F0A;
-  --danger: #FF453A;
-  --purple: #BF5AF2;
-  --info: #64D2FF;
+  /* — Статусы (приглушённые) — */
+  --ok: #3fb950;
+  --warn: #d29922;
+  --danger: #f85149;
+  --purple: #a371f7;
+  --info: #58a6ff;
 
-  --ok-dim: rgba(48, 209, 88, 0.35);
-  --warn-dim: rgba(255, 159, 10, 0.35);
-  --danger-dim: rgba(255, 69, 58, 0.35);
+  --ok-dim: rgba(63, 185, 80, 0.35);
+  --warn-dim: rgba(210, 153, 34, 0.35);
+  --danger-dim: rgba(248, 81, 73, 0.35);
 
   /* — Карта — */
-  --map-bg: #08080a;
-  --map-grid: rgba(255, 255, 255, 0.03);
-  --map-player: #0A84FF;
-  --map-mob: #FF9F0A;
-  --map-item: #64D2FF;
-  --map-projectile: #BF5AF2;
-  --map-other: #8e8e93;
-  --map-hot: rgba(255, 69, 58, 0.20);
-  --map-label: #f5f5f7;
+  --map-bg: #0a0b0d;
+  --map-grid: rgba(255, 255, 255, 0.04);
+  --map-player: #4d8df7;
+  --map-mob: #d29922;
+  --map-item: #58a6ff;
+  --map-projectile: #a371f7;
+  --map-other: #85878d;
+  --map-hot: rgba(248, 81, 73, 0.18);
+  --map-label: #e6e7e9;
 
-  /* — Морфология — */
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 20px;
+  /* — Морфология: сдержанные радиусы — */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 10px;
   --r-pill: 999px;
 
-  /* — Motion-токены (Apple-easing) — */
+  /* — Motion — */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --t-micro: 0.18s;
-  --t-std: 0.3s;
-  --t-slow: 0.5s;
+  --t-micro: 0.15s;
+  --t-std: 0.25s;
+  --t-slow: 0.4s;
 
   /* — Типографика — */
   --sans: 'Inter', -apple-system, system-ui, 'Segoe UI', sans-serif;
-  --mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
-  --shadow-float: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-accent: 0 0 20px var(--accent-glow);
+  --mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+  --shadow-float: none;
+  --shadow-accent: none;
 }
 
 * { box-sizing: border-box; }
@@ -98,25 +96,6 @@ body {
   overflow: hidden;
 }
 
-/* — Mesh-градиентный фон: 3 мягких свечения, медленный дрейф — */
-.mesh-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(60vw 60vw at 15% 20%, rgba(10, 132, 255, 0.18), transparent 60%),
-    radial-gradient(50vw 50vw at 85% 30%, rgba(191, 90, 242, 0.14), transparent 60%),
-    radial-gradient(55vw 55vw at 50% 90%, rgba(48, 209, 88, 0.10), transparent 60%),
-    var(--bg);
-  animation: meshDrift 28s var(--ease) infinite alternate;
-}
-@keyframes meshDrift {
-  0%   { transform: translate3d(0, 0, 0) scale(1); }
-  50%  { transform: translate3d(-2vw, 1vw, 0) scale(1.05); }
-  100% { transform: translate3d(2vw, -1vw, 0) scale(1.02); }
-}
-
 h1, h2, h3, h4 {
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -129,33 +108,25 @@ h4 { font-size: 13px; color: var(--text-2); }
 .mono { font-family: var(--mono); font-feature-settings: 'tnum' 1; }
 .tnum { font-variant-numeric: tabular-nums; }
 
-/* ═══════════ Glass-слои ═══════════ */
+/* ═══════════ Поверхности (плоские, имена классов сохранены) ═══════════ */
 
 .glass {
   background: var(--glass-1-bg);
-  backdrop-filter: blur(var(--glass-1-blur)) saturate(160%);
-  -webkit-backdrop-filter: blur(var(--glass-1-blur)) saturate(160%);
   border: 1px solid var(--glass-1-border);
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow-float);
 }
 
 .glass-2 {
   background: var(--glass-2-bg);
-  backdrop-filter: blur(var(--glass-2-blur)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--glass-2-blur)) saturate(140%);
   border: 1px solid var(--glass-2-border);
   border-radius: var(--r-md);
 }
 
 .panel {
   background: var(--glass-1-bg);
-  backdrop-filter: blur(var(--glass-1-blur)) saturate(160%);
-  -webkit-backdrop-filter: blur(var(--glass-1-blur)) saturate(160%);
   border: 1px solid var(--glass-1-border);
   border-radius: var(--r-lg);
   padding: 18px;
-  box-shadow: var(--shadow-float);
 }
 
 /* ═══════════ Кнопки ═══════════ */
@@ -166,42 +137,38 @@ h4 { font-size: 13px; color: var(--text-2); }
   justify-content: center;
   gap: 6px;
   background: var(--glass-2-bg);
-  backdrop-filter: blur(var(--glass-2-blur));
-  -webkit-backdrop-filter: blur(var(--glass-2-blur));
   color: var(--text);
-  border: 1px solid transparent;
+  border: 1px solid var(--glass-2-border);
   border-radius: var(--r-md);
-  padding: 9px 16px;
+  padding: 8px 14px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
   font-family: inherit;
   transition: background var(--t-micro) var(--ease),
-              border-color var(--t-micro) var(--ease),
-              transform var(--t-micro) var(--ease),
-              box-shadow var(--t-micro) var(--ease);
+              border-color var(--t-micro) var(--ease);
 }
-.btn:hover { background: rgba(255, 255, 255, 0.08); }
-.btn:active { transform: scale(0.97); }
+.btn:hover { background: #22242a; border-color: #34363e; }
+.btn:active { background: #1c1e23; }
 .btn:disabled { opacity: 0.4; cursor: default; }
 
 .btn-accent {
   background: var(--accent);
   color: #fff;
-  box-shadow: var(--shadow-accent);
+  border-color: transparent;
 }
-.btn-accent:hover { background: var(--accent-2); }
+.btn-accent:hover { background: var(--accent-2); border-color: transparent; }
 
 .btn-danger {
-  background: rgba(255, 69, 58, 0.16);
+  background: transparent;
   color: var(--danger);
   border-color: var(--danger-dim);
 }
-.btn-danger:hover { background: rgba(255, 69, 58, 0.26); }
+.btn-danger:hover { background: rgba(248, 81, 73, 0.12); }
 
 .btn-icon {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border-radius: var(--r-md);
 }
@@ -211,31 +178,26 @@ h4 { font-size: 13px; color: var(--text-2); }
 .input, select.input {
   background: var(--glass-3-bg);
   color: var(--text);
-  border: 1px solid transparent;
+  border: 1px solid var(--glass-3-border);
   border-radius: var(--r-md);
-  padding: 9px 12px;
+  padding: 8px 11px;
   font-size: 13px;
   font-family: inherit;
   outline: none;
-  transition: border-color var(--t-micro) var(--ease),
-              box-shadow var(--t-micro) var(--ease),
-              background var(--t-micro) var(--ease);
+  transition: border-color var(--t-micro) var(--ease);
 }
 .input::placeholder { color: var(--muted-2); }
-.input:hover { background: rgba(255, 255, 255, 0.04); }
-.input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim), inset 0 0 0 1px var(--accent-dim);
-}
+.input:hover { border-color: #34363e; }
+.input:focus { border-color: var(--accent); }
 select.input {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%238e8e93' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2385878d' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 32px;
 }
 
-/* ═══════════ iOS-свитч ═══════════ */
+/* ═══════════ Свитч ═══════════ */
 
 .switch {
   position: relative;
@@ -248,7 +210,7 @@ select.input {
 .switch-slider {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.12);
+  background: #2b2d34;
   border-radius: var(--r-pill);
   transition: background var(--t-std) var(--ease);
 }
@@ -259,13 +221,12 @@ select.input {
   height: 18px;
   left: 2px;
   top: 2px;
-  background: #fff;
+  background: #d5d6d9;
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  transition: transform var(--t-std) var(--ease-spring);
+  transition: transform var(--t-std) var(--ease);
 }
 .switch input:checked + .switch-slider { background: var(--accent); }
-.switch input:checked + .switch-slider::before { transform: translateX(16px); }
+.switch input:checked + .switch-slider::before { transform: translateX(16px); background: #fff; }
 
 /* компактный свитч для таблиц */
 .switch.sm { width: 30px; height: 18px; }
@@ -284,24 +245,22 @@ select.input {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: 10px 12px;
+  padding: 9px 12px;
   background: var(--glass-2-bg);
-  backdrop-filter: blur(var(--glass-2-blur));
-  -webkit-backdrop-filter: blur(var(--glass-2-blur));
   border-bottom: 1px solid var(--glass-1-border);
 }
 .table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 9px 12px;
+  border-bottom: 1px solid #1c1e23;
   font-size: 13px;
 }
 .table tbody tr {
   transition: background var(--t-micro) var(--ease);
   cursor: pointer;
 }
-.table tbody tr:hover { background: rgba(255, 255, 255, 0.06); }
+.table tbody tr:hover { background: #1a1c21; }
 .table tbody tr.selected {
-  background: rgba(10, 132, 255, 0.12);
+  background: var(--accent-active-bg);
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
@@ -312,16 +271,16 @@ select.input {
   align-items: center;
   padding: 3px 10px;
   border-radius: var(--r-pill);
-  background: var(--glass-3-bg);
+  background: transparent;
   border: 1px solid var(--glass-2-border);
   font-size: 11px;
   font-weight: 500;
   color: var(--text-2);
 }
-.chip-accent { color: var(--accent); background: rgba(10, 132, 255, 0.14); border-color: var(--accent-dim); }
-.chip-ok { color: var(--ok); background: rgba(48, 209, 88, 0.14); border-color: var(--ok-dim); }
-.chip-warn { color: var(--warn); background: rgba(255, 159, 10, 0.14); border-color: var(--warn-dim); }
-.chip-danger { color: var(--danger); background: rgba(255, 69, 58, 0.14); border-color: var(--danger-dim); }
+.chip-accent { color: var(--accent); border-color: var(--accent-dim); }
+.chip-ok { color: var(--ok); border-color: var(--ok-dim); }
+.chip-warn { color: var(--warn); border-color: var(--warn-dim); }
+.chip-danger { color: var(--danger); border-color: var(--danger-dim); }
 
 /* ═══════════ Индикатор связи ═══════════ */
 
@@ -333,21 +292,13 @@ select.input {
   background: var(--danger);
   flex-shrink: 0;
 }
-.pulse-dot.on {
-  background: var(--ok);
-  animation: pulse 2s ease-out infinite;
-}
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.5); }
-  70% { box-shadow: 0 0 0 7px transparent; }
-  100% { box-shadow: 0 0 0 0 transparent; }
-}
+.pulse-dot.on { background: var(--ok); }
 
 /* ═══════════ Анимации входа ═══════════ */
 
 .fade-in { animation: fadeIn var(--t-slow) var(--ease) both; }
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
 }
 
@@ -355,12 +306,12 @@ select.input {
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: #2b2d34;
   border-radius: var(--r-pill);
   border: 2px solid transparent;
   background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #3a3d45; background-clip: content-box; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* ═══════════ uPlot-оверрайды ═══════════ */

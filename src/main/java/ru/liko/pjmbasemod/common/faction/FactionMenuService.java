@@ -137,6 +137,10 @@ public final class FactionMenuService {
         }
 
         FactionInviteSavedData.get(server).consume(team, player.getScoreboardName());
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.FACTION,
+                String.format("%s вступил во фракцию %s (роль %s)",
+                        player.getName().getString(), team, role.id()));
         FactionSelectionSavedData.get(server).markComplete(player.getUUID(), player.getName().getString(), team, role);
         FactionCommanderService.sync(player);
         FactionCommanderService.refreshTabName(player);
@@ -363,6 +367,10 @@ public final class FactionMenuService {
         FactionInviteSavedData data = FactionInviteSavedData.get(server);
         if (invite) {
             data.invite(teamId, playerName, Config.getFactionInviteTtlMinutes());
+            ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                    ru.liko.pjmbasemod.common.logging.LogCategory.FACTION,
+                    String.format("%s пригласил %s во фракцию %s",
+                            actor.getName().getString(), playerName, teamId));
             actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.invite.sent",
                     playerName, Teams.displayName(server, teamId)), false);
             ServerPlayer target = server.getPlayerList().getPlayerByName(playerName);

@@ -6,15 +6,17 @@ import Dashboard from './pages/Dashboard'
 import Players from './pages/Players'
 import Entities from './pages/Entities'
 import MapView from './pages/MapView'
+import Logs from './pages/Logs'
 
 type Phase = 'loading' | 'login' | 'ready'
-type Tab = 'dashboard' | 'players' | 'entities' | 'map'
+type Tab = 'dashboard' | 'players' | 'entities' | 'map' | 'logs'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'dashboard', label: 'Дашборд', icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
   { id: 'players', label: 'Игроки', icon: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z' },
   { id: 'entities', label: 'Entity', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
   { id: 'map', label: 'Карта', icon: 'M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z' },
+  { id: 'logs', label: 'Логи', icon: 'M3 4h18v2H3V4zm0 5h12v2H3V9zm0 5h18v2H3v-2zm0 5h12v2H3v-2z' },
 ]
 
 const EASE = [0.4, 0, 0.2, 1] as const
@@ -60,7 +62,6 @@ export default function App() {
 
   return (
     <>
-      <div className="mesh-bg" />
       {phase === 'loading' && <LoadingScreen />}
       {phase === 'login' || (phase === 'ready' && !overview)
         ? <LoginScreen onSuccess={() => setBootNonce(n => n + 1)} />
@@ -115,10 +116,9 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
           transition={{ delay: 0.1, duration: 0.5, ease: EASE }}
           style={{
             width: 64, height: 64, margin: '0 auto 20px',
-            borderRadius: 18,
-            background: 'linear-gradient(135deg, var(--accent), var(--purple))',
+            borderRadius: 14,
+            background: 'var(--accent)',
             display: 'grid', placeItems: 'center',
-            boxShadow: '0 8px 32px var(--accent-glow)',
           }}
         >
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
@@ -195,10 +195,9 @@ function Shell({ overview }: { overview: Overview }) {
         {/* Лого */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 6px', marginBottom: 8, height: 44 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 10, flexShrink: 0,
-            background: 'linear-gradient(135deg, var(--accent), var(--purple))',
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: 'var(--accent)',
             display: 'grid', placeItems: 'center',
-            boxShadow: '0 4px 16px var(--accent-glow)',
           }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -263,6 +262,7 @@ function Shell({ overview }: { overview: Overview }) {
             {tab === 'players' && <Players live={live} />}
             {tab === 'entities' && <Entities live={live} profilerAllowed={overview.profilerAllowed} />}
             {tab === 'map' && <MapView live={live} />}
+            {tab === 'logs' && <Logs />}
           </motion.main>
         </AnimatePresence>
       </div>

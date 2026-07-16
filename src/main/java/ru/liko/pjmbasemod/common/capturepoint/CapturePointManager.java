@@ -319,6 +319,9 @@ public final class CapturePointManager {
             Component title = Component.literal("Точка захвата");
             Component subtitle = Component.literal(entry.displayName + " → " + teamName);
             PjmNetworking.sendToAll(server, new NotificationPacket(title, subtitle, color, 4000));
+            ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                    ru.liko.pjmbasemod.common.logging.LogCategory.CAPTURE,
+                    String.format("точка «%s» захвачена командой %s (%s)", entry.displayName, entry.ownerTeamId, entry.dimension));
             RankService.rewardCapturePoint(server, entry.id, entry.dimension, entry.vertices, entry.ownerTeamId);
         }
     }

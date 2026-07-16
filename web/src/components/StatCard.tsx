@@ -23,7 +23,7 @@ export default function StatCard({ label, value, accent = 'neutral', sub, spark 
       {/* цветовая полоска-акцент сверху */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-        background: `linear-gradient(90deg, ${color}, transparent 80%)`,
+        background: color,
         opacity: accent === 'neutral' ? 0.3 : 1,
       }} />
       <div className="muted" style={{

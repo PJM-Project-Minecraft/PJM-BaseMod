@@ -114,6 +114,59 @@ public final class WebApiRoutes {
             ctx.json(Map.of("ok", true, "active", EntityProfiler.isActive()));
         });
 
+        // ---- логи действий (pjmlogs) ----
+        // Файлы читаются прямо в HTTP-потоке: игровое состояние не затрагивается,
+        // а писатель PjmActionLogger работает в append-режиме — читать параллельно безопасно.
+        app.get("/api/logs/days", ctx -> {
+            List<String> days = new ArrayList<>();
+            java.nio.file.Path dir = net.neoforged.fml.loading.FMLPaths.GAMEDIR.get().resolve("pjmlogs");
+            if (java.nio.file.Files.isDirectory(dir)) {
+                try (var stream = java.nio.file.Files.list(dir)) {
+                    stream.map(p -> p.getFileName().toString())
+                            .filter(n -> n.matches("\\d{4}-\\d{2}-\\d{2}\\.log"))
+                            .map(n -> n.substring(0, n.length() - 4))
+                            .sorted(java.util.Comparator.reverseOrder())
+                            .forEach(days::add);
+                }
+            }
+            ctx.json(days);
+        });
+
+        app.get("/api/logs", ctx -> {
+            String day = ctx.queryParam("day");
+            if (day == null || !day.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                badRequest(ctx, "bad_day");
+                return;
+            }
+            String category = ctx.queryParam("category");
+            String query = ctx.queryParam("q");
+            int limit = Math.min(parseInt(ctx.queryParam("limit"), 1000), 5000);
+
+            java.nio.file.Path file = net.neoforged.fml.loading.FMLPaths.GAMEDIR.get()
+                    .resolve("pjmlogs").resolve(day + ".log");
+            if (!java.nio.file.Files.isRegularFile(file)) {
+                ctx.json(Map.of("total", 0, "lines", List.of()));
+                return;
+            }
+
+            String categoryTag = category == null || category.isBlank() ? null : "[" + category + "]";
+            String needle = query == null || query.isBlank() ? null : query.toLowerCase(java.util.Locale.ROOT);
+            // Фильтруем на лету, храним только последние limit подходящих строк.
+            java.util.ArrayDeque<String> tail = new java.util.ArrayDeque<>(limit);
+            int total = 0;
+            try (var lines = java.nio.file.Files.lines(file, java.nio.charset.StandardCharsets.UTF_8)) {
+                for (var it = lines.iterator(); it.hasNext(); ) {
+                    String line = it.next();
+                    if (categoryTag != null && !line.contains(categoryTag)) continue;
+                    if (needle != null && !line.toLowerCase(java.util.Locale.ROOT).contains(needle)) continue;
+                    total++;
+                    if (tail.size() == limit) tail.pollFirst();
+                    tail.addLast(line);
+                }
+            }
+            ctx.json(Map.of("total", total, "lines", List.copyOf(tail)));
+        });
+
         // ---- модерация ----
         app.get("/api/moderation/history", ctx -> {
             UUID target = parseUuid(ctx.queryParam("player"));

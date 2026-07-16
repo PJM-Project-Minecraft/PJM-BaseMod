@@ -80,5 +80,8 @@ public final class ChatService {
             p.displayClientMessage(decorated, false);
         }
         Pjmbasemod.LOGGER.info("[CHAT/{}] {}: {}", mode, sender.getName().getString(), message.getString());
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.CHAT,
+                String.format("[%s] %s: %s", mode, sender.getName().getString(), message.getString()));
     }
 }

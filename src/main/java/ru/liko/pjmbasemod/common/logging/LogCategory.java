@@ -14,6 +14,11 @@ public enum LogCategory {
     GARAGE("GARAGE"),
     FRONTLINE("FRONTLINE"),
     BASEZONE("BASEZONE"),
+    CHAT("CHAT"),
+    COMMAND("COMMAND"),
+    FACTION("FACTION"),
+    CAPTURE("CAPTURE"),
+    REPORT("REPORT"),
     MOD("MOD");
 
     private final String tag;

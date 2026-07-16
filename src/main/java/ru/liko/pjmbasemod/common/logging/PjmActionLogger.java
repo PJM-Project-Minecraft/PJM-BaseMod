@@ -93,20 +93,28 @@ public final class PjmActionLogger {
     /** Убийство игрока игроком (PvP). {@code cause} — оружие/тип урона. */
     public void logKill(@Nullable ServerPlayer killer, ServerPlayer victim, String cause) {
         if (!running || killer == null || victim == null) return;
-        BlockPos pos = victim.blockPosition();
         String teams = formatTeams(teamOf(killer), teamOf(victim));
         String causePart = cause == null || cause.isBlank() ? "" : " (" + cause + ")";
-        enqueue(LogCategory.KILL, String.format("%s → %s%s @ %d,%d,%d%s",
+        String distancePart = killer.level() == victim.level()
+                ? String.format(", %d м", Math.round(killer.position().distanceTo(victim.position())))
+                : "";
+        enqueue(LogCategory.KILL, String.format("%s → %s%s @ %s%s%s",
                 killer.getGameProfile().getName(), victim.getGameProfile().getName(), causePart,
-                pos.getX(), pos.getY(), pos.getZ(), teams));
+                formatPos(victim), distancePart, teams));
     }
 
     /** Уничтожение техники SuperbWarfare. {@code attacker} — кто нанёс смертельный урон (может быть null). */
     public void logVehicleDestroyed(@Nullable Entity attacker, Entity vehicle) {
         if (!running || vehicle == null) return;
-        BlockPos pos = vehicle.blockPosition();
-        enqueue(LogCategory.VEHICLE, String.format("%s уничтожил технику %s @ %d,%d,%d",
-                actorName(attacker), typeName(vehicle), pos.getX(), pos.getY(), pos.getZ()));
+        enqueue(LogCategory.VEHICLE, String.format("%s уничтожил технику %s @ %s",
+                actorName(attacker), typeName(vehicle), formatPos(vehicle)));
+    }
+
+    /** Позиция с дименшеном: {@code overworld 120,64,-30}. */
+    public static String formatPos(Entity entity) {
+        BlockPos pos = entity.blockPosition();
+        String dim = entity.level().dimension().location().getPath();
+        return String.format("%s %d,%d,%d", dim, pos.getX(), pos.getY(), pos.getZ());
     }
 
     /** Вход ({@code joined=true}) или выход игрока. */
