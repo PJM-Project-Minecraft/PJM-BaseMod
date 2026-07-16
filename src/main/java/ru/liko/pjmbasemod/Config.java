@@ -99,6 +99,7 @@ public final class Config {
     public static boolean isSquadHud()                { return data().hud.squadHud; }
     public static boolean isDebug()                   { return data().general.debug; }
     public static boolean isWelcomeGuideEnabled()     { return data().general.welcomeGuideEnabled; }
+    public static boolean isGrassClickThroughEnabled(){ return data().general.grassClickThrough; }
     public static boolean isDisableHunger()           { return data().hud.disableHunger; }
     public static boolean isDisableArmor()            { return data().hud.hideArmorBar; }
     public static long    getItemSwitchDisplayTime()  { return data().hud.itemSwitchDisplayMs; }
@@ -454,6 +455,8 @@ public final class Config {
         boolean debug = false;
         /** Показывать анимированное руководство по серверу при входе игрока (клиентский экран). */
         boolean welcomeGuideEnabled = true;
+        /** Трава (short_grass/fern/tall_grass/large_fern) не таргетится в выживании: клики проходят сквозь неё. */
+        boolean grassClickThrough = true;
     }
 
     static final class Hud {

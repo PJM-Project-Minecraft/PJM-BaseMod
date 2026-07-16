@@ -4,8 +4,10 @@
   "package": "ru.liko.pjmbasemod.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "DoublePlantBlockMixin",
     "ServerPlayerMixin",
-    "SlotMixin"
+    "SlotMixin",
+    "TallGrassBlockMixin"
   ],
   "client": [
     "AbstractClientPlayerMixin",
