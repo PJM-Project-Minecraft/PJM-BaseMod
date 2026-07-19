@@ -19,7 +19,9 @@ import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.capturepoint.ClientCapturePointState;
 import ru.liko.pjmbasemod.common.capturepoint.CapturePoint;
+import ru.liko.pjmbasemod.common.teams.Teams;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -101,7 +103,9 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
 
     private void applyIfNeeded() {
         List<CapturePoint> points = ClientCapturePointState.points();
-        long signature = signature(points);
+        String myTeam = myTeamId();
+        boolean sequential = ClientCapturePointState.sequential();
+        long signature = signature(points) * 31 + myTeam.hashCode() * 2 + (sequential ? 1 : 0);
         long editorRevision = editor != null ? editor.revision() : 0L;
         if (signature == lastSignature && points.size() == lastPointCount
                 && editorRevision == lastEditorRevision) {
@@ -127,7 +131,8 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
                         : cp.vertices();
                 if (verts.size() < 3) continue;
                 boolean selected = cp.id().equals(selectedId);
-                PolygonOverlay overlay = buildOverlay(cp, verts, selected, fillAlpha, borderAlpha);
+                PolygonOverlay overlay = buildOverlay(cp, verts, selected, fillAlpha, borderAlpha,
+                        points, myTeam, sequential);
                 if (overlay != null) {
                     api.show(overlay);
                     activeOverlays.add(overlay);
@@ -143,7 +148,8 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
     }
 
     private PolygonOverlay buildOverlay(CapturePoint cp, List<CapturePoint.Vertex> verts,
-                                        boolean selected, int fillAlpha, int borderAlpha) {
+                                        boolean selected, int fillAlpha, int borderAlpha,
+                                        List<CapturePoint> allPoints, String myTeam, boolean sequential) {
         List<BlockPos> points = new ArrayList<>(verts.size());
         for (CapturePoint.Vertex v : verts) {
             points.add(new BlockPos(v.x(), MAP_Y, v.z()));
@@ -162,12 +168,23 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
 
         CapturePoint.Vertex centroid = CapturePoint.centroid(verts);
         String label = cp.displayName();
+        if (sequential && cp.order() > 0) {
+            label = cp.order() + " · " + label;
+        }
         if (cp.contested()) {
             label += " [оспаривается]";
         } else if (!cp.ownerTeamId().isEmpty() && cp.progressPercent() < 100) {
             label += " [" + cp.progressPercent() + "%]";
         } else if (cp.ownerTeamId().isEmpty() && cp.progressPercent() > 0) {
             label += " [захват " + cp.progressPercent() + "%]";
+        }
+        // Подсказка цепного захвата для команды локального игрока: какая точка
+        // сейчас доступна к атаке, а какая закрыта гейтом (зеркало canAttack сервера).
+        if (sequential && !myTeam.isEmpty() && !myTeam.equals(cp.ownerTeamId())) {
+            Boolean open = chainOpen(allPoints, cp, myTeam);
+            if (open != null) {
+                label += open ? " [доступна]" : " [закрыта • цепочка]";
+            }
         }
 
         ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION,
@@ -203,6 +220,31 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
         activeOverlays.clear();
     }
 
+    /** Команда локального игрока по клиентскому scoreboard ({@code ""} — без команды). */
+    private static String myTeamId() {
+        var player = Minecraft.getInstance().player;
+        var team = player != null ? player.getTeam() : null;
+        return team == null ? "" : Teams.normalize(team.getName());
+    }
+
+    /**
+     * Зеркало серверного {@code CapturePointManager.canAttack} по синхронизированным точкам:
+     * {@code null} — гейт к точке не применяется (нет строгих order-соседей),
+     * иначе — может ли команда атаковать её сейчас (владеет prev/next по order).
+     */
+    @Nullable
+    private static Boolean chainOpen(List<CapturePoint> all, CapturePoint target, String team) {
+        CapturePoint prev = null, next = null;
+        for (CapturePoint cp : all) {
+            if (cp == target || !cp.dimension().equals(target.dimension())) continue;
+            if (cp.order() < target.order() && (prev == null || cp.order() > prev.order())) prev = cp;
+            if (cp.order() > target.order() && (next == null || cp.order() < next.order())) next = cp;
+        }
+        if (prev == null && next == null) return null;
+        return (prev != null && team.equals(prev.ownerTeamId()))
+                || (next != null && team.equals(next.ownerTeamId()));
+    }
+
     /** Сигнатура состояния для дедупликации пересборки. */
     private static long signature(List<CapturePoint> points) {
         long sig = 0;
@@ -213,6 +255,7 @@ public final class CapturePointJourneyMapRuntime implements CapturePointJourneyM
             sig = sig * 31 + cp.progressPercent();
             sig = sig * 31 + (cp.contested() ? 1 : 0);
             sig = sig * 31 + cp.vertices().size();
+            sig = sig * 31 + cp.order();
         }
         return sig;
     }

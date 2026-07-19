@@ -6,7 +6,10 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import ru.liko.pjmbasemod.Pjmbasemod;
 
-/** S→C: HUD-данные точки захвата, в которой стоит игрок. pointId="" — очистить HUD. */
+/**
+ * S→C: HUD-данные точки захвата, в которой стоит игрок. pointId="" — очистить HUD.
+ * {@code locked} — точка закрыта цепочкой для команды игрока (сначала нужен order-сосед).
+ */
 public record CapturePointHudPacket(
         String pointId,
         String pointName,
@@ -16,7 +19,8 @@ public record CapturePointHudPacket(
         int captureColor,
         int progressPercent,
         boolean neutralizing,
-        boolean capturing
+        boolean capturing,
+        boolean locked
 ) implements CustomPacketPayload {
 
     public static final Type<CapturePointHudPacket> TYPE = new Type<>(
@@ -35,6 +39,7 @@ public record CapturePointHudPacket(
         buf.writeVarInt(p.progressPercent);
         buf.writeBoolean(p.neutralizing);
         buf.writeBoolean(p.capturing);
+        buf.writeBoolean(p.locked);
     }
 
     private static CapturePointHudPacket read(RegistryFriendlyByteBuf buf) {
@@ -42,11 +47,11 @@ public record CapturePointHudPacket(
                 buf.readUtf(), buf.readUtf(),
                 buf.readUtf(), buf.readVarInt(),
                 buf.readUtf(), buf.readVarInt(),
-                buf.readVarInt(), buf.readBoolean(), buf.readBoolean());
+                buf.readVarInt(), buf.readBoolean(), buf.readBoolean(), buf.readBoolean());
     }
 
     public static CapturePointHudPacket empty() {
-        return new CapturePointHudPacket("", "", "", 0, "", 0, 0, false, false);
+        return new CapturePointHudPacket("", "", "", 0, "", 0, 0, false, false, false);
     }
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }

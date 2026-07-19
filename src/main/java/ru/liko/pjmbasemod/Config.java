@@ -100,6 +100,7 @@ public final class Config {
     public static boolean isDebug()                   { return data().general.debug; }
     public static boolean isWelcomeGuideEnabled()     { return data().general.welcomeGuideEnabled; }
     public static boolean isGrassClickThroughEnabled(){ return data().general.grassClickThrough; }
+    public static double  getDayCycleRealHours()      { return data().general.dayCycleRealHours; }
     public static boolean isDisableHunger()           { return data().hud.disableHunger; }
     public static boolean isDisableArmor()            { return data().hud.hideArmorBar; }
     public static long    getItemSwitchDisplayTime()  { return data().hud.itemSwitchDisplayMs; }
@@ -110,6 +111,9 @@ public final class Config {
     public static int getFleetMaxActivePerPlayer()         { return data().fleet.maxActivePerPlayer; }
     public static int getFleetAviationMaxActivePerTeam()   { return data().fleet.aviationMaxActivePerTeam; }
     public static int getFleetAviationMaxActivePerPlayer() { return data().fleet.aviationMaxActivePerPlayer; }
+    public static int getFleetHeliMaxActiveOnMap()         { return data().fleet.heliMaxActiveOnMap; }
+    public static int getFleetTankMaxActiveOnMap()         { return data().fleet.tankMaxActiveOnMap; }
+    public static int getFleetIfvMaxActiveOnMap()          { return data().fleet.ifvMaxActiveOnMap; }
     public static int getFleetSpawnCooldownSeconds()       { return data().fleet.spawnCooldownSeconds; }
     public static int getFleetAbandonTimeoutSeconds()      { return data().fleet.abandonTimeoutSeconds; }
     public static int getFleetAbandonWarningSeconds()      { return data().fleet.abandonWarningSeconds; }
@@ -166,13 +170,39 @@ public final class Config {
     public static int     getCapturePointJourneyMapBorderAlpha() { return data().capturePoints.journeymapBorderAlpha; }
     public static int     getCapturePointJourneyMapNeutralColorRgb() { return data().capturePoints.journeymapNeutralColorRgb; }
     public static boolean isCapturePointScheduleEnabled()      { return data().capturePoints.scheduleEnabled; }
+    public static int     getCapturePointAutoEnableMinPlayers() { return data().capturePoints.autoEnableMinPlayers; }
     public static boolean isCapturePointIncomeEnabled()        { return data().capturePoints.incomeEnabled; }
-    public static int     getCapturePointIncomePerPointPerMinute() { return data().capturePoints.incomePerPointPerMinute; }
+    public static int     getCapturePointIncomePerPoint()      { return data().capturePoints.incomePerPoint; }
+    public static int     getCapturePointIncomeIntervalMinutes() { return data().capturePoints.incomeIntervalMinutes; }
+
+    public static boolean isCampaignEnabled()             { return data().campaign.enabled; }
+    public static int     getCampaignDurationDays()       { return data().campaign.durationDays; }
+    public static int     getCampaignVpIntervalMinutes()  { return data().campaign.vpIntervalMinutes; }
+    public static int     getCampaignVpPerPoint()         { return data().campaign.vpPerPoint; }
+    public static int     getCampaignWinnerXpBonus()      { return data().campaign.winnerXpBonus; }
+    public static boolean isCampaignWipeClearEntities()   { return data().campaign.wipeClearEntities; }
+
+    public static synchronized void setCampaignEnabled(boolean enabled) {
+        data().campaign.enabled = enabled;
+        persist();
+    }
 
     /** Склад команды, куда капает доход с точек. Ключ — id команды. */
     public static Map<String, String> getCapturePointWarehouseByTeam() {
         Map<String, String> map = data().capturePoints.warehouseByTeam;
         return map == null ? Map.of() : map;
+    }
+
+    /** Привязка склада-получателя дохода к команде; null/пустой склад — снять привязку. */
+    public static synchronized void setCapturePointWarehouseForTeam(String teamId, @Nullable String warehouseId) {
+        if (teamId == null || teamId.isBlank()) return;
+        String key = teamId.trim().toLowerCase(Locale.ROOT);
+        if (warehouseId == null || warehouseId.isBlank()) {
+            data().capturePoints.warehouseByTeam.remove(key);
+        } else {
+            data().capturePoints.warehouseByTeam.put(key, warehouseId.trim());
+        }
+        persist();
     }
 
     /** Окна расписания захвата в неизменяемом виде (внутренняя модель наружу не отдаётся). */
@@ -193,6 +223,11 @@ public final class Config {
 
     public static synchronized void setCapturePointScheduleEnabled(boolean enabled) {
         data().capturePoints.scheduleEnabled = enabled;
+        persist();
+    }
+
+    public static synchronized void setCapturePointAutoEnableMinPlayers(int minPlayers) {
+        data().capturePoints.autoEnableMinPlayers = clamp(minPlayers, 0, 1000);
         persist();
     }
 
@@ -255,6 +290,17 @@ public final class Config {
 
     public static List<ConfiguredTeam> getTeams() {
         return parseTeams(data().teams.definitions);
+    }
+
+    /** Игрок в whitelist закрытой фракции ({@code teams.whitelist}): вступает без приглашения. */
+    public static boolean isTeamWhitelisted(String teamId, String playerName) {
+        if (teamId == null || teamId.isBlank() || playerName == null || playerName.isBlank()) return false;
+        List<String> names = data().teams.whitelist.get(teamId.trim().toLowerCase(Locale.ROOT));
+        if (names == null) return false;
+        for (String name : names) {
+            if (name != null && name.trim().equalsIgnoreCase(playerName.trim())) return true;
+        }
+        return false;
     }
 
     /** Фракция «по приглашению»: вступить может только приглашённый игрок. */
@@ -382,6 +428,7 @@ public final class Config {
         Commands commands = new Commands();
         Events events = new Events();
         CapturePoints capturePoints = new CapturePoints();
+        Campaign campaign = new Campaign();
         Weapons weapons = new Weapons();
 
         /** Заменяет null-секции дефолтами и зажимает числовые значения в допустимые диапазоны. */
@@ -395,6 +442,9 @@ public final class Config {
             fleet.maxActivePerPlayer = fleet.maxActivePerPlayer < 0 ? -1 : clamp(fleet.maxActivePerPlayer, 0, 4096);
             fleet.aviationMaxActivePerTeam = fleet.aviationMaxActivePerTeam < 0 ? -1 : clamp(fleet.aviationMaxActivePerTeam, 0, 4096);
             fleet.aviationMaxActivePerPlayer = fleet.aviationMaxActivePerPlayer < 0 ? -1 : clamp(fleet.aviationMaxActivePerPlayer, 0, 4096);
+            fleet.heliMaxActiveOnMap = fleet.heliMaxActiveOnMap < 0 ? -1 : clamp(fleet.heliMaxActiveOnMap, 0, 4096);
+            fleet.tankMaxActiveOnMap = fleet.tankMaxActiveOnMap < 0 ? -1 : clamp(fleet.tankMaxActiveOnMap, 0, 4096);
+            fleet.ifvMaxActiveOnMap  = fleet.ifvMaxActiveOnMap  < 0 ? -1 : clamp(fleet.ifvMaxActiveOnMap,  0, 4096);
             fleet.spawnCooldownSeconds = clamp(fleet.spawnCooldownSeconds, 0, 86_400);
             fleet.abandonTimeoutSeconds = clamp(fleet.abandonTimeoutSeconds, 5, 86_400);
             fleet.abandonWarningSeconds = clamp(fleet.abandonWarningSeconds, 0, 3_600);
@@ -424,7 +474,7 @@ public final class Config {
             if (baseZone == null) baseZone = new BaseZone();
             baseZone.countdownSeconds = clamp(baseZone.countdownSeconds, 1, 60);
             if (nightDarkness == null) nightDarkness = new NightDarkness();
-            nightDarkness.intensity = nightDarkness.intensity < 0.0 ? 0.0 : Math.min(nightDarkness.intensity, 1.0);
+            nightDarkness.intensity = nightDarkness.intensity < 0.0 ? 0.0 : Math.min(nightDarkness.intensity, 2.0);
             if (commands == null) commands = new Commands();
             if (events == null) events = new Events();
             events.minIntervalMinutes = clamp(events.minIntervalMinutes, 1, 10_080);
@@ -436,18 +486,32 @@ public final class Config {
             if (capturePoints == null) capturePoints = new CapturePoints();
             capturePoints.normalize();
 
+            if (campaign == null) campaign = new Campaign();
+            campaign.normalize();
+
             if (weapons == null) weapons = new Weapons();
             weapons.normalize();
 
             if (teams.definitions == null) teams.definitions = new ArrayList<>();
             if (teams.joinCommands == null) teams.joinCommands = new ArrayList<>();
             if (teams.inviteOnly == null) teams.inviteOnly = new ArrayList<>();
+            // Ключи whitelist приводим к нижнему регистру — id команд в коде всегда нормализованы.
+            Map<String, List<String>> whitelist = new LinkedHashMap<>();
+            if (teams.whitelist != null) {
+                teams.whitelist.forEach((team, names) -> {
+                    if (team == null || team.isBlank() || names == null) return;
+                    whitelist.put(team.trim().toLowerCase(Locale.ROOT), names);
+                });
+            }
+            teams.whitelist = whitelist;
             if (teams.balancer == null) teams.balancer = new Balancer();
             teams.balancer.maxSharePercent = clamp(teams.balancer.maxSharePercent, 50, 100);
             teams.balancer.minPlayers = clamp(teams.balancer.minPlayers, 0, 256);
             if (commands.startup == null) commands.startup = new ArrayList<>();
 
             hud.itemSwitchDisplayMs = clamp(hud.itemSwitchDisplayMs, 0L, 60_000L);
+            if (!(general.dayCycleRealHours >= 0.0D)) general.dayCycleRealHours = 0.0D; // NaN/мусор → выключено
+            if (general.dayCycleRealHours > 720.0D) general.dayCycleRealHours = 720.0D;
         }
     }
 
@@ -457,6 +521,8 @@ public final class Config {
         boolean welcomeGuideEnabled = true;
         /** Трава (short_grass/fern/tall_grass/large_fern) не таргетится в выживании: клики проходят сквозь неё. */
         boolean grassClickThrough = true;
+        /** Длина полных игровых суток в реальных часах (0 — не трогать ванильный цикл). */
+        double dayCycleRealHours = 6.0D;
     }
 
     static final class Hud {
@@ -470,6 +536,8 @@ public final class Config {
         List<String> definitions = new ArrayList<>(List.of("team1", "team2", "team3"));
         /** id фракций, вступление в которые возможно только по приглашению. */
         List<String> inviteOnly = new ArrayList<>();
+        /** Whitelist закрытых фракций: id фракции → ники, вступающие без приглашения. */
+        Map<String, List<String>> whitelist = new LinkedHashMap<>();
         List<String> joinCommands = new ArrayList<>();
         Balancer balancer = new Balancer();
     }
@@ -501,6 +569,10 @@ public final class Config {
         int abandonWarningSeconds = 30;
         int aviationMaxActivePerTeam = 3;
         int aviationMaxActivePerPlayer = 1;
+        /** Максимум одновременно активной техники данной категории на всей карте (глобально). -1 — без лимита. */
+        int heliMaxActiveOnMap = 1;
+        int tankMaxActiveOnMap = 2;
+        int ifvMaxActiveOnMap = 2;
     }
 
     static final class Faction {
@@ -584,8 +656,10 @@ public final class Config {
 
     /**
      * «True Darkness»: ночью небесный свет не освещает мир (см. {@code mixin/LightTextureMixin}).
-     * {@code intensity} — глубина затемнения в глухую ночь: 1.0 = только блочный свет,
-     * 0.5 = вдвое темнее ванили, 0.0 = ваниль.
+     * {@code intensity} — глубина затемнения в глухую ночь: 0.0 = ваниль, 0.5 = вдвое темнее
+     * ванили, 1.0 = только блочный свет. Выше 1.0 дожимается ambient-пол ванили, из-за
+     * которого тень остаётся серой: 1.5 = тень вдвое глубже, 2.0 = вне досягаемости факела
+     * кромешная тьма. Сами факелы светят на любом значении. Потолок — 2.0.
      */
     static final class NightDarkness {
         boolean enabled = true;
@@ -650,6 +724,8 @@ public final class Config {
         int journeymapNeutralColorRgb = 0x9B9B9B;
         /** Захват разрешён только внутри окон {@link #scheduleWindows}. */
         boolean scheduleEnabled = false;
+        /** Автовкл/выкл захвата по онлайну сервера: включается при онлайне >= N; 0 — выключено. */
+        int autoEnableMinPlayers = 0;
         /**
          * Последнее применённое расписанием состояние (null — ещё не оценивалось).
          * Переживает рестарт, чтобы ручной enable/disable не перебивался расписанием
@@ -657,9 +733,12 @@ public final class Config {
          */
         Boolean scheduleLastState;
         List<ScheduleWindowData> scheduleWindows = new ArrayList<>();
-        /** Начисление дохода команде за удерживаемые точки. */
+        /** Начисление дохода команде за удерживаемые точки (капает и вне окон захвата — пока точки удерживаются). */
         boolean incomeEnabled = true;
-        int incomePerPointPerMinute = 10;
+        /** Очков пула SUPPLY за одну удерживаемую точку за интервал. */
+        int incomePerPoint = 10;
+        /** Интервал начисления дохода, минуты реального времени. */
+        int incomeIntervalMinutes = 10;
         /** Склад-получатель дохода по командам: id команды → id склада. */
         Map<String, String> warehouseByTeam = new LinkedHashMap<>();
 
@@ -668,13 +747,51 @@ public final class Config {
             decayTimeSeconds = clamp(decayTimeSeconds, 1, 3600);
             tickIntervalTicks = clamp(tickIntervalTicks, 1, 200);
             minAdvantage = clamp(minAdvantage, 1, 64);
-            incomePerPointPerMinute = clamp(incomePerPointPerMinute, 0, 10000);
-            if (warehouseByTeam == null) warehouseByTeam = new LinkedHashMap<>();
+            autoEnableMinPlayers = clamp(autoEnableMinPlayers, 0, 1000);
+            incomePerPoint = clamp(incomePerPoint, 0, 10000);
+            incomeIntervalMinutes = clamp(incomeIntervalMinutes, 1, 1440);
+            // ownerTeamId точки всегда нормализован (Teams.normalize), а ключи из config.json — нет.
+            // Без этого "Team1" в карте не совпадал с "team1" у точки и доход молча не начислялся.
+            Map<String, String> teams = new LinkedHashMap<>();
+            if (warehouseByTeam != null) {
+                warehouseByTeam.forEach((team, warehouse) -> {
+                    if (team == null || warehouse == null || team.isBlank() || warehouse.isBlank()) return;
+                    teams.put(team.trim().toLowerCase(java.util.Locale.ROOT), warehouse.trim());
+                });
+            }
+            warehouseByTeam = teams;
             journeymapFillAlpha = clamp(journeymapFillAlpha, 0, 255);
             journeymapBorderAlpha = clamp(journeymapBorderAlpha, 0, 255);
             journeymapNeutralColorRgb = clamp(journeymapNeutralColorRgb, 0, 0xFFFFFF);
             if (scheduleWindows == null) scheduleWindows = new ArrayList<>();
             for (ScheduleWindowData w : scheduleWindows) w.normalize();
+        }
+    }
+
+    /**
+     * Недельная кампания: удерживаемые точки тикают очки победы (VP) фракции,
+     * по истечении {@code durationDays} реального времени объявляется победитель
+     * (максимум VP; ничья — без победителя) и выполняется полный вайп сезона:
+     * прогресс игроков, точки (кроме базовых — крайних по order), scoreboard-команды,
+     * техника и предметы на карте. VP капают и вне окон захвата — пока точки удерживаются.
+     */
+    static final class Campaign {
+        boolean enabled = false;
+        int durationDays = 7;
+        /** Интервал начисления VP, минуты реального времени. */
+        int vpIntervalMinutes = 10;
+        /** VP за одну удерживаемую точку за интервал. */
+        int vpPerPoint = 1;
+        /** XP-бонус каждому члену победившей фракции (начисляется после вайпа). 0 — выключено. */
+        int winnerXpBonus = 500;
+        /** Удалять при вайпе технику и лежащие предметы во всех измерениях. */
+        boolean wipeClearEntities = true;
+
+        void normalize() {
+            durationDays = clamp(durationDays, 1, 365);
+            vpIntervalMinutes = clamp(vpIntervalMinutes, 1, 1440);
+            vpPerPoint = clamp(vpPerPoint, 1, 10000);
+            winnerXpBonus = clamp(winnerXpBonus, 0, 1_000_000);
         }
     }
 

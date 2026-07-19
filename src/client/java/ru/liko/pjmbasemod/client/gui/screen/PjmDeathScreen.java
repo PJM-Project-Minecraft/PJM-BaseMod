@@ -19,8 +19,12 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
+import java.util.List;
 import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
+import ru.liko.pjmbasemod.common.network.PjmNetworking;
+import ru.liko.pjmbasemod.common.network.packet.RadioSpawnListPacket;
+import ru.liko.pjmbasemod.common.network.packet.RadioSpawnSelectPacket;
 
 /**
  * Кинематографичный экран смерти, полностью заменяющий ванильный {@code DeathScreen}
@@ -52,6 +56,8 @@ public class PjmDeathScreen extends Screen {
     private static String vehicleId = "";
     private static Entity previewEntity;
     private static String cachedVehicleId = "";
+    // Радио-рюкзаки команды (мобильные точки возрождения), приходят RadioSpawnListPacket.
+    private static List<RadioSpawnListPacket.Entry> radioOptions = List.of();
 
     public PjmDeathScreen() {
         super(Component.translatable("pjmbasemod.death.title"));
@@ -67,6 +73,11 @@ public class PjmDeathScreen extends Screen {
         triggerTime = Util.getMillis();
     }
 
+    /** Список радио-рюкзаков команды. Вызывается из {@code ClientPacketHandlersImpl}. */
+    public static void setRadioOptions(List<RadioSpawnListPacket.Entry> options) {
+        radioOptions = options == null ? List.of() : List.copyOf(options);
+    }
+
     private static float elapsed() {
         return (Util.getMillis() - triggerTime) / 1000f;
     }
@@ -78,17 +89,32 @@ public class PjmDeathScreen extends Screen {
 
         int cx = this.width / 2;
         int y = this.height / 2 + 68;
-        addItem(Component.translatable("deathScreen.respawn"), cx, y,
+        int row = 0;
+        addItem(Component.translatable("deathScreen.respawn"), cx, y + 24 * row++,
                 b -> {
                     if (this.minecraft.player != null) this.minecraft.player.respawn();
                 });
-        addItem(Component.translatable("deathScreen.titleScreen"), cx, y + 24,
+        for (RadioSpawnListPacket.Entry radio : radioOptions) {
+            addItem(Component.translatable("pjmbasemod.death.radio",
+                            radio.owner(), radio.pos().getX(), radio.pos().getZ()),
+                    cx, y + 24 * row++, radio.cooldownSeconds(),
+                    b -> {
+                        if (this.minecraft.player == null) return;
+                        PjmNetworking.sendToServer(new RadioSpawnSelectPacket(radio.id()));
+                        this.minecraft.player.respawn();
+                    });
+        }
+        addItem(Component.translatable("deathScreen.titleScreen"), cx, y + 24 * row,
                 b -> TacticalPauseMenuScreen.disconnectToTitle(this.minecraft));
     }
 
     private void addItem(Component label, int centerX, int y, Button.OnPress onPress) {
+        addItem(label, centerX, y, 0, onPress);
+    }
+
+    private void addItem(Component label, int centerX, int y, int cooldownSeconds, Button.OnPress onPress) {
         int w = 200;
-        addRenderableWidget(new MenuItem(centerX - w / 2, y, w, 20, label, onPress));
+        addRenderableWidget(new MenuItem(centerX - w / 2, y, w, 20, label, cooldownSeconds, onPress));
     }
 
     // ─────────────────────────── рендер ───────────────────────────
@@ -226,10 +252,22 @@ public class PjmDeathScreen extends Screen {
         private float hoverAnim = 0.0f;
         /** Нажатая кнопка (возрождение / выход) больше не активируется — как в ванили. */
         private boolean pressed;
+        /** Перезарядка рации в секундах на момент смерти; 0 — кнопка без таймера. */
+        private final int cooldownSeconds;
 
-        MenuItem(int x, int y, int width, int height, Component message, OnPress onPress) {
+        MenuItem(int x, int y, int width, int height, Component message, int cooldownSeconds, OnPress onPress) {
             super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
             this.active = false;
+            this.cooldownSeconds = cooldownSeconds;
+        }
+
+        /**
+         * Остаток перезарядки. Отсчёт идёт от смерти: сервер прислал остаток в тот же момент,
+         * когда стартовал {@link #triggerTime}, поэтому таймер тикает локально без досылки пакетов.
+         */
+        private int cooldownLeft() {
+            if (cooldownSeconds <= 0) return 0;
+            return Math.max(0, (int) Math.ceil(cooldownSeconds - elapsed()));
         }
 
         @Override
@@ -247,7 +285,8 @@ public class PjmDeathScreen extends Screen {
         public void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
             // Кнопки проявляются только после ролика; до этого их нет и они не кликаются.
             float alpha = Mth.clamp((elapsed() - BUTTON_DELAY) / BUTTON_FADE, 0f, 1f);
-            this.active = alpha >= 1f && !this.pressed;
+            int cooldownLeft = cooldownLeft();
+            this.active = alpha >= 1f && !this.pressed && cooldownLeft == 0;
             if (alpha <= 0.02f) return;
 
             this.isHovered = this.active && mouseX >= getX() && mouseY >= getY()
@@ -263,10 +302,14 @@ public class PjmDeathScreen extends Screen {
             }
 
             int color = PjmGuiUtils.withAlpha(
-                    PjmGuiUtils.lerpColor(0xFFFFFFFF, PjmGuiUtils.ACCENT, this.hoverAnim),
+                    cooldownLeft > 0 ? 0xFF7A7A7A
+                            : PjmGuiUtils.lerpColor(0xFFFFFFFF, PjmGuiUtils.ACCENT, this.hoverAnim),
                     (int) (alpha * 255));
 
-            String text = getMessage().getString().toUpperCase(Locale.ROOT);
+            Component label = cooldownLeft > 0
+                    ? Component.translatable("pjmbasemod.death.radio_cooldown", getMessage(), cooldownLeft)
+                    : getMessage();
+            String text = label.getString().toUpperCase(Locale.ROOT);
             g.pose().pushPose();
             g.pose().translate(getX() + slide, getY() + (height - 8) / 2f, 0);
             g.pose().scale(1.15f, 1.15f, 1.0f);

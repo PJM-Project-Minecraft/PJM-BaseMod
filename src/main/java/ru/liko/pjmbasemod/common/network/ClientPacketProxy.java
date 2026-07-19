@@ -15,9 +15,11 @@ import ru.liko.pjmbasemod.common.network.packet.PlayerReportThreadPacket;
 import ru.liko.pjmbasemod.common.network.packet.ReportSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.EventMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.SignalHuntHudPacket;
+import ru.liko.pjmbasemod.common.network.packet.CampaignSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointHudPacket;
 import ru.liko.pjmbasemod.common.network.packet.DeathScreenPacket;
+import ru.liko.pjmbasemod.common.network.packet.RadioSpawnListPacket;
 import ru.liko.pjmbasemod.common.network.packet.ModerationSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenWarehousePacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenWelcomeGuidePacket;
@@ -64,9 +66,11 @@ public interface ClientPacketProxy {
     default void signalHuntHud(SignalHuntHudPacket payload) {}
     default void capturePointMapSync(CapturePointMapSyncPacket payload) {}
     default void capturePointHud(CapturePointHudPacket payload) {}
+    default void campaignSync(CampaignSyncPacket payload) {}
     default void openReports(OpenReportsPacket payload) {}
     default void reportSync(ReportSyncPacket payload) {}
     default void playerReportThread(PlayerReportThreadPacket payload) {}
     default void openWelcomeGuide(OpenWelcomeGuidePacket payload) {}
     default void deathScreen(DeathScreenPacket payload) {}
+    default void radioSpawnList(RadioSpawnListPacket payload) {}
 }

@@ -29,7 +29,7 @@
       "sniper": 2,
       "uav_operator": 1,
       "sso": 1,
-      "marksman": 2,
+      "pilot": 2,
       "ew_specialist": 1,
       "crew": 4
     }
@@ -61,7 +61,7 @@
 | `sniper` | Снайпер |
 | `uav_operator` | Оператор БПЛА |
 | `sso` | ССО |
-| `marksman` | Марксман |
+| `pilot` | Пилот |
 | `ew_specialist` | Специалист РЭБ |
 | `crew` | Экипаж |
 
@@ -76,7 +76,7 @@
   "itemId": "superbwarfare:svd",
   "pool": "weapon",
   "displayCategory": "weapon",
-  "allowedRoles": ["sniper", "marksman"],
+  "allowedRoles": ["sniper"],
   "pointCost": 3,
   "maxPerWithdraw": 1
 }

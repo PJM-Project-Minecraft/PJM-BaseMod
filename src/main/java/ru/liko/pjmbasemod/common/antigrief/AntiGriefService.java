@@ -12,6 +12,7 @@ import net.neoforged.neoforge.common.util.FakePlayer;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -44,9 +45,15 @@ public final class AntiGriefService {
         return check(player, state, breakWhitelist(), "pjmbasemod.antigrief.break_denied");
     }
 
-    /** true — взаимодействовать можно; иначе шлёт игроку actionbar-уведомление и возвращает false. */
-    public static boolean checkInteract(ServerPlayer player, BlockState state) {
-        return check(player, state, interactWhitelist(), "pjmbasemod.antigrief.interact_denied");
+    /**
+     * true — взаимодействовать можно; иначе возвращает false.
+     *
+     * @param notify слать ли игроку actionbar-уведомление. Ставится в {@code false}, когда игрок
+     *               применяет предмет (дрон, еда): само применение не блокируется, и сообщение
+     *               о запрете взаимодействия с блоком было бы ложным.
+     */
+    public static boolean checkInteract(ServerPlayer player, BlockState state, boolean notify) {
+        return check(player, state, interactWhitelist(), notify ? "pjmbasemod.antigrief.interact_denied" : null);
     }
 
     /** true — ставить можно; иначе шлёт игроку actionbar-уведомление и возвращает false. */
@@ -56,11 +63,11 @@ public final class AntiGriefService {
 
     // ---------------------------------------------------------------- проверка
 
-    private static boolean check(ServerPlayer player, BlockState state, Whitelist whitelist, String denyKey) {
+    private static boolean check(ServerPlayer player, BlockState state, Whitelist whitelist, @Nullable String denyKey) {
         if (!Config.isAntiGriefEnabled()) return true;
         if (isBypassed(player)) return true;
         if (whitelist.matches(state)) return true;
-        player.displayClientMessage(Component.translatable(denyKey), true);
+        if (denyKey != null) player.displayClientMessage(Component.translatable(denyKey), true);
         return false;
     }
 

@@ -70,6 +70,7 @@ public final class ClientEvents {
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ru.liko.pjmbasemod.client.gui.overlay.HudOverlay.reset();
         ClientCapturePointState.reset();
+        ru.liko.pjmbasemod.client.campaign.ClientCampaignState.reset();
         ClientFactionCommanderState.reset();
         ClientRoleState.reset();
         ru.liko.pjmbasemod.client.serverevent.journeymap.EventJourneyMapBridge.onLogout();

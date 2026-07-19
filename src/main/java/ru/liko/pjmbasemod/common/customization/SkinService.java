@@ -17,10 +17,17 @@ public final class SkinService {
     private SkinService() {
     }
 
-    /** Текущий скин игрока: сохранённый (если валиден) или дефолт команды; может быть пустым. */
+    /** Текущий скин игрока: принудительный от админа, иначе сохранённый (если валиден) или дефолт команды. */
     public static String currentSkin(ServerPlayer player) {
         if (player == null || player.getServer() == null) return "";
-        String stored = SkinSavedData.get(player.getServer()).getSkin(player.getUUID());
+        SkinSavedData saved = SkinSavedData.get(player.getServer());
+        String stored = saved.getSkin(player.getUUID());
+        if (saved.isForced(player.getUUID()) && stored != null && !stored.isBlank()) {
+            return stored;
+        }
+        // Персональный скин по нику из секции players конфига skins.json.
+        String byName = SkinRegistry.get().skinForPlayer(player.getGameProfile().getName());
+        if (!byName.isBlank()) return byName;
         String team = Teams.resolvePlayerTeamId(player);
         if (stored != null && !stored.isBlank()
                 && (team == null || SkinRegistry.get().isAllowed(team, stored))) {
@@ -33,6 +40,8 @@ public final class SkinService {
     public static boolean ensureValid(ServerPlayer player) {
         if (player == null || player.getServer() == null) return false;
         SkinSavedData data = SkinSavedData.get(player.getServer());
+        // Принудительный скин от админа не откатываем ни по команде, ни по пулу.
+        if (data.isForced(player.getUUID())) return false;
         String stored = data.getSkin(player.getUUID());
         String team = Teams.resolvePlayerTeamId(player);
 
@@ -86,6 +95,29 @@ public final class SkinService {
         SkinSavedData.get(player.getServer()).setSkin(player.getUUID(), id);
         broadcast(player.getServer(), player.getUUID(), id);
         syncSelectionTo(player);
+    }
+
+    /**
+     * Админское назначение скина: любой из {@link SkinRegistry#KNOWN_SKINS}, минуя пул команды.
+     * {@code false} — неизвестный id скина.
+     */
+    public static boolean adminAssign(ServerPlayer target, String skinId) {
+        if (target == null || target.getServer() == null) return false;
+        String id = SkinRegistry.sanitize(skinId);
+        if (!SkinRegistry.KNOWN_SKINS.contains(id)) return false;
+        SkinSavedData.get(target.getServer()).setForced(target.getUUID(), id);
+        broadcast(target.getServer(), target.getUUID(), id);
+        syncSelectionTo(target);
+        return true;
+    }
+
+    /** Снимает админское назначение: игрок возвращается к своему выбору/дефолту команды. */
+    public static void adminClear(ServerPlayer target) {
+        if (target == null || target.getServer() == null) return;
+        SkinSavedData.get(target.getServer()).clear(target.getUUID());
+        ensureValid(target);
+        broadcast(target.getServer(), target.getUUID(), currentSkin(target));
+        syncSelectionTo(target);
     }
 
     /** Полная синхронизация при входе: скины всех онлайн этому игроку + его скин всем + меню. */

@@ -372,6 +372,13 @@ public final class GarageManager {
             return;
         }
 
+        // Один экземпляр за раз: пока в этом гараже идёт сборка — новый крафт запрещён.
+        if (!GarageSavedData.get(player.server).pendingOf(garageKey(player)).isEmpty()) {
+            player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.assembly_busy"));
+            resync(player);
+            return;
+        }
+
         consumeCost(player, def);
 
         // assemblyTime > 0 — техника уходит в очередь сборки и попадёт в гараж по таймеру.
@@ -537,7 +544,7 @@ public final class GarageManager {
 
         // Проверка лимита флота: до списания техники со склада, чтобы при отказе не снимать экземпляр
         GarageType fleetType = vehicleGarageType(def, typeId);
-        if (!ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.canSpawn(player, fleetType)) {
+        if (!ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.canSpawn(player, fleetType, typeId)) {
             resync(player);
             return;
         }
@@ -854,6 +861,10 @@ public final class GarageManager {
         if (def == null) {
             return true;
         }
+        // OP/ADMIN игнорирует ограничения техники по команде/роли/рангу.
+        if (GaragePermissions.can(player, GaragePermissions.ADMIN)) {
+            return true;
+        }
         if (!teamAllows(player, def)) {
             player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.team_restricted"));
             return false;
@@ -864,6 +875,12 @@ public final class GarageManager {
         }
         if (!RankService.meetsMinRank(player, def.minRank())) {
             player.sendSystemMessage(RankService.requiredRankMessage(def.minRank()));
+            return false;
+        }
+        int minOnline = def.minPlayersOnline();
+        int online = player.server.getPlayerList().getPlayerCount();
+        if (minOnline > 0 && online < minOnline) {
+            player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.min_players", minOnline, online));
             return false;
         }
         return true;

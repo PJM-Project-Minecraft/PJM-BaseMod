@@ -65,7 +65,7 @@
 `FactionJoinActions` — действия при вступлении в фракцию.
 `FactionPermissions`, `FactionManagementSnapshot` — права и синхронизация.
 `FactionDeputySavedData` + enum `DeputyPermission` (ASSIGN_ROLES/SET_ORDER/OPEN_GUI/INVITE) — заместители фракции (teamId → playerId → битмаска), лимит `faction.maxDeputies`.
-`FactionInviteSavedData` — приглашения в закрытые фракции (`teams.inviteOnly` в конфиге): teamId → (ник → срок, TTL `faction.inviteTtlMinutes`). Выдаёт командир/зам с правом INVITE/админ — вкладка «Приглашения» в GUI управления или `/pjm faction invite|uninvite|invites` (OP может указать фракцию явно). Закрытая фракция на экране выбора рисуется с замком; серверная проверка — в `FactionMenuService.handleSelection`, приглашение одноразовое.
+`FactionInviteSavedData` — приглашения в закрытые фракции (`teams.inviteOnly` в конфиге): teamId → (ник → срок, TTL `faction.inviteTtlMinutes`). Выдаёт командир/зам с правом INVITE/админ — вкладка «Приглашения» в GUI управления или `/pjm faction invite|uninvite|invites` (OP может указать фракцию явно). Закрытая фракция на экране выбора рисуется с замком; серверная проверка — в `FactionMenuService.handleSelection`, приглашение одноразовое. Помимо приглашений — постоянный whitelist в конфиге (`teams.whitelist`: id фракции → список ников): вписанные игроки вступают без приглашения (переживает вайп кампании).
 `FactionOrderSavedData`, `FactionOrderManager` — приказ фракции (текст + TTL): разовое уведомление + постоянная HUD-плашка у всех членов команды. Клиент: `ClientFactionOrderState`, `FactionOrderHudOverlay`.
 `FactionMenuService.Authority` — права зрителя. Конфиг-секция `faction` (maxDeputies, orderMaxLength, orderDefaultTtlMinutes, orderMaxTtlMinutes). Экран: вкладки Роль/Зам/Приказ, недоступные скрыты; список членов строится по scoreboard-команде и включает **оффлайн**-игроков (роль и зам выдаются им наравне с онлайн), сверху — поиск по нику — [`docs/FACTION_MANAGEMENT.md`](./docs/FACTION_MANAGEMENT.md).
 
@@ -108,6 +108,20 @@
 - `Teams.displayName/color/normalize/isCombatTeam` — утилиты для отображения команд.
 Ранее назывался `FrontlineTeams` и жил в пакете `common/frontline/`; система захвата линии фронта (`FrontlineManager`/`SavedData`/`Chunk`/`Sector`/`BlueMap`/`JourneyMap`/`HudOverlay`) и система регионов (`RegionManager`/`SavedData`) **удалены** — заменяются подсистемой точек захвата (`common/capturepoint/`, в разработке).
 
+### campaign
+`CampaignSavedData`, `CampaignManager` — недельная кампания поверх точек захвата:
+удерживаемые точки тикают VP фракции раз в `campaign.vpIntervalMinutes` (реальное время,
+и вне окон захвата). Через `campaign.durationDays` — победитель (максимум VP, строго больше
+второго) и **полный вайп сезона**: `WipeService.wipeAll` + точки в нейтраль
+(`CapturePointSavedData.resetForNewSeason`, базовые — крайние по order — сохраняют владельца,
+иначе sequential-гейт заблокирует новый раунд) + все игроки снимаются со scoreboard-команд +
+удаление техники SBW и предметов на карте (`campaign.wipeClearEntities`). XP-бонус победителям
+(`campaign.winnerXpBonus`) начисляется ПОСЛЕ вайпа — фора нового сезона. HUD-счёт вверху по
+центру: `CampaignSyncPacket` → `ClientCampaignState` → `CampaignHudOverlay`. Команды
+`/pjm campaign status|on|off|restart|finish confirm`. Пассивный доход складов с точек —
+в `CapturePointManager.tickIncome`: `capturePoints.incomePerPoint` очков SUPPLY за точку раз в
+`incomeIntervalMinutes`, склад команды — `/pjm capturepoint warehouse <фракция> <склад>`.
+
 ### basezone
 `BaseZone`, `BaseZoneSavedData`, `BaseZoneManager` — зоны базы (блочный AABB с Y +
 owner-команда). Враг в чужой зоне получает полноэкранное предупреждение с отсчётом
@@ -115,6 +129,18 @@ owner-команда). Враг в чужой зоне получает полн
 creative/spectator игнорируют защиту. Конфиг-секция `baseZone` (enabled,
 countdownSeconds). Команды `/pjm basezone`. Enforcement — серверный, в
 `PjmServerEvents.onPlayerTick`. Документация — [`docs/BASE_ZONE.md`](./docs/BASE_ZONE.md).
+
+### radiospawn
+`RadioSpawnManager` — спавн на радейках (как Radio Backpack в Arma Reforger): живой сокомандник
+с надетым `warbornrenewed:backpack-ussr-radio` в curio-слоте «back» — мобильная точка возрождения
+фракции. Слоты (`MAX_ACTIVE = 3` на фракцию) занимают онлайн-носители в порядке появления,
+пересчёт раз в секунду в `onServerTick`; вытесненные видят статус в actionbar. При смерти уходит
+`RadioSpawnListPacket` со списком носителей, выбор возвращается `RadioSpawnSelectPacket` и
+применяется телепортом в `PlayerRespawnEvent`; носитель получает `CARRIER_XP = 50`.
+После возрождения рация уходит на перезарядку `SPAWN_COOLDOWN_SECONDS = 20` секунд (карта
+`COOLDOWNS`, проверка авторитетно серверная) — на экране смерти такая рация остаётся в списке
+серой кнопкой с локальным отсчётом. Состояние **не персистентно**: живёт в памяти, слоты
+восстанавливаются по факту онлайна. Curios — мягкая зависимость, без мода спавн просто не работает.
 
 ### vanish
 `VanishService` — ваниш админа: игрок пропадает из TAB и из мира для всех, кроме себя и других

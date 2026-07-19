@@ -134,9 +134,13 @@ public final class RoleService {
             return AssignmentResult.success(Component.translatable("gui.pjmbasemod.role.cleared", targetName));
         }
 
-        AssignmentResult capResult = validateRoleCap(server, targetId, targetTeam, role);
-        if (!capResult.success()) {
-            return capResult;
+        // OP/ADMIN выдаёт любую роль в обход лимитов команды; командир/зам — строго в пределах лимита.
+        boolean adminBypass = actor != null && RolePermissions.can(actor, RolePermissions.ADMIN);
+        if (!adminBypass) {
+            AssignmentResult capResult = validateRoleCap(server, targetId, targetTeam, role);
+            if (!capResult.success()) {
+                return capResult;
+            }
         }
 
         data.setRole(targetId, targetName, targetTeam, role);

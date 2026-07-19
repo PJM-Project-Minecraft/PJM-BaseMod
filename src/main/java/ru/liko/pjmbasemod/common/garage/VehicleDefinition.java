@@ -40,6 +40,8 @@ public final class VehicleDefinition {
     private transient boolean invalidAllowedTeams;
     /** Минимальный ранг (id), начиная с которого техника доступна; пусто/null — без ограничения по рангу. */
     private String minRank;
+    /** Минимальный онлайн сервера, при котором техника доступна (тяжёлая техника); 0 — без ограничения. */
+    private int minPlayersOnline;
     /** Тип гаража: "ground" (наземка) или "aviation" (авиация). Пусто/неизвестно — наземка. */
     private String garageType;
 
@@ -117,6 +119,11 @@ public final class VehicleDefinition {
 
     public boolean rankRestricted() {
         return minRank != null && !minRank.isBlank();
+    }
+
+    /** Минимальный онлайн сервера для доступа к технике; 0 — ограничения нет. */
+    public int minPlayersOnline() {
+        return Math.max(0, minPlayersOnline);
     }
 
     /**

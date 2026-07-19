@@ -259,6 +259,7 @@ public final class CapturePointMapEditor {
                         p -> removeSelectedVertex());
             }
             addOwnerSubmenu(menu);
+            addOrderSubmenu(menu);
             menu.addMenuItem(I18n.get("gui.pjmbasemod.capturepoint.menu.rename"), p -> openRename());
             menu.addMenuItem(I18n.get("gui.pjmbasemod.capturepoint.menu.done"), p -> stopEditing());
             return;
@@ -268,6 +269,7 @@ public final class CapturePointMapEditor {
         if (selectedId != null) {
             menu.addMenuItem(I18n.get("gui.pjmbasemod.capturepoint.menu.edit"), p -> startEditing());
             addOwnerSubmenu(menu);
+            addOrderSubmenu(menu);
             menu.addMenuItem(I18n.get("gui.pjmbasemod.capturepoint.menu.rename"), p -> openRename());
             menu.addMenuItem(I18n.get("gui.pjmbasemod.capturepoint.menu.delete"), p -> deleteSelected());
         }
@@ -281,6 +283,26 @@ public final class CapturePointMapEditor {
             String teamId = team.id();
             sub.addMenuItem(Teams.displayName(null, teamId), p -> setOwner(teamId));
         }
+    }
+
+    /**
+     * Подменю «Порядок в цепочке»: номера 1..N (N = точек в измерении) + «вне цепочки».
+     * Точек единицы, поэтому плоский список номеров вместо экрана ввода числа.
+     */
+    private void addOrderSubmenu(ModPopupMenu menu) {
+        if (selectedMeta == null) return;
+        int count = 0;
+        for (CapturePoint cp : ClientCapturePointState.points()) {
+            if (cp.dimension().equals(selectedMeta.dimension())) count++;
+        }
+        ModPopupMenu sub = menu.createSubItemList(
+                I18n.get("gui.pjmbasemod.capturepoint.menu.order", selectedMeta.order()));
+        for (int i = 1; i <= Math.max(count, 1); i++) {
+            int order = i;
+            String label = order == selectedMeta.order() ? "✔ " + order : String.valueOf(order);
+            sub.addMenuItem(label, p -> setOrder(order));
+        }
+        sub.addMenuItem(I18n.get("gui.pjmbasemod.capturepoint.menu.order.none"), p -> setOrder(0));
     }
 
     // ─────────────────────────── действия ───────────────────────────
@@ -384,7 +406,7 @@ public final class CapturePointMapEditor {
         send(Action.UPDATE_VERTICES, id, id, dim, "", square);
 
         selectedId = id;
-        selectedMeta = new CapturePoint(id, id, dim, square, "", NEUTRAL_COLOR, "", 0, false);
+        selectedMeta = new CapturePoint(id, id, dim, square, "", NEUTRAL_COLOR, "", 0, false, 0);
         working.clear();
         working.addAll(square);
         editing = true;
@@ -446,7 +468,15 @@ public final class CapturePointMapEditor {
 
     private void send(Action action, String id, String name, String dim, String owner,
                       List<CapturePoint.Vertex> vertices) {
-        PjmNetworking.sendToServer(new CapturePointEditorActionPacket(action, id, name, dim, owner, vertices));
+        PjmNetworking.sendToServer(new CapturePointEditorActionPacket(action, id, name, dim, owner, vertices, 0));
+    }
+
+    private void setOrder(int order) {
+        if (selectedId == null || selectedMeta == null) return;
+        PjmNetworking.sendToServer(new CapturePointEditorActionPacket(Action.SET_ORDER, selectedId,
+                selectedMeta.displayName(), selectedMeta.dimension(), selectedMeta.ownerTeamId(),
+                selectedMeta.vertices(), order));
+        selectedMeta = withOrder(selectedMeta, order);
     }
 
     // ─────────────────────────── рендер ───────────────────────────
@@ -594,11 +624,16 @@ public final class CapturePointMapEditor {
     private static CapturePoint withOwner(CapturePoint cp, String owner) {
         int color = owner.isEmpty() ? NEUTRAL_COLOR : Teams.color(null, owner);
         return new CapturePoint(cp.id(), cp.displayName(), cp.dimension(), cp.vertices(),
-                owner, color, cp.captureTeamId(), cp.progressPercent(), cp.contested());
+                owner, color, cp.captureTeamId(), cp.progressPercent(), cp.contested(), cp.order());
     }
 
     private static CapturePoint withName(CapturePoint cp, String name) {
         return new CapturePoint(cp.id(), name, cp.dimension(), cp.vertices(),
-                cp.ownerTeamId(), cp.ownerColor(), cp.captureTeamId(), cp.progressPercent(), cp.contested());
+                cp.ownerTeamId(), cp.ownerColor(), cp.captureTeamId(), cp.progressPercent(), cp.contested(), cp.order());
+    }
+
+    private static CapturePoint withOrder(CapturePoint cp, int order) {
+        return new CapturePoint(cp.id(), cp.displayName(), cp.dimension(), cp.vertices(),
+                cp.ownerTeamId(), cp.ownerColor(), cp.captureTeamId(), cp.progressPercent(), cp.contested(), order);
     }
 }

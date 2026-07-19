@@ -14,8 +14,8 @@ public enum CombatRole {
             "machinegunner", "mg", "pulemetchik", "пулеметчик", "пулемётчик"),
     SNIPER("sniper", "Снайпер", 0x4C7FD8,
             "снайпер"),
-    MARKSMAN("marksman", "Марксман", 0x4CD87A,
-            "dmr", "марксман"),
+    PILOT("pilot", "Пилот", 0x4CB8D8,
+            "пилот", "летчик", "лётчик", "aviator"),
     CREW("crew", "Экипаж", 0xD8C34C,
             "vehicle_crew", "экипаж");
 

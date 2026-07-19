@@ -103,6 +103,11 @@ repositories {
         url = 'https://api.modrinth.com/maven'
         content { includeGroup 'maven.modrinth' }
     }
+    maven {
+        name = 'Illusive Soulworks'
+        url = 'https://maven.theillusivec4.top/'
+        content { includeGroup 'top.theillusivec4.curios' }
+    }
 }
 
 def taczReferenceJar = file("${projectDir}/libs/tacz-neoforge-1.21.1-1.1.7-hotfix-r1.jar")
@@ -121,6 +126,9 @@ dependencies {
 
     // BlueMap (optional, server-side integration)
     compileOnly "de.bluecolored:bluemap-api:2.7.7"
+
+    // Curios API (optional) — детект радио-рюкзака Warborn в слоте "back" (спавн на радейках)
+    compileOnly "top.theillusivec4.curios:curios-neoforge:9.5.1+1.21.1:api"
 
     // LuckPerms API (optional) — прямой строковый запрос прав в обход реестра нод NeoForge,
     // чтобы донат-ключи из items.json работали сразу после /pjm reload без рестарта сервера.
@@ -213,6 +221,8 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // Config тянет Gson на статической инициализации — в игре он приходит с Minecraft.
+    testRuntimeOnly 'com.google.code.gson:gson:2.10.1'
 }
 
 tasks.named('test', Test).configure {

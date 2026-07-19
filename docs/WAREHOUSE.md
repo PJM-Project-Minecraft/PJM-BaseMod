@@ -171,7 +171,7 @@ config/pjmbasemod/warehouse/items.json
 `allowedRoles` принимает canonical id ролей (`CombatRole`):
 
 ```text
-assault, machine_gunner, sniper, uav_operator, sso, marksman, ew_specialist, crew
+assault, machine_gunner, sniper, uav_operator, sso, pilot, ew_specialist, crew
 ```
 
 ### TACZ

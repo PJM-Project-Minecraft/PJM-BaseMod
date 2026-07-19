@@ -77,6 +77,20 @@ public class GarageScreen extends PjmBaseScreen {
 
     private record PreviewTarget(String key, String displayName, String entityType, CompoundTag entityNbt) {}
 
+    /** Строка вкладки «Гараж»: одинаковая техника схлопнута в одну позицию с количеством. */
+    private record GarageRow(GarageSnapshot.InstanceEntry first, int count) {}
+
+    /** Экземпляры гаража, сгруппированные по типу техники (порядок каталога сохраняется). */
+    private java.util.List<GarageRow> garageRows() {
+        java.util.Map<String, java.util.List<GarageSnapshot.InstanceEntry>> byDef = new java.util.LinkedHashMap<>();
+        for (GarageSnapshot.InstanceEntry inst : snapshot.instances()) {
+            byDef.computeIfAbsent(inst.defId() + "|" + inst.displayName(), k -> new java.util.ArrayList<>()).add(inst);
+        }
+        java.util.List<GarageRow> rows = new java.util.ArrayList<>(byDef.size());
+        byDef.values().forEach(group -> rows.add(new GarageRow(group.get(0), group.size())));
+        return rows;
+    }
+
     /** Открывает оверлей-меню выбора точки спавна. */
     public void showSpawnOptions(java.util.UUID instanceId,
             java.util.List<ru.liko.pjmbasemod.common.network.packet.SpawnPointOptionsPacket.PointOption> options) {
@@ -163,7 +177,7 @@ public class GarageScreen extends PjmBaseScreen {
     }
 
     private int rowCount() {
-        return tab == 0 ? snapshot.definitions().size() : snapshot.instances().size();
+        return tab == 0 ? snapshot.definitions().size() : garageRows().size();
     }
 
     private void clampScroll() {
@@ -346,10 +360,10 @@ public class GarageScreen extends PjmBaseScreen {
                     y += ROW_HEIGHT;
                 }
             } else {
-                var instances = snapshot.instances();
+                var instances = garageRows();
                 for (int i = scroll; i < instances.size() && i < scroll + rows; i++) {
                     if (mouseY >= y && mouseY <= y + ROW_HEIGHT - 4) {
-                        GarageSnapshot.InstanceEntry inst = instances.get(i);
+                        GarageSnapshot.InstanceEntry inst = instances.get(i).first();
                         boolean spawnHovered = spawnButtonRect(y).contains(mouseX, mouseY);
                         boolean recycleHovered = recycleButtonRect(y).contains(mouseX, mouseY);
                         if (snapshot.canSpawn() && inst.roleAllowed() && inst.rankAllowed() && spawnHovered) {
@@ -430,14 +444,15 @@ public class GarageScreen extends PjmBaseScreen {
                 }
             }
         } else {
-            var instances = snapshot.instances();
+            var instances = garageRows();
             if (instances.isEmpty()) {
                 graphics.drawCenteredString(font, Component.translatable("gui.pjmbasemod.garage.empty_garage"), contentLeft + contentWidth / 2, contentTop + 50, 0xFF666666);
             } else {
                 for (int i = scroll; i < instances.size() && i < scroll + rows; i++) {
-                    GarageSnapshot.InstanceEntry inst = instances.get(i);
+                    GarageRow row = instances.get(i);
+                    GarageSnapshot.InstanceEntry inst = row.first();
                     boolean usable = inst.roleAllowed() && inst.rankAllowed();
-                    drawRowGarage(graphics, inst, snapshot.canSpawn() && usable,
+                    drawRowGarage(graphics, inst, row.count(), snapshot.canSpawn() && usable,
                             snapshot.canStore() && usable, contentLeft, y, contentWidth, mouseX, mouseY);
                     y += ROW_HEIGHT;
                 }
@@ -705,7 +720,7 @@ public class GarageScreen extends PjmBaseScreen {
                 status, PjmGuiUtils.BTN_GREEN, PjmGuiUtils.BTN_GREEN_HOVER);
     }
 
-    private void drawRowGarage(GuiGraphics graphics, GarageSnapshot.InstanceEntry inst, boolean canSpawn, boolean canRecycle, int x, int y, int width, int mouseX, int mouseY) {
+    private void drawRowGarage(GuiGraphics graphics, GarageSnapshot.InstanceEntry inst, int count, boolean canSpawn, boolean canRecycle, int x, int y, int width, int mouseX, int mouseY) {
         boolean isHovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + ROW_HEIGHT - 4;
 
         boolean roleLocked = !inst.roleAllowed();
@@ -718,8 +733,13 @@ public class GarageScreen extends PjmBaseScreen {
         int spawnX = recycleX - ROW_BUTTON_GAP - ROW_SPAWN_WIDTH;
         int buttonY = y + (ROW_HEIGHT - 4 - ROW_ACTION_HEIGHT) / 2;
         int nameWidth = Math.max(20, spawnX - x - 20);
-        graphics.drawString(font, ellipsize(inst.displayName(), nameWidth), x + 12, y + 8,
+        String rowName = ellipsize(inst.displayName(), nameWidth);
+        graphics.drawString(font, rowName, x + 12, y + 8,
                 locked ? PjmGuiUtils.TEXT_MUTED : PjmGuiUtils.TEXT_PRIMARY, true);
+        if (count > 1) {
+            graphics.drawString(font, "×" + count, x + 12 + font.width(rowName) + 6, y + 8,
+                    PjmGuiUtils.TEXT_GOLD, true);
+        }
         if (locked) {
             graphics.blit(LOCK_TEXTURE, x + 12, y + 24, 0, 0, 10, 10, 16, 16);
             String required = roleLocked
@@ -810,8 +830,9 @@ public class GarageScreen extends PjmBaseScreen {
             return new PreviewTarget("def:" + def.id(), def.displayName(), def.entityType(), new CompoundTag());
         }
 
-        if (index >= snapshot.instances().size()) return null;
-        GarageSnapshot.InstanceEntry inst = snapshot.instances().get(index);
+        var rows = garageRows();
+        if (index >= rows.size()) return null;
+        GarageSnapshot.InstanceEntry inst = rows.get(index).first();
         if (inst.entityType().isBlank()) return null;
         return new PreviewTarget("inst:" + inst.instanceId() + ":" + inst.entityNbt().hashCode(),
                 inst.displayName(), inst.entityType(), inst.entityNbt());
@@ -846,7 +867,8 @@ public class GarageScreen extends PjmBaseScreen {
         if (minecraft.level == null) {
             return null;
         }
-        if (target.key().equals(cachedPreviewKey) && cachedPreviewEntity != null) {
+        if (target.key().equals(cachedPreviewKey)) {
+            // null здесь = превью уже не удалось построить, не пробуем каждый кадр заново.
             return cachedPreviewEntity;
         }
 
@@ -862,21 +884,29 @@ public class GarageScreen extends PjmBaseScreen {
             return null;
         }
 
-        Entity entity = type.create(minecraft.level);
+        Entity entity;
+        try {
+            entity = type.create(minecraft.level);
+        } catch (Throwable t) {
+            // Чужие сущности (напр. SBW VehicleEntity) могут падать в конструкторе вне мира — превью просто нет.
+            Pjmbasemod.LOGGER.debug("Не удалось создать превью {}: {}", typeId, t.toString());
+            return null;
+        }
         if (entity == null) {
             return null;
         }
 
-        if (!target.entityNbt().isEmpty()) {
-            CompoundTag tag = target.entityNbt().copy();
-            tag.remove("UUID");
-            try {
+        try {
+            if (!target.entityNbt().isEmpty()) {
+                CompoundTag tag = target.entityNbt().copy();
+                tag.remove("UUID");
                 entity.load(tag);
-            } catch (RuntimeException ignored) {
-                // Если чужая техника не смогла прочитать NBT на клиенте, показываем дефолтную модель.
             }
+            entity.moveTo(0.0D, 0.0D, 0.0D, 35.0F, 0.0F);
+        } catch (Throwable t) {
+            // Если чужая техника не смогла прочитать NBT на клиенте, показываем дефолтную модель.
+            Pjmbasemod.LOGGER.debug("Не удалось подготовить превью {}: {}", typeId, t.toString());
         }
-        entity.moveTo(0.0D, 0.0D, 0.0D, 35.0F, 0.0F);
         cachedPreviewEntity = entity;
         return entity;
     }

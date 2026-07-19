@@ -31,7 +31,7 @@ import java.util.Map;
  */
 public final class CapturePointManager {
 
-    /** Серверных тиков в минуте — период начисления пассивного дохода складам. */
+    /** Серверных тиков в минуте реального времени. */
     private static final int MINUTE_TICKS = 20 * 60;
 
     private static int tickCounter;
@@ -45,8 +45,10 @@ public final class CapturePointManager {
     public static void onServerTick(MinecraftServer server) {
         if (server == null) return;
         evaluateSchedule(server);
-        if (!Config.isCapturePointsEnabled()) return;
+        // Доход капает и вне окон захвата: окно решает, можно ли отнять точку,
+        // а не идёт ли снабжение с удерживаемой территории (см. кампанию).
         tickIncome(server);
+        if (!Config.isCapturePointsEnabled()) return;
         int interval = Math.max(1, Config.getCapturePointTickIntervalTicks());
         tickCounter++;
         if (tickCounter % interval != 0) return;
@@ -92,19 +94,19 @@ public final class CapturePointManager {
     }
 
     /**
-     * Пассивный доход складов с удерживаемых точек: раз в минуту каждая команда получает
-     * {@code incomePerPointPerMinute} очков пула {@code SUPPLY} за каждую свою точку.
-     * Склад команды берётся из карты {@code capturePoints.warehouseByTeam} (teamId → warehouseId);
-     * команда без записи в карте дохода не получает. Начисляется только при активном захвате
-     * (вызов стоит после гейта {@code enabled}) — в межсезонье склады не капают.
+     * Пассивный доход складов с удерживаемых точек: раз в {@code incomeIntervalMinutes}
+     * каждая команда получает {@code incomePerPoint} очков пула {@code SUPPLY} за каждую
+     * свою точку. Склад команды берётся из карты {@code capturePoints.warehouseByTeam}
+     * (teamId → warehouseId, {@code /pjm capturepoint warehouse}); команда без записи
+     * в карте дохода не получает.
      */
     private static void tickIncome(MinecraftServer server) {
         if (!Config.isCapturePointIncomeEnabled()) return;
-        int perPoint = Config.getCapturePointIncomePerPointPerMinute();
+        int perPoint = Config.getCapturePointIncomePerPoint();
         if (perPoint <= 0) return;
         Map<String, String> warehouseByTeam = Config.getCapturePointWarehouseByTeam();
         if (warehouseByTeam.isEmpty()) return;
-        if (++incomeTickCounter < MINUTE_TICKS) return;
+        if (++incomeTickCounter < MINUTE_TICKS * Math.max(1, Config.getCapturePointIncomeIntervalMinutes())) return;
         incomeTickCounter = 0;
 
         Map<String, Integer> pointsOwned = new LinkedHashMap<>();
@@ -124,24 +126,31 @@ public final class CapturePointManager {
 
     /**
      * Автопереключение {@code capturePoints.enabled} по расписанию (час:минута, серверное
-     * локальное время). Реагирует только на смену состояния окна — ручной {@code /pjm
-     * capturepoint enable|disable} не перебивается до следующей границы окна.
+     * локальное время) и/или порогу онлайна ({@code autoEnableMinPlayers}, 0 — не учитывается).
+     * Активные условия объединяются по И: захват включён, когда все выполнены. Реагирует
+     * только на смену итогового состояния — ручной {@code /pjm capturepoint enable|disable}
+     * не перебивается до следующей смены условий.
      */
     private static void evaluateSchedule(MinecraftServer server) {
-        if (!Config.isCapturePointScheduleEnabled()) return;
-        List<Config.ScheduleWindow> windows = Config.getCapturePointScheduleWindows();
-        if (windows.isEmpty()) return;
+        List<Config.ScheduleWindow> windows = Config.isCapturePointScheduleEnabled()
+                ? Config.getCapturePointScheduleWindows() : List.of();
+        int minPlayers = Config.getCapturePointAutoEnableMinPlayers();
+        if (windows.isEmpty() && minPlayers <= 0) return;
+
+        boolean scheduleOk = windows.isEmpty();
         java.time.LocalTime now = java.time.LocalTime.now();
         int nowMinutes = now.getHour() * 60 + now.getMinute();
-        boolean shouldBeActive = false;
         for (Config.ScheduleWindow w : windows) {
             if (withinScheduleWindow(nowMinutes, w.startTotalMinutes(), w.endTotalMinutes())) {
-                shouldBeActive = true;
+                scheduleOk = true;
                 break;
             }
         }
-        // Состояние окна хранится в конфиге, а не в памяти: иначе рестарт сервера внутри
-        // окна сбрасывал бы его и расписание перебивало бы ручной enable/disable заново.
+        int online = server.getPlayerList().getPlayerCount();
+        boolean playersOk = minPlayers <= 0 || online >= minPlayers;
+        boolean shouldBeActive = scheduleOk && playersOk;
+        // Состояние хранится в конфиге, а не в памяти: иначе рестарт сервера внутри
+        // окна сбрасывал бы его и автоматика перебивала бы ручной enable/disable заново.
         Boolean previous = Config.getCapturePointScheduleLastState();
         if (previous != null && previous == shouldBeActive) return;
         Config.setCapturePointScheduleLastState(shouldBeActive);
@@ -149,8 +158,17 @@ public final class CapturePointManager {
 
         setEnabled(server, shouldBeActive);
         Component title = Component.literal("Точки захвата");
-        Component subtitle = Component.literal(shouldBeActive ? "Захват включён по расписанию" : "Захват выключен по расписанию");
-        PjmNetworking.sendToAll(server, new NotificationPacket(title, subtitle, shouldBeActive ? 0x4CAF50 : 0x9B9B9B, 4000));
+        String reason;
+        if (shouldBeActive) {
+            reason = minPlayers > 0 && windows.isEmpty()
+                    ? "Захват включён: игроков онлайн " + online + "/" + minPlayers
+                    : "Захват включён по расписанию";
+        } else {
+            reason = !playersOk
+                    ? "Захват выключен: недостаточно игроков (" + online + "/" + minPlayers + ")"
+                    : "Захват выключен по расписанию";
+        }
+        PjmNetworking.sendToAll(server, new NotificationPacket(title, Component.literal(reason), shouldBeActive ? 0x4CAF50 : 0x9B9B9B, 4000));
     }
 
     /** @param nowMinutes, startMinutes, endMinutes — минуты от полуночи (0-1439). */
@@ -178,7 +196,7 @@ public final class CapturePointManager {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 PjmNetworking.sendToPlayer(player, CapturePointHudPacket.empty());
             }
-            PjmNetworking.sendToAll(server, new CapturePointMapSyncPacket(List.of()));
+            PjmNetworking.sendToAll(server, new CapturePointMapSyncPacket(List.of(), false));
             mapSyncRevision++;
             lastMapSyncAtMs = System.currentTimeMillis();
             lastMapSyncReason = "disabled";
@@ -199,7 +217,7 @@ public final class CapturePointManager {
     public static void broadcastMapSync(MinecraftServer server, CapturePointSavedData data, String reason) {
         int requiredTicks = requiredCaptureTicks();
         List<CapturePoint> points = data.snapshots(requiredTicks, null);
-        PjmNetworking.sendToAll(server, new CapturePointMapSyncPacket(points));
+        PjmNetworking.sendToAll(server, new CapturePointMapSyncPacket(points, Config.isCapturePointSequential()));
         mapSyncRevision++;
         lastMapSyncAtMs = System.currentTimeMillis();
         lastMapSyncReason = reason;
@@ -299,7 +317,9 @@ public final class CapturePointManager {
             return true;
         }
 
-        entry.progressTicks = Math.max(0, entry.progressTicks - interval);
+        // Кламп: setowner сеет progressTicks = Integer.MAX_VALUE («полный контроль»),
+        // без клампа нейтрализация такой точки заняла бы 2^31 тиков.
+        entry.progressTicks = Math.max(0, Math.min(entry.progressTicks, requiredTicks) - interval);
         if (entry.progressTicks == 0) {
             entry.ownerTeamId = "";
             entry.ownerColor = 0x9B9B9B;
@@ -351,11 +371,14 @@ public final class CapturePointManager {
         boolean capturing = inside.ownerTeamId.isEmpty() && !inside.captureTeamId.isEmpty();
         int percent = requiredTicks <= 0 ? (inside.ownerTeamId.isEmpty() ? 0 : 100)
                 : Math.max(0, Math.min(100, inside.progressTicks * 100 / requiredTicks));
+        String playerTeam = Teams.resolvePlayerTeamId(player);
+        boolean locked = Config.isCapturePointSequential() && playerTeam != null
+                && !playerTeam.equals(inside.ownerTeamId) && !canAttack(data, inside, playerTeam);
         PjmNetworking.sendToPlayer(player, new CapturePointHudPacket(
                 inside.id, inside.displayName,
                 Teams.displayName(server, inside.ownerTeamId), Teams.color(server, inside.ownerTeamId),
                 Teams.displayName(server, inside.captureTeamId), Teams.color(server, inside.captureTeamId),
-                percent, neutralizing, capturing));
+                percent, neutralizing, capturing, locked));
     }
 
     /** Обработка действия редактора точек захвата (C→S пакет, OP-only). */
@@ -370,6 +393,7 @@ public final class CapturePointManager {
             case UPDATE_VERTICES -> data.updateVertices(packet.pointId(), packet.vertices());
             case UPDATE_DISPLAY_NAME -> data.updateDisplayName(packet.pointId(), packet.displayName());
             case SET_OWNER -> data.setOwner(packet.pointId(), packet.ownerTeamId());
+            case SET_ORDER -> data.setOrder(packet.pointId(), packet.order());
         }
         broadcastMapSync(server, data, "editor_action");
     }

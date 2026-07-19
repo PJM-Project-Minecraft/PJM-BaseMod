@@ -15,7 +15,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "40";
+    public static final String VERSION = "44";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -86,13 +86,16 @@ public final class PjmNetworking {
         r.playToClient(SignalHuntHudPacket.TYPE, SignalHuntHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.signalHuntHud(p)));
         r.playToClient(CapturePointMapSyncPacket.TYPE, CapturePointMapSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.capturePointMapSync(p)));
         r.playToClient(CapturePointHudPacket.TYPE, CapturePointHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.capturePointHud(p)));
+        r.playToClient(CampaignSyncPacket.TYPE, CampaignSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.campaignSync(p)));
         r.playToClient(OpenReportsPacket.TYPE, OpenReportsPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openReports(p)));
         r.playToClient(ReportSyncPacket.TYPE, ReportSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.reportSync(p)));
         r.playToClient(PlayerReportThreadPacket.TYPE, PlayerReportThreadPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.playerReportThread(p)));
         r.playToClient(OpenWelcomeGuidePacket.TYPE, OpenWelcomeGuidePacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openWelcomeGuide(p)));
         r.playToClient(DeathScreenPacket.TYPE, DeathScreenPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.deathScreen(p)));
+        r.playToClient(RadioSpawnListPacket.TYPE, RadioSpawnListPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.radioSpawnList(p)));
+        r.playToServer(RadioSpawnSelectPacket.TYPE, RadioSpawnSelectPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ru.liko.pjmbasemod.common.radiospawn.RadioSpawnManager.selectSpawn((ServerPlayer) ctx.player(), p.radioId())));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 55);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 56);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {

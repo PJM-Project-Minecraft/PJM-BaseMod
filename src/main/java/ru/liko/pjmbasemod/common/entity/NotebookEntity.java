@@ -11,6 +11,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
+import ru.liko.pjmbasemod.common.inventory.WeaponLimitService;
 import ru.liko.pjmbasemod.common.garage.GarageType;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
@@ -114,6 +115,12 @@ public class NotebookEntity extends Entity implements GeoEntity {
 
     @Override
     public InteractionResult interact(Player player, InteractionHand hand) {
+        // С оружием в основной руке ПКМ — это прицеливание, а не «открыть гараж»: иначе терминал
+        // выскакивает посреди боя, стоит прицелу задеть его. Проверяем именно основную руку —
+        // при PASS клиент повторяет интеракцию второй рукой.
+        if (WeaponLimitService.weaponType(player.getMainHandItem()) != null) {
+            return InteractionResult.PASS;
+        }
         if (!level().isClientSide() && player instanceof ServerPlayer serverPlayer) {
             GarageManager.openGarage(serverPlayer, this);
         }

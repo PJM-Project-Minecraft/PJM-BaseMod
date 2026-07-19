@@ -143,6 +143,34 @@ public final class CapturePointSavedData extends SavedData {
         setDirty();
     }
 
+    /**
+     * Сброс к новому сезону: все точки нейтральные, прогресс в ноль. Базовые точки —
+     * крайние по order в каждом измерении — сохраняют владельца с полным контролем:
+     * при {@code sequential=true} полностью нейтральная карта заблокировала бы захват
+     * (гейт цепочки требует владения соседней точкой), а базы — админ-разметка.
+     */
+    public void resetForNewSeason() {
+        Map<String, Entry> minByDim = new LinkedHashMap<>();
+        Map<String, Entry> maxByDim = new LinkedHashMap<>();
+        for (Entry e : points.values()) {
+            minByDim.merge(e.dimension, e, (a, b) -> b.order < a.order ? b : a);
+            maxByDim.merge(e.dimension, e, (a, b) -> b.order > a.order ? b : a);
+        }
+        for (Entry e : points.values()) {
+            boolean base = (e == minByDim.get(e.dimension) || e == maxByDim.get(e.dimension))
+                    && !e.ownerTeamId.isEmpty();
+            e.captureTeamId = "";
+            if (base) {
+                e.progressTicks = Integer.MAX_VALUE; // полный контроль, как после setowner
+            } else {
+                e.ownerTeamId = "";
+                e.ownerColor = 0x9B9B9B;
+                e.progressTicks = 0;
+            }
+        }
+        setDirty();
+    }
+
     private static String key(String id) {
         return id == null ? "" : id.toLowerCase(Locale.ROOT);
     }
@@ -175,7 +203,7 @@ public final class CapturePointSavedData extends SavedData {
                 percent = Math.max(0, Math.min(100, progressTicks * 100 / requiredTicks));
             }
             return new CapturePoint(id, displayName, dimension,
-                    List.copyOf(vertices), ownerTeamId, ownerColor, captureTeamId, percent, contested);
+                    List.copyOf(vertices), ownerTeamId, ownerColor, captureTeamId, percent, contested, order);
         }
 
         CompoundTag save() {

@@ -55,6 +55,7 @@ import ru.liko.pjmbasemod.common.role.RoleSavedData;
 import ru.liko.pjmbasemod.common.role.RoleService;
 
 import javax.annotation.Nullable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -83,8 +84,10 @@ public final class PjmCommands {
                 .then(webCommand())
                 .then(baseZoneCommand())
                 .then(vanishCommand())
+                .then(skinCommand())
                 .then(eventCommand())
                 .then(capturePointCommand())
+                .then(campaignCommand())
                 .then(inventoryCommand())
                 .then(entityCommand())
                 .then(ModerationCommands.build())
@@ -95,6 +98,52 @@ public final class PjmCommands {
 
         // Короткий алиас /vanish — команда используется часто, отдельное дерево дешевле, чем /pjm vanish.
         d.register(vanishCommand());
+    }
+
+    // ---------------------------------------------------------------- skin (админ: назначить скин)
+
+    /**
+     * {@code /pjm skin set <цель> <скин>} — принудительно назначить скин (любой из известных, минуя
+     * пул команды); {@code /pjm skin clear <цель>} — снять назначение (вернётся выбор/дефолт команды).
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> skinCommand() {
+        return Commands.literal("skin")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("set")
+                        .then(Commands.argument("target", EntityArgument.players())
+                                .then(Commands.argument("skin", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(
+                                                ru.liko.pjmbasemod.common.customization.SkinRegistry.KNOWN_SKINS, builder))
+                                        .executes(ctx -> assignSkin(ctx.getSource(),
+                                                EntityArgument.getPlayers(ctx, "target"),
+                                                StringArgumentType.getString(ctx, "skin"))))))
+                .then(Commands.literal("clear")
+                        .then(Commands.argument("target", EntityArgument.players())
+                                .executes(ctx -> clearSkin(ctx.getSource(),
+                                        EntityArgument.getPlayers(ctx, "target")))));
+    }
+
+    private static int assignSkin(CommandSourceStack source, Collection<ServerPlayer> targets, String skinId) {
+        int count = 0;
+        for (ServerPlayer target : targets) {
+            if (ru.liko.pjmbasemod.common.customization.SkinService.adminAssign(target, skinId)) count++;
+        }
+        if (count == 0) {
+            source.sendFailure(Component.literal("Неизвестный скин '" + skinId + "'. Доступные: "
+                    + String.join(", ", ru.liko.pjmbasemod.common.customization.SkinRegistry.KNOWN_SKINS)));
+            return 0;
+        }
+        int applied = count;
+        source.sendSuccess(() -> Component.literal("Скин '" + skinId + "' назначен: " + applied + " игрок(ов)"), true);
+        return applied;
+    }
+
+    private static int clearSkin(CommandSourceStack source, Collection<ServerPlayer> targets) {
+        for (ServerPlayer target : targets) {
+            ru.liko.pjmbasemod.common.customization.SkinService.adminClear(target);
+        }
+        source.sendSuccess(() -> Component.literal("Назначение скина снято: " + targets.size() + " игрок(ов)"), true);
+        return targets.size();
     }
 
     // ---------------------------------------------------------------- reports (админский GUI жалоб)
@@ -1253,7 +1302,7 @@ public final class PjmCommands {
     private static CombatRole parseRole(CommandSourceStack source, String raw) {
         CombatRole role = CombatRole.byIdOrAlias(raw);
         if (role == null) {
-            source.sendFailure(Component.literal("Неизвестная роль '" + raw + "'. Используй assault, machine_gunner, sniper, marksman или crew."));
+            source.sendFailure(Component.literal("Неизвестная роль '" + raw + "'. Используй assault, machine_gunner, sniper, pilot или crew."));
             return null;
         }
         return role;
@@ -1337,12 +1386,33 @@ public final class PjmCommands {
                                                 IntegerArgumentType.getInteger(ctx, "order"))))))
                 .then(Commands.literal("sync")
                         .executes(ctx -> capturePointSync(ctx.getSource())))
+                .then(Commands.literal("warehouse")
+                        .executes(ctx -> capturePointWarehouseList(ctx.getSource()))
+                        .then(Commands.argument("team", StringArgumentType.word())
+                                .then(Commands.literal("clear")
+                                        .executes(ctx -> capturePointWarehouseSet(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "team"), null)))
+                                .then(Commands.argument("warehouse", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> {
+                                            for (String id : ru.liko.pjmbasemod.common.warehouse.WarehouseSavedData
+                                                    .get(ctx.getSource().getServer()).ids()) {
+                                                builder.suggest(id);
+                                            }
+                                            return builder.buildFuture();
+                                        })
+                                        .executes(ctx -> capturePointWarehouseSet(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "team"),
+                                                StringArgumentType.getString(ctx, "warehouse"))))))
                 .then(Commands.literal("enable")
                         .executes(ctx -> capturePointSetEnabled(ctx.getSource(), true)))
                 .then(Commands.literal("disable")
                         .executes(ctx -> capturePointSetEnabled(ctx.getSource(), false)))
                 .then(Commands.literal("status")
                         .executes(ctx -> capturePointStatus(ctx.getSource())))
+                .then(Commands.literal("minplayers")
+                        .then(Commands.argument("count", IntegerArgumentType.integer(0, 1000))
+                                .executes(ctx -> capturePointMinPlayers(ctx.getSource(),
+                                        IntegerArgumentType.getInteger(ctx, "count")))))
                 .then(Commands.literal("schedule")
                         .then(Commands.literal("on")
                                 .executes(ctx -> capturePointScheduleToggle(ctx.getSource(), true)))
@@ -1378,8 +1448,19 @@ public final class PjmCommands {
         boolean enabled = Config.isCapturePointsEnabled();
         boolean schedule = Config.isCapturePointScheduleEnabled();
         int windowCount = Config.getCapturePointScheduleWindows().size();
+        int minPlayers = Config.getCapturePointAutoEnableMinPlayers();
+        int online = source.getServer().getPlayerList().getPlayerCount();
         source.sendSuccess(() -> Component.literal("Захват точек: " + (enabled ? "включён" : "выключен")
-                + " | расписание: " + (schedule ? "вкл (окон: " + windowCount + ")" : "выкл")), false);
+                + " | расписание: " + (schedule ? "вкл (окон: " + windowCount + ")" : "выкл")
+                + " | порог онлайна: " + (minPlayers > 0 ? minPlayers + " (сейчас " + online + ")" : "выкл")), false);
+        return 1;
+    }
+
+    private static int capturePointMinPlayers(CommandSourceStack source, int count) {
+        Config.setCapturePointAutoEnableMinPlayers(count);
+        source.sendSuccess(() -> Component.literal(count > 0
+                ? "Автовключение захвата при онлайне от " + count + " игроков"
+                : "Автовключение захвата по онлайну выключено"), true);
         return 1;
     }
 
@@ -1504,6 +1585,109 @@ public final class PjmCommands {
         CapturePointSavedData data = CapturePointSavedData.get(source.getServer());
         CapturePointManager.broadcastMapSync(source.getServer(), data, "command_capturepoint_sync");
         source.sendSuccess(() -> Component.literal("Синхронизация точек захвата отправлена игрокам"), false);
+        return 1;
+    }
+
+    private static int capturePointWarehouseList(CommandSourceStack source) {
+        Map<String, String> map = Config.getCapturePointWarehouseByTeam();
+        if (map.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("Склады-получатели дохода не привязаны. "
+                    + "Привязка: /pjm capturepoint warehouse <фракция> <склад>"), false);
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Доход с точек: " + Config.getCapturePointIncomePerPoint()
+                + " очков SUPPLY за точку каждые " + Config.getCapturePointIncomeIntervalMinutes() + " мин."), false);
+        map.forEach((team, warehouse) -> source.sendSuccess(
+                () -> Component.literal(" - " + team + " → склад '" + warehouse + "'"), false));
+        return map.size();
+    }
+
+    private static int capturePointWarehouseSet(CommandSourceStack source, String teamArg, @Nullable String warehouseId) {
+        String team = parseTeam(source, teamArg);
+        if (team == null) return 0;
+        if (team.isEmpty()) {
+            source.sendFailure(Component.literal("Укажи боевую фракцию, а не neutral"));
+            return 0;
+        }
+        Config.setCapturePointWarehouseForTeam(team, warehouseId);
+        source.sendSuccess(() -> Component.literal(warehouseId == null
+                ? "Привязка склада для '" + team + "' снята"
+                : "Доход фракции '" + team + "' идёт на склад '" + warehouseId + "'"), true);
+        return 1;
+    }
+
+    // --------------------------------------------------------------- campaign (недельная кампания)
+
+    private static LiteralArgumentBuilder<CommandSourceStack> campaignCommand() {
+        return Commands.literal("campaign")
+                .executes(ctx -> campaignStatus(ctx.getSource()))
+                .then(Commands.literal("status")
+                        .executes(ctx -> campaignStatus(ctx.getSource())))
+                .then(Commands.literal("on")
+                        .requires(source -> source.hasPermission(4))
+                        .executes(ctx -> campaignToggle(ctx.getSource(), true)))
+                .then(Commands.literal("off")
+                        .requires(source -> source.hasPermission(4))
+                        .executes(ctx -> campaignToggle(ctx.getSource(), false)))
+                .then(Commands.literal("restart")
+                        .requires(source -> source.hasPermission(4))
+                        .executes(ctx -> campaignRestart(ctx.getSource())))
+                .then(Commands.literal("finish")
+                        .requires(source -> source.hasPermission(4))
+                        .executes(ctx -> {
+                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                    "Завершит кампанию СЕЙЧАС: победитель, полный вайп сезона, новый раунд. "
+                                            + "Подтверждение: /pjm campaign finish confirm")
+                                    .withStyle(net.minecraft.ChatFormatting.RED), false);
+                            return 1;
+                        })
+                        .then(Commands.literal("confirm")
+                                .executes(ctx -> campaignFinish(ctx.getSource()))));
+    }
+
+    private static int campaignStatus(CommandSourceStack source) {
+        if (!Config.isCampaignEnabled()) {
+            source.sendSuccess(() -> Component.literal("Кампания выключена (/pjm campaign on)"), false);
+            return 0;
+        }
+        var data = ru.liko.pjmbasemod.common.campaign.CampaignSavedData.get(source.getServer());
+        if (data.startEpochMs() <= 0) {
+            source.sendSuccess(() -> Component.literal("Кампания стартует на следующем тике сервера"), false);
+            return 1;
+        }
+        long endMs = data.startEpochMs() + Config.getCampaignDurationDays() * 86_400_000L;
+        long left = Math.max(0, endMs - System.currentTimeMillis()) / 1000L;
+        String time = String.format("%dд %dч %dм", left / 86400, (left % 86400) / 3600, (left % 3600) / 60);
+        source.sendSuccess(() -> Component.literal("Кампания: до вайпа " + time), false);
+        for (Config.ConfiguredTeam team : Teams.all()) {
+            long vp = data.vp(team.id());
+            source.sendSuccess(() -> Component.literal(" - " + Teams.displayName(source.getServer(), team.id())
+                    + ": " + vp + " VP"), false);
+        }
+        return 1;
+    }
+
+    private static int campaignToggle(CommandSourceStack source, boolean on) {
+        Config.setCampaignEnabled(on);
+        ru.liko.pjmbasemod.common.campaign.CampaignManager.syncAll(source.getServer());
+        source.sendSuccess(() -> Component.literal("Кампания " + (on ? "включена" : "выключена")), true);
+        return 1;
+    }
+
+    private static int campaignRestart(CommandSourceStack source) {
+        ru.liko.pjmbasemod.common.campaign.CampaignSavedData.get(source.getServer())
+                .restart(System.currentTimeMillis());
+        ru.liko.pjmbasemod.common.campaign.CampaignManager.syncAll(source.getServer());
+        source.sendSuccess(() -> Component.literal("Кампания перезапущена: VP в ноль, отсчёт недели заново (без вайпа)"), true);
+        return 1;
+    }
+
+    private static int campaignFinish(CommandSourceStack source) {
+        if (!Config.isCampaignEnabled()) {
+            source.sendFailure(Component.literal("Кампания выключена"));
+            return 0;
+        }
+        ru.liko.pjmbasemod.common.campaign.CampaignManager.finish(source.getServer(), "принудительно");
         return 1;
     }
 

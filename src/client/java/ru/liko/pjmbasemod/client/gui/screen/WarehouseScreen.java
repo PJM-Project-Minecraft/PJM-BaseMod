@@ -430,6 +430,15 @@ public class WarehouseScreen extends PjmBaseScreen {
                 return true;
             }
 
+            // Кнопка «Донат» (предмет закрыт донатом) — переход в донат-магазин.
+            if (withdrawRect(y).contains(mouseX, mouseY)
+                    && item.roleAllowed() && item.rankAllowed() && !item.donateAllowed()) {
+                PjmUiSounds.playClick();
+                net.minecraft.client.gui.screens.ConfirmLinkScreen.confirmLinkNow(
+                        this, TacticalMainMenuScreen.DONATE_URL);
+                return true;
+            }
+
             if (depositRect(y).contains(mouseX, mouseY) && item.depositable() && item.inventoryCount() > 0) {
                 // amount — число ПАЧЕК (сервер сдаёт целыми пачками по quantity штук). Клик = 1 пачка,
                 // Shift = все доступные пачки. Сервер всё равно ограничит по фактическому инвентарю.

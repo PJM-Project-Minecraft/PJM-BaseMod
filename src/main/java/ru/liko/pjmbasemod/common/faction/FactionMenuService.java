@@ -288,11 +288,12 @@ public final class FactionMenuService {
                 required);
     }
 
-    /** Фракция закрыта для игрока: «по приглашению», игрок не её член и приглашения нет. */
+    /** Фракция закрыта для игрока: «по приглашению», игрок не её член, не в whitelist и приглашения нет. */
     private static boolean lockedFor(ServerPlayer player, String teamId) {
         if (!Config.isTeamInviteOnly(teamId)) return false;
         if (teamId.equals(Teams.resolvePlayerTeamId(player))) return false;
         if (RolePermissions.can(player, RolePermissions.ADMIN)) return false;
+        if (Config.isTeamWhitelisted(teamId, player.getScoreboardName())) return false;
         return !FactionInviteSavedData.get(player.getServer()).isInvited(teamId, player.getScoreboardName());
     }
 

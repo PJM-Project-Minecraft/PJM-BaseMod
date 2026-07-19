@@ -60,7 +60,7 @@ public final class CapturePointHudOverlay {
             return;
         }
 
-        boolean hasProgress = hud.progressPercent() > 0 || hud.capturing() || hud.neutralizing();
+        boolean hasProgress = hud.progressPercent() > 0 || hud.capturing() || hud.neutralizing() || hud.locked();
         float targetHeight = hasProgress ? BAR_HEIGHT_PROGRESS : BAR_HEIGHT_IDLE;
         animHeight += (targetHeight - animHeight) * Math.min(1f, 12f * dt);
         animAlpha += (1f - animAlpha) * Math.min(1f, 12f * dt);
@@ -115,7 +115,11 @@ public final class CapturePointHudOverlay {
                 // Состояние — цвет из scoreboard team (ownerColor/captureColor из пакета)
                 String state;
                 int stateBase;
-                if (hud.neutralizing()) {
+                if (hud.locked() && !hud.neutralizing() && !hud.capturing()) {
+                    // Цепной захват: точка закрыта для команды игрока.
+                    state = "Сначала захватите соседнюю точку";
+                    stateBase = NEUTRAL_ACCENT;
+                } else if (hud.neutralizing()) {
                     state = "Нейтрализация: " + hud.captureTeamName();
                     stateBase = hud.captureColor() == 0 ? NEUTRAL_ACCENT : hud.captureColor();
                 } else if (hud.capturing()) {

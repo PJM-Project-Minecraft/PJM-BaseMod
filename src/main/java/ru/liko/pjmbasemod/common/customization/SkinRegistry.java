@@ -32,7 +32,9 @@ public final class SkinRegistry {
      */
     public static final List<String> KNOWN_SKINS = List.of(
             "skin_emr", "skin_emr_jaket", "skin_emr_atacsfg", "skin_emr_multicam",
-            "skin_atacsfg", "skin_mc", "skin_mc_jacket", "skin_m05");
+            "skin_atacsfg", "skin_mc", "skin_mc_jacket", "skin_m05",
+            "skin_berezka", "skin_flectarn", "skin_m70", "skin_black_mc",
+            "skin_koss", "skin_colis");
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     private static final SkinRegistry INSTANCE = new SkinRegistry();
@@ -99,6 +101,13 @@ public final class SkinRegistry {
         return config().teams.size();
     }
 
+    /** Персональный скин игрока по нику из секции {@code players} конфига или {@code ""}. */
+    public String skinForPlayer(String playerName) {
+        if (playerName == null || playerName.isBlank()) return "";
+        String skin = config().players.get(playerName.trim().toLowerCase(Locale.ROOT));
+        return skin == null ? "" : skin;
+    }
+
     public boolean isAllowed(String teamId, String skinId) {
         SkinPool pool = poolFor(teamId);
         return pool != null && pool.skins.contains(sanitize(skinId));
@@ -138,6 +147,8 @@ public final class SkinRegistry {
     public static final class SkinConfig {
         int schemaVersion = 1;
         Map<String, SkinPool> teams = new LinkedHashMap<>();
+        /** Персональные скины: ник игрока (без учёта регистра) → id скина. Приоритетнее пула команды. */
+        Map<String, String> players = new LinkedHashMap<>();
 
         static SkinConfig defaults() {
             SkinConfig cfg = new SkinConfig();
@@ -167,6 +178,21 @@ public final class SkinRegistry {
                 normalized.put(Teams.normalize(e.getKey()), pool);
             }
             teams = normalized;
+
+            if (players == null) players = new LinkedHashMap<>();
+            Map<String, String> cleanedPlayers = new LinkedHashMap<>();
+            for (Map.Entry<String, String> e : players.entrySet()) {
+                String nick = e.getKey() == null ? "" : e.getKey().trim().toLowerCase(Locale.ROOT);
+                String skin = sanitize(e.getValue());
+                if (nick.isBlank() || skin.isBlank()) continue;
+                if (!KNOWN_SKINS.contains(skin)) {
+                    Pjmbasemod.LOGGER.warn("Skins: unknown skin '{}' for player '{}' in players section, skipped.",
+                            skin, e.getKey());
+                    continue;
+                }
+                cleanedPlayers.put(nick, skin);
+            }
+            players = cleanedPlayers;
         }
     }
 

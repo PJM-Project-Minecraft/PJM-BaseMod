@@ -47,6 +47,7 @@ import ru.liko.pjmbasemod.common.network.ClientPacketProxy;
 import ru.liko.pjmbasemod.common.network.packet.FactionCommanderSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
 import ru.liko.pjmbasemod.common.network.packet.DeathScreenPacket;
+import ru.liko.pjmbasemod.common.network.packet.RadioSpawnListPacket;
 import ru.liko.pjmbasemod.client.gui.screen.PjmDeathScreen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.resources.ResourceLocation;
@@ -90,10 +91,10 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
 
     @Override
     public void garageSync(GarageSyncPacket payload) {
+        // Только обновление уже открытого экрана. Открывает гараж исключительно OpenGaragePacket:
+        // sync прилетает и по завершении сборки техники, а он игрока в бою не спрашивает.
         if (Minecraft.getInstance().screen instanceof GarageScreen screen) {
             screen.updateSnapshot(payload.snapshot());
-        } else {
-            GarageScreen.open(payload.snapshot());
         }
     }
 
@@ -186,6 +187,11 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     @Override
     public void factionOrderSync(FactionOrderSyncPacket payload) {
         ClientFactionOrderState.update(payload);
+    }
+
+    @Override
+    public void campaignSync(ru.liko.pjmbasemod.common.network.packet.CampaignSyncPacket payload) {
+        ru.liko.pjmbasemod.client.campaign.ClientCampaignState.update(payload);
     }
 
     @Override
@@ -289,5 +295,10 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
                 mc.setScreen(new PjmDeathScreen());
             }
         });
+    }
+
+    @Override
+    public void radioSpawnList(RadioSpawnListPacket payload) {
+        PjmDeathScreen.setRadioOptions(payload.entries());
     }
 }

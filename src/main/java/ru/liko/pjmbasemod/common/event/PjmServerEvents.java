@@ -87,6 +87,7 @@ public final class PjmServerEvents {
         ServerPacketHandlers.sendHudConfig(sp);
         RankService.sync(sp);
         CapturePointManager.sendInitialSync(sp);
+        ru.liko.pjmbasemod.common.campaign.CampaignManager.sendInitialSync(sp);
         FactionCommanderService.onPlayerLogin(sp);
         RoleService.onPlayerLogin(sp);
         FactionMenuService.onPlayerLogin(sp);
@@ -121,6 +122,7 @@ public final class PjmServerEvents {
             PjmActionLogger.instance().logKill(killer, victim, killCause(killer, event));
         }
         sendDeathScreen(victim, event.getSource());
+        ru.liko.pjmbasemod.common.radiospawn.RadioSpawnManager.sendDeathOptions(victim);
     }
 
     /** Кинематографичный экран смерти: ванильное сообщение + иконка оружия или 3D-модель техники SBW. */
@@ -210,6 +212,7 @@ public final class PjmServerEvents {
             ServerPacketHandlers.onPlayerLogout(sp);
             ru.liko.pjmbasemod.common.inventory.EquipmentLockService.onPlayerLogout(sp.getUUID());
             WeaponLimitService.onPlayerLogout(sp.getUUID());
+            ru.liko.pjmbasemod.common.warehouse.RestrictedCarryService.onPlayerLogout(sp.getUUID());
             BaseZoneManager.onPlayerLogout(sp);
             ru.liko.pjmbasemod.common.vanish.VanishService.onPlayerLogout(sp);
         }
@@ -227,6 +230,9 @@ public final class PjmServerEvents {
         BaseZoneManager.onPlayerTick(player);
         SignalHuntService.onPlayerTick(player);
         WeaponLimitService.enforce(player);
+        if (player.tickCount % ru.liko.pjmbasemod.common.warehouse.RestrictedCarryService.ENFORCE_EVERY_TICKS == 0) {
+            ru.liko.pjmbasemod.common.warehouse.RestrictedCarryService.enforce(player);
+        }
         if (player.tickCount % Math.max(1, InventoryLimitRegistry.get().config().enforceEveryTicks()) == 0) {
             InventoryLimitService.enforce(player);
         }
@@ -240,10 +246,16 @@ public final class PjmServerEvents {
         if (!(event.getPlayer() instanceof ServerPlayer player)) return;
         ItemStack stack = event.getItemEntity().getItem();
         WeaponLimitService.WeaponType type = WeaponLimitService.weaponType(stack);
-        if (type == null || WeaponLimitService.canCarry(player, stack)) return;
-
-        event.setCanPickup(TriState.FALSE);
-        WeaponLimitService.notifyLimit(player, type);
+        if (type != null && !WeaponLimitService.canCarry(player, stack)) {
+            event.setCanPickup(TriState.FALSE);
+            WeaponLimitService.notifyLimit(player, type);
+            return;
+        }
+        // Закрытые донатом/Доступом предметы склада нельзя даже подобрать без права.
+        if (!ru.liko.pjmbasemod.common.warehouse.RestrictedCarryService.canCarry(player, stack)) {
+            event.setCanPickup(TriState.FALSE);
+            ru.liko.pjmbasemod.common.warehouse.RestrictedCarryService.notifyDenied(player);
+        }
     }
 
     @SubscribeEvent
@@ -263,6 +275,9 @@ public final class PjmServerEvents {
     public static void onEntityMount(EntityMountEvent event) {
         if (!event.isMounting() || event.getLevel().isClientSide()) return;
         if (!(event.getEntityMounting() instanceof ServerPlayer player)) return;
+        // OP/ADMIN садится в любую технику независимо от ролевого ограничения.
+        if (ru.liko.pjmbasemod.common.garage.GaragePermissions.can(
+                player, ru.liko.pjmbasemod.common.garage.GaragePermissions.ADMIN)) return;
 
         RegisteredVehicle vehicle = findRegisteredVehicle(event.getEntityBeingMounted());
         if (vehicle == null || vehicle.entity().getFirstPassenger() != null
@@ -325,8 +340,10 @@ public final class PjmServerEvents {
         if (event.getLevel().isClientSide()) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         // Анти-гриф: запрещаем только взаимодействие с блоком (useBlock), не отменяя
-        // событие целиком — использование предмета в руке (еда, оружие) остаётся доступным.
-        if (!AntiGriefService.checkInteract(player, event.getLevel().getBlockState(event.getPos()))) {
+        // событие целиком — использование предмета в руке (еда, дрон, оружие) остаётся доступным,
+        // поэтому и уведомляем о запрете только при клике пустой рукой.
+        if (!AntiGriefService.checkInteract(player, event.getLevel().getBlockState(event.getPos()),
+                event.getItemStack().isEmpty())) {
             event.setUseBlock(TriState.FALSE);
         }
         if (event.getHand() != InteractionHand.MAIN_HAND) return;
@@ -375,7 +392,9 @@ public final class PjmServerEvents {
         ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.onServerTick(event.getServer());
         ServerEventManager.onServerTick(event.getServer());
         CapturePointManager.onServerTick(event.getServer());
+        ru.liko.pjmbasemod.common.campaign.CampaignManager.onServerTick(event.getServer());
         ru.liko.pjmbasemod.common.garage.GarageManager.onServerTick(event.getServer());
+        tickDayCycle(event.getServer());
 
         if (++warehouseScanCounter >= 20) {
             warehouseScanCounter = 0;
@@ -386,9 +405,33 @@ public final class PjmServerEvents {
         }
     }
 
+    /** Ванильный тик времени выключен — время двигаем сами, растягивая сутки на настроенное число реальных часов. */
+    private static double dayCycleCarry;
+
+    private static void tickDayCycle(net.minecraft.server.MinecraftServer server) {
+        double hours = Config.getDayCycleRealHours();
+        if (hours <= 0.0D) return;
+
+        // Сутки = 24000 игровых тиков; реальных тиков на сутки = часы * 3600 * 20.
+        dayCycleCarry += 24000.0D / (hours * 72000.0D);
+        long step = (long) dayCycleCarry;
+        if (step <= 0) return;
+
+        dayCycleCarry -= step;
+        for (net.minecraft.server.level.ServerLevel level : server.getAllLevels()) {
+            if (!level.dimensionType().hasFixedTime()) level.setDayTime(level.getDayTime() + step);
+        }
+    }
+
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
         PjmActionLogger.instance().start();
+        if (Config.getDayCycleRealHours() > 0.0D) {
+            // Иначе ваниль крутила бы время параллельно с нашим шагом.
+            event.getServer().getGameRules()
+                    .getRule(net.minecraft.world.level.GameRules.RULE_DAYLIGHT)
+                    .set(false, event.getServer());
+        }
         ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.reload(event.getServer());
         VehicleRegistry.get().reload();
         WarehouseItemRegistry.get().reload();

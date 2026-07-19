@@ -46,12 +46,19 @@ public final class WeaponLimitService {
 
     /** Можно ли добавить этот стек в инвентарь без нарушения лимита. */
     public static boolean canCarry(ServerPlayer player, ItemStack stack) {
+        if (isExempt(player)) return true;
         WeaponType type = weaponType(stack);
         return type == null || count(player.getInventory(), type) < limitFor(type);
     }
 
+    /** Админы (OP) носят сколько угодно стволов — лимит только для обычных игроков. */
+    private static boolean isExempt(ServerPlayer player) {
+        return player.hasPermissions(2);
+    }
+
     /** Удаляет лишние стволы, которые могли попасть в инвентарь не через подбор предмета. */
     public static void enforce(ServerPlayer player) {
+        if (isExempt(player)) return;
         Inventory inventory = player.getInventory();
         Map<WeaponType, Integer> carried = new EnumMap<>(WeaponType.class);
         boolean changed = false;

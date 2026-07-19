@@ -8,8 +8,10 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
 import javax.annotation.Nullable;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /** Per-world выбор скина игроком (UUID → skinId). Паттерн {@code RoleSavedData}. */
@@ -22,6 +24,8 @@ public final class SkinSavedData extends SavedData {
     );
 
     private final Map<UUID, String> skinByPlayer = new LinkedHashMap<>();
+    /** Скины, назначенные админом принудительно: не откатываются валидацией по пулу команды. */
+    private final Set<UUID> forcedPlayers = new HashSet<>();
 
     public static SkinSavedData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
@@ -35,7 +39,10 @@ public final class SkinSavedData extends SavedData {
             try {
                 UUID id = UUID.fromString(entry.getString("uuid"));
                 String skin = SkinRegistry.sanitize(entry.getString("skin"));
-                if (!skin.isBlank()) data.skinByPlayer.put(id, skin);
+                if (!skin.isBlank()) {
+                    data.skinByPlayer.put(id, skin);
+                    if (entry.getBoolean("forced")) data.forcedPlayers.add(id);
+                }
             } catch (IllegalArgumentException ignored) {
             }
         }
@@ -49,6 +56,7 @@ public final class SkinSavedData extends SavedData {
             CompoundTag entry = new CompoundTag();
             entry.putString("uuid", e.getKey().toString());
             entry.putString("skin", e.getValue());
+            if (forcedPlayers.contains(e.getKey())) entry.putBoolean("forced", true);
             list.add(entry);
         }
         tag.put("skins", list);
@@ -68,11 +76,29 @@ public final class SkinSavedData extends SavedData {
             return;
         }
         String prev = skinByPlayer.put(playerId, id);
-        if (!id.equals(prev)) setDirty();
+        // Собственный выбор игрока снимает принудительное назначение админа.
+        if (forcedPlayers.remove(playerId) || !id.equals(prev)) setDirty();
+    }
+
+    /** Принудительное назначение скина админом: переживает валидацию по пулу команды. */
+    public void setForced(UUID playerId, String skinId) {
+        if (playerId == null) return;
+        String id = SkinRegistry.sanitize(skinId);
+        if (id.isBlank()) {
+            clear(playerId);
+            return;
+        }
+        String prev = skinByPlayer.put(playerId, id);
+        if (forcedPlayers.add(playerId) || !id.equals(prev)) setDirty();
+    }
+
+    public boolean isForced(UUID playerId) {
+        return playerId != null && forcedPlayers.contains(playerId);
     }
 
     public void clear(UUID playerId) {
         if (playerId == null) return;
-        if (skinByPlayer.remove(playerId) != null) setDirty();
+        boolean removedForced = forcedPlayers.remove(playerId);
+        if (skinByPlayer.remove(playerId) != null || removedForced) setDirty();
     }
 }
