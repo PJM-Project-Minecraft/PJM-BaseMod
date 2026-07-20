@@ -6,7 +6,9 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.renderer.entity.NotebookRenderer;
+import ru.liko.pjmbasemod.client.renderer.block.RemkaBlockRenderer;
 import ru.liko.pjmbasemod.client.renderer.entity.QuartermasterRenderer;
+import ru.liko.pjmbasemod.common.init.PjmBlockEntities;
 import ru.liko.pjmbasemod.common.init.PjmEntities;
 
 @EventBusSubscriber(modid = Pjmbasemod.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
@@ -18,5 +20,6 @@ public final class PjmEntityRenderers {
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(PjmEntities.NOTEBOOK.get(), NotebookRenderer::new);
         event.registerEntityRenderer(PjmEntities.QUARTERMASTER.get(), QuartermasterRenderer::new);
+        event.registerBlockEntityRenderer(PjmBlockEntities.REMKA.get(), context -> new RemkaBlockRenderer());
     }
 }

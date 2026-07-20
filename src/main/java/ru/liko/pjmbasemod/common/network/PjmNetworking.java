@@ -6,6 +6,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.faction.FactionMenuService;
 import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.garage.GarageManager;
 import ru.liko.pjmbasemod.common.network.handler.ServerPacketHandlers;
@@ -15,7 +16,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "44";
+    public static final String VERSION = "45";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -48,6 +49,7 @@ public final class PjmNetworking {
         r.playToServer(ManageFactionRolePacket.TYPE,   ManageFactionRolePacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleManageFactionRole(p, (ServerPlayer) ctx.player())));
         r.playToServer(ManageFactionDeputyPacket.TYPE, ManageFactionDeputyPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleManageFactionDeputy(p, (ServerPlayer) ctx.player())));
         r.playToServer(ManageFactionInvitePacket.TYPE, ManageFactionInvitePacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleManageFactionInvite(p, (ServerPlayer) ctx.player())));
+        r.playToServer(FactionInviteResponsePacket.TYPE, FactionInviteResponsePacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> FactionMenuService.handleInviteResponse((ServerPlayer) ctx.player(), p.teamId(), p.accept())));
         r.playToServer(SetFactionOrderPacket.TYPE,     SetFactionOrderPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleSetFactionOrder(p, (ServerPlayer) ctx.player())));
         r.playToServer(RequestFactionManagementPacket.TYPE, RequestFactionManagementPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestFactionManagement(p, (ServerPlayer) ctx.player())));
         r.playToServer(RequestModerationPacket.TYPE,   RequestModerationPacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestModeration(p, (ServerPlayer) ctx.player())));
@@ -73,6 +75,7 @@ public final class PjmNetworking {
         r.playToClient(OpenWarehousePacket.TYPE, OpenWarehousePacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openWarehouse(p)));
         r.playToClient(WarehouseSyncPacket.TYPE, WarehouseSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.warehouseSync(p)));
         r.playToClient(OpenFactionSelectionPacket.TYPE, OpenFactionSelectionPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openFactionSelection(p)));
+        r.playToClient(OpenFactionInvitePacket.TYPE, OpenFactionInvitePacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openFactionInvite(p)));
         r.playToClient(OpenFactionManagementPacket.TYPE, OpenFactionManagementPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openFactionManagement(p)));
         r.playToClient(FactionManagementSyncPacket.TYPE, FactionManagementSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.factionManagementSync(p)));
         r.playToClient(FactionOrderSyncPacket.TYPE, FactionOrderSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.factionOrderSync(p)));

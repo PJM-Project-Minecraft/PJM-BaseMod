@@ -26,7 +26,10 @@ public final class FactionInviteSavedData extends SavedData {
             FactionInviteSavedData::load
     );
 
-    private final Map<String, Map<String, Long>> invitesByTeam = new LinkedHashMap<>();
+    /** Одно приглашение: срок действия (millis, 0 = бессрочно) и ник выдавшего. */
+    public record Invite(long expiresAt, String inviter) {}
+
+    private final Map<String, Map<String, Invite>> invitesByTeam = new LinkedHashMap<>();
 
     public static FactionInviteSavedData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
@@ -40,8 +43,9 @@ public final class FactionInviteSavedData extends SavedData {
             String team = Teams.normalize(entry.getString("team"));
             String name = normalizeName(entry.getString("name"));
             if (team.isBlank() || name.isBlank()) continue;
+            // inviter появился позже: в старых сохранениях ключа нет — читается как "".
             data.invitesByTeam.computeIfAbsent(team, k -> new LinkedHashMap<>())
-                    .put(name, entry.getLong("expiresAt"));
+                    .put(name, new Invite(entry.getLong("expiresAt"), entry.getString("inviter")));
         }
         return data;
     }
@@ -49,12 +53,13 @@ public final class FactionInviteSavedData extends SavedData {
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         ListTag list = new ListTag();
-        for (Map.Entry<String, Map<String, Long>> team : invitesByTeam.entrySet()) {
-            for (Map.Entry<String, Long> invite : team.getValue().entrySet()) {
+        for (Map.Entry<String, Map<String, Invite>> team : invitesByTeam.entrySet()) {
+            for (Map.Entry<String, Invite> invite : team.getValue().entrySet()) {
                 CompoundTag entry = new CompoundTag();
                 entry.putString("team", team.getKey());
                 entry.putString("name", invite.getKey());
-                entry.putLong("expiresAt", invite.getValue());
+                entry.putLong("expiresAt", invite.getValue().expiresAt());
+                entry.putString("inviter", invite.getValue().inviter());
                 list.add(entry);
             }
         }
@@ -63,17 +68,18 @@ public final class FactionInviteSavedData extends SavedData {
     }
 
     /** Выдать приглашение. {@code ttlMinutes <= 0} — бессрочное. Повторный вызов обновляет срок. */
-    public void invite(String teamId, String playerName, int ttlMinutes) {
+    public void invite(String teamId, String playerName, int ttlMinutes, String inviterName) {
         String team = Teams.normalize(teamId);
         String name = normalizeName(playerName);
         if (team.isBlank() || name.isBlank()) return;
         long expiresAt = ttlMinutes <= 0 ? 0L : System.currentTimeMillis() + ttlMinutes * 60_000L;
-        invitesByTeam.computeIfAbsent(team, k -> new LinkedHashMap<>()).put(name, expiresAt);
+        invitesByTeam.computeIfAbsent(team, k -> new LinkedHashMap<>())
+                .put(name, new Invite(expiresAt, inviterName == null ? "" : inviterName));
         setDirty();
     }
 
     public boolean revoke(String teamId, String playerName) {
-        Map<String, Long> team = invitesByTeam.get(Teams.normalize(teamId));
+        Map<String, Invite> team = invitesByTeam.get(Teams.normalize(teamId));
         if (team == null) return false;
         boolean removed = team.remove(normalizeName(playerName)) != null;
         if (removed) setDirty();
@@ -82,14 +88,14 @@ public final class FactionInviteSavedData extends SavedData {
 
     public boolean isInvited(String teamId, String playerName) {
         purgeExpired(Teams.normalize(teamId));
-        Map<String, Long> team = invitesByTeam.get(Teams.normalize(teamId));
+        Map<String, Invite> team = invitesByTeam.get(Teams.normalize(teamId));
         return team != null && team.containsKey(normalizeName(playerName));
     }
 
-    /** Активные приглашения фракции: ник → срок (millis, 0 = бессрочно). */
-    public Map<String, Long> invites(String teamId) {
+    /** Активные приглашения фракции: ник → приглашение. */
+    public Map<String, Invite> invites(String teamId) {
         purgeExpired(Teams.normalize(teamId));
-        Map<String, Long> team = invitesByTeam.get(Teams.normalize(teamId));
+        Map<String, Invite> team = invitesByTeam.get(Teams.normalize(teamId));
         return team == null ? Map.of() : Map.copyOf(team);
     }
 
@@ -98,11 +104,34 @@ public final class FactionInviteSavedData extends SavedData {
         revoke(teamId, playerName);
     }
 
+    /**
+     * Фракции, пригласившие игрока (обратный поиск по нику). Нужен при входе:
+     * приглашение могли выдать, пока игрок был оффлайн, и предложить его надо на логине.
+     */
+    public java.util.List<String> teamsInviting(String playerName) {
+        String name = normalizeName(playerName);
+        if (name.isBlank()) return java.util.List.of();
+        java.util.List<String> teams = new java.util.ArrayList<>();
+        for (String team : java.util.List.copyOf(invitesByTeam.keySet())) {
+            purgeExpired(team);
+            Map<String, Invite> invites = invitesByTeam.get(team);
+            if (invites != null && invites.containsKey(name)) teams.add(team);
+        }
+        return teams;
+    }
+
+    /** Конкретное приглашение или {@code null}, если его нет. */
+    @javax.annotation.Nullable
+    public Invite inviteOf(String teamId, String playerName) {
+        Map<String, Invite> team = invitesByTeam.get(Teams.normalize(teamId));
+        return team == null ? null : team.get(normalizeName(playerName));
+    }
+
     private void purgeExpired(String team) {
-        Map<String, Long> invites = invitesByTeam.get(team);
+        Map<String, Invite> invites = invitesByTeam.get(team);
         if (invites == null) return;
         long now = System.currentTimeMillis();
-        boolean changed = invites.values().removeIf(expiresAt -> expiresAt != 0L && expiresAt <= now);
+        boolean changed = invites.values().removeIf(inv -> inv.expiresAt() != 0L && inv.expiresAt() <= now);
         if (invites.isEmpty()) invitesByTeam.remove(team);
         if (changed) setDirty();
     }

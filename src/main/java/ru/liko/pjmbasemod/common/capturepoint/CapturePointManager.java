@@ -5,6 +5,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import ru.liko.pjmbasemod.Config;
+import ru.liko.pjmbasemod.common.alliance.Alliances;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointHudPacket;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointMapSyncPacket;
@@ -70,10 +71,15 @@ public final class CapturePointManager {
             contestedFlags.put(entry.id, teamsInside);
 
             String leader = leader(teamCounts, minAdvantage);
+            // Союзник владельца держит точку за него: дальше по коду сравнение с ownerTeamId
+            // идёт по строке, поэтому подменяем лидера — иначе союзник нейтрализовал бы точку союзника.
+            if (leader != null && Alliances.friendly(server, leader, entry.ownerTeamId)) {
+                leader = entry.ownerTeamId;
+            }
             // Последовательный захват: атакующий (не владелец) может брать точку,
             // только владея order-соседней точкой на линии фронта. Иначе — гейт.
             if (leader != null && !leader.equals(entry.ownerTeamId)
-                    && Config.isCapturePointSequential() && !canAttack(data, entry, leader)) {
+                    && Config.isCapturePointSequential() && !canAttack(server, data, entry, leader)) {
                 leader = null;
             }
             boolean changed = applyTick(entry, leader, teamsInside >= 2, contestedFreeze, interval, decayTicks, requiredTicks);
@@ -251,7 +257,8 @@ public final class CapturePointManager {
      * не применяется (поведение как у обычного KoTH).
      * ponytail: naive O(n) на точку, O(n²) на тик — точек единицы, не оптимизирую.
      */
-    private static boolean canAttack(CapturePointSavedData data, CapturePointSavedData.Entry target, String team) {
+    private static boolean canAttack(MinecraftServer server, CapturePointSavedData data,
+                                     CapturePointSavedData.Entry target, String team) {
         CapturePointSavedData.Entry prev = null, next = null;
         for (CapturePointSavedData.Entry e : data.entries()) {
             if (e == target || !e.dimension.equals(target.dimension)) continue;
@@ -259,8 +266,9 @@ public final class CapturePointManager {
             if (e.order > target.order && (next == null || e.order < next.order)) next = e;
         }
         if (prev == null && next == null) return true;
-        return (prev != null && team.equals(prev.ownerTeamId))
-                || (next != null && team.equals(next.ownerTeamId));
+        // Точка союзника на линии открывает цепочку так же, как своя.
+        return (prev != null && Alliances.friendly(server, team, prev.ownerTeamId))
+                || (next != null && Alliances.friendly(server, team, next.ownerTeamId));
     }
 
     @Nullable
@@ -334,7 +342,8 @@ public final class CapturePointManager {
             entry.ownerColor = Teams.color(server, entry.ownerTeamId);
             entry.captureTeamId = "";
             entry.progressTicks = requiredTicks;
-            String teamName = Teams.displayName(server, entry.ownerTeamId);
+            // Точка достаётся стороне целиком: у фракции в союзе это «Союз A + B».
+            String teamName = Alliances.sideName(server, entry.ownerTeamId);
             int color = Teams.color(server, entry.ownerTeamId);
             Component title = Component.literal("Точка захвата");
             Component subtitle = Component.literal(entry.displayName + " → " + teamName);
@@ -373,7 +382,8 @@ public final class CapturePointManager {
                 : Math.max(0, Math.min(100, inside.progressTicks * 100 / requiredTicks));
         String playerTeam = Teams.resolvePlayerTeamId(player);
         boolean locked = Config.isCapturePointSequential() && playerTeam != null
-                && !playerTeam.equals(inside.ownerTeamId) && !canAttack(data, inside, playerTeam);
+                && !Alliances.friendly(server, playerTeam, inside.ownerTeamId)
+                && !canAttack(server, data, inside, playerTeam);
         PjmNetworking.sendToPlayer(player, new CapturePointHudPacket(
                 inside.id, inside.displayName,
                 Teams.displayName(server, inside.ownerTeamId), Teams.color(server, inside.ownerTeamId),

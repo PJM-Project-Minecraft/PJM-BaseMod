@@ -169,9 +169,15 @@
   "rally.place": {
     "category": "blocks",
     "sounds": [
-      { "name": "pjmbasemod:deployables/placement_01" },
-      { "name": "pjmbasemod:deployables/placement_02" },
-      { "name": "pjmbasemod:deployables/placement_03" }
+      {
+        "name": "pjmbasemod:deployables/placement_01"
+      },
+      {
+        "name": "pjmbasemod:deployables/placement_02"
+      },
+      {
+        "name": "pjmbasemod:deployables/placement_03"
+      }
     ]
   },
   "deploy.radio_static_loop": {
@@ -182,5 +188,32 @@
         "stream": true
       }
     ]
+  },
+  "remka.repair": {
+    "category": "blocks",
+    "sounds": [
+      {
+        "name": "pjmbasemod:remka/repair0"
+      },
+      {
+        "name": "pjmbasemod:remka/repair1"
+      },
+      {
+        "name": "pjmbasemod:remka/repair2"
+      },
+      {
+        "name": "pjmbasemod:remka/repair3"
+      }
+    ],
+    "subtitle": "subtitles.pjmbasemod.remka_repair"
+  },
+  "remka.deploy": {
+    "category": "blocks",
+    "sounds": [
+      {
+        "name": "pjmbasemod:remka/deploy"
+      }
+    ],
+    "subtitle": "subtitles.pjmbasemod.remka_deploy"
   }
 }

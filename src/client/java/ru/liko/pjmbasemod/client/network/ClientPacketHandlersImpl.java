@@ -7,6 +7,7 @@ import ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState;
 import ru.liko.pjmbasemod.client.faction.ClientFactionOrderState;
 import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
 import ru.liko.pjmbasemod.client.gui.overlay.RankHudOverlay;
+import ru.liko.pjmbasemod.client.gui.screen.FactionInviteScreen;
 import ru.liko.pjmbasemod.client.gui.screen.FactionManagementScreen;
 import ru.liko.pjmbasemod.client.gui.screen.FactionSelectionScreen;
 import ru.liko.pjmbasemod.client.gui.screen.GarageScreen;
@@ -32,6 +33,7 @@ import ru.liko.pjmbasemod.common.network.packet.FactionOrderSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.LockedSlotsPacket;
 import ru.liko.pjmbasemod.common.network.packet.GarageSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionManagementPacket;
+import ru.liko.pjmbasemod.common.network.packet.OpenFactionInvitePacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionSelectionPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenGaragePacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenWarehousePacket;
@@ -168,6 +170,11 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     @Override
     public void openFactionSelection(OpenFactionSelectionPacket payload) {
         FactionSelectionScreen.open(payload.snapshot());
+    }
+
+    @Override
+    public void openFactionInvite(OpenFactionInvitePacket payload) {
+        FactionInviteScreen.open(payload);
     }
 
     @Override

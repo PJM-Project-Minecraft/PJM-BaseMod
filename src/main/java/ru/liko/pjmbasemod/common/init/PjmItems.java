@@ -11,6 +11,7 @@ import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.garage.GarageType;
 import ru.liko.pjmbasemod.common.item.NotebookItem;
 import ru.liko.pjmbasemod.common.item.RadioDetectorItem;
+import ru.liko.pjmbasemod.common.item.RemkaItem;
 import ru.liko.pjmbasemod.common.item.SupplyCrateItem;
 
 public final class PjmItems {
@@ -26,6 +27,10 @@ public final class PjmItems {
     // Ноутбук-терминал авиационного гаража.
     public static final DeferredHolder<Item, Item> NOTEBOOK_AIR =
             ITEMS.register("notebook_air", () -> new NotebookItem(new Item.Properties().stacksTo(16), GarageType.AVIATION));
+
+    // Ремонтная станция «Ремка» — чинит технику своей фракции в радиусе.
+    public static final DeferredHolder<Item, Item> REMKA =
+            ITEMS.register("remka", () -> new RemkaItem(new Item.Properties().stacksTo(16)));
 
     // Радио-детектор (GeckoLib) — для события «радиоразведка».
     public static final DeferredHolder<Item, RadioDetectorItem> RADIO_DETECTOR =
@@ -45,6 +50,7 @@ public final class PjmItems {
                     .displayItems((params, output) -> {
                         output.accept(NOTEBOOK.get());
                         output.accept(NOTEBOOK_AIR.get());
+                        output.accept(REMKA.get());
                         output.accept(RADIO_DETECTOR.get());
                     })
                     .build());

@@ -12,11 +12,13 @@ import ru.liko.pjmbasemod.common.dimension.LobbyService;
 import ru.liko.pjmbasemod.common.teams.Teams;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.FactionManagementSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.OpenFactionInvitePacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionManagementPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionSelectionPacket;
 import ru.liko.pjmbasemod.common.role.CombatRole;
 import ru.liko.pjmbasemod.common.role.RoleLimitRegistry;
 import ru.liko.pjmbasemod.common.role.RolePermissions;
+import ru.liko.pjmbasemod.common.role.RoleSavedData;
 import ru.liko.pjmbasemod.common.role.RoleService;
 
 import javax.annotation.Nullable;
@@ -30,13 +32,34 @@ public final class FactionMenuService {
 
     private static final int REOPEN_INTERVAL_TICKS = 80;
 
+    /**
+     * До этого момента (epoch ms) авто-открытие выбора фракции подавлено.
+     * Нужно после вайпа сезона: вайп снимает всех со scoreboard-команд, экран выбора
+     * открылся бы в тот же тик и мгновенно погасил бы итоги кампании —
+     * {@code NotificationOverlay} не рисуется, пока открыт любой {@code Screen}.
+     */
+    private static volatile long selectionSuppressedUntilMs;
+
     private FactionMenuService() {
     }
 
+    /** Подавляет авто-открытие экрана выбора фракции на указанное время. */
+    public static void suppressSelectionFor(long millis) {
+        selectionSuppressedUntilMs = System.currentTimeMillis() + Math.max(0L, millis);
+    }
+
+    private static boolean selectionSuppressed() {
+        return System.currentTimeMillis() < selectionSuppressedUntilMs;
+    }
+
     public static void onPlayerLogin(ServerPlayer player) {
+        if (selectionSuppressed()) return;
         if (needsFirstJoinSelection(player)) {
             openSelection(player);
+            return;
         }
+        // Приглашение могли выдать, пока игрок был оффлайн — предлагаем его на входе.
+        promptPendingInvite(player);
     }
 
     public static void onPlayerTick(ServerPlayer player) {
@@ -48,6 +71,7 @@ public final class FactionMenuService {
                 data.removeDeputy(deputyTeam, player.getUUID());
             }
         }
+        if (selectionSuppressed()) return;
         if (!needsFirstJoinSelection(player)) return;
         if (player.serverLevel().getGameTime() % REOPEN_INTERVAL_TICKS == 20L) {
             openSelection(player);
@@ -320,9 +344,11 @@ public final class FactionMenuService {
         List<FactionManagementSnapshot.InviteEntry> invites = new ArrayList<>();
         if (inviteOnly && authority.canInvite()) {
             long nowMs = System.currentTimeMillis();
-            for (Map.Entry<String, Long> invite : FactionInviteSavedData.get(server).invites(team).entrySet()) {
-                int minutes = invite.getValue() == 0L ? -1
-                        : (int) Math.max(1, (invite.getValue() - nowMs) / 60_000L);
+            for (Map.Entry<String, FactionInviteSavedData.Invite> invite
+                    : FactionInviteSavedData.get(server).invites(team).entrySet()) {
+                long expiresAt = invite.getValue().expiresAt();
+                int minutes = expiresAt == 0L ? -1
+                        : (int) Math.max(1, (expiresAt - nowMs) / 60_000L);
                 invites.add(new FactionManagementSnapshot.InviteEntry(invite.getKey(), minutes));
             }
             invites.sort(Comparator.comparing(FactionManagementSnapshot.InviteEntry::name));
@@ -367,7 +393,7 @@ public final class FactionMenuService {
         }
         FactionInviteSavedData data = FactionInviteSavedData.get(server);
         if (invite) {
-            data.invite(teamId, playerName, Config.getFactionInviteTtlMinutes());
+            data.invite(teamId, playerName, Config.getFactionInviteTtlMinutes(), actor.getName().getString());
             ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
                     ru.liko.pjmbasemod.common.logging.LogCategory.FACTION,
                     String.format("%s пригласил %s во фракцию %s",
@@ -378,12 +404,172 @@ public final class FactionMenuService {
             if (target != null) {
                 target.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.invite.received",
                         Teams.displayName(server, teamId)), false);
+                sendInvitePrompt(target, teamId, actor.getName().getString());
             }
         } else {
             if (data.revoke(teamId, playerName)) {
                 actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.invite.revoked",
                         playerName), false);
             }
+        }
+    }
+
+    // ---------------------------------------------------------------- приглашение как «контракт»
+
+    /**
+     * Открывает приглашённому экран «принять / отказать». Работает независимо от текущей
+     * фракции игрока — в отличие от экрана выбора, который показывается только новичкам.
+     * Молча выходит, если приглашение уже неактуально.
+     */
+    public static void sendInvitePrompt(ServerPlayer target, String teamId, String inviterName) {
+        if (target == null || target.getServer() == null) return;
+        MinecraftServer server = target.getServer();
+        String team = Teams.normalize(teamId);
+        // Новичку контракт не показываем: у него и так открыт обязательный экран выбора, где
+        // приглашённая фракция уже без замка, а join-команды отработают штатно в handleSelection.
+        if (needsFirstJoinSelection(target)) return;
+        FactionInviteSavedData data = FactionInviteSavedData.get(server);
+        if (!data.isInvited(team, target.getScoreboardName())) return;
+
+        FactionInviteSavedData.Invite stored = data.inviteOf(team, target.getScoreboardName());
+        if (stored == null) return;
+        int secondsLeft = stored.expiresAt() <= 0L ? 0
+                : (int) Math.max(1L, (stored.expiresAt() - System.currentTimeMillis()) / 1000L);
+        // Явно переданный автор важнее сохранённого: при выдаче он точнее, при доставке на
+        // логине его нет и берётся записанный в приглашении.
+        String author = inviterName == null || inviterName.isBlank() ? stored.inviter() : inviterName;
+
+        String currentTeam = Teams.resolvePlayerTeamId(target);
+        String currentName = currentTeam == null || currentTeam.isBlank()
+                ? "" : Teams.displayName(server, currentTeam);
+
+        PjmNetworking.sendToPlayer(target, new OpenFactionInvitePacket(team,
+                Teams.displayName(server, team), Teams.color(server, team),
+                author, secondsLeft, currentName));
+    }
+
+    /**
+     * Предлагает первое актуальное приглашение игроку, который уже состоит во фракции.
+     * Новичку приглашение не показывается: ему и так открывается экран выбора, где
+     * приглашённая фракция уже без замка.
+     */
+    public static void promptPendingInvite(ServerPlayer player) {
+        if (player == null || player.getServer() == null) return;
+        String currentTeam = Teams.resolvePlayerTeamId(player);
+        for (String team : FactionInviteSavedData.get(player.getServer())
+                .teamsInviting(player.getScoreboardName())) {
+            if (team.equals(currentTeam)) continue;
+            sendInvitePrompt(player, team, "");
+            return;
+        }
+    }
+
+    /**
+     * Сообщает выдавшему приглашение о решении приглашённого. Тихо пропускает, если автор
+     * не записан (приглашение из старого сохранения) или сейчас оффлайн.
+     */
+    private static void notifyInviter(MinecraftServer server, @Nullable FactionInviteSavedData.Invite invite,
+                                      String playerName, String teamName, boolean accepted) {
+        if (invite == null || invite.inviter().isBlank()) return;
+        ServerPlayer inviter = server.getPlayerList().getPlayerByName(invite.inviter());
+        if (inviter == null) return;
+        inviter.displayClientMessage(Component.translatable(accepted
+                        ? "gui.pjmbasemod.faction.invite.notify_accepted"
+                        : "gui.pjmbasemod.faction.invite.notify_declined",
+                playerName, teamName), false);
+    }
+
+    /**
+     * Обработчик {@code FactionInviteResponsePacket}. Приглашение перепроверяется на сервере:
+     * клиент сообщает только решение.
+     */
+    public static void handleInviteResponse(ServerPlayer player, String teamId, boolean accept) {
+        if (player == null || player.getServer() == null) return;
+        MinecraftServer server = player.getServer();
+        String team = Teams.resolveAlias(teamId);
+        if (team == null || !Teams.isCombatTeam(team)) return;
+
+        FactionInviteSavedData invites = FactionInviteSavedData.get(server);
+        String name = player.getScoreboardName();
+        if (!invites.isInvited(team, name)) {
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.invite.expired"), false);
+            return;
+        }
+
+        if (!accept) {
+            notifyInviter(server, invites.inviteOf(team, name), player.getName().getString(),
+                    Teams.displayName(server, team), false);
+            invites.revoke(team, name);
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.invite.declined",
+                    Teams.displayName(server, team)), false);
+            ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                    ru.liko.pjmbasemod.common.logging.LogCategory.FACTION,
+                    String.format("%s отклонил приглашение во фракцию %s", name, team));
+            return;
+        }
+
+        String previousTeam = Teams.resolvePlayerTeamId(player);
+        if (team.equals(previousTeam)) {
+            invites.consume(team, name);
+            return;
+        }
+
+        // Автобаланс проверяем и здесь: иначе приглашениями можно было бы обойти ограничение
+        // на перекос составов. Приглашение при отказе НЕ гасится — примут, когда баланс позволит.
+        TeamBalanceService.Decision balance = TeamBalanceService.check(server, player, team);
+        if (!balance.allowed()) {
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.balance.blocked",
+                    Teams.displayName(server, balance.suggestedTeamId())), false);
+            return;
+        }
+
+        // Роль хранится вместе с командой и при переходе всё равно слетит (RoleService.cleanupInvalidFor),
+        // поэтому переносим её сразу — если лимит новой фракции это позволяет.
+        CombatRole role = RoleService.currentRole(player);
+        boolean roleCarried = role != null
+                && RoleService.validateRoleCap(server, player.getUUID(), team, role).success();
+
+        notifyInviter(server, invites.inviteOf(team, name), player.getName().getString(),
+                Teams.displayName(server, team), true);
+
+        Scoreboard scoreboard = server.getScoreboard();
+        PlayerTeam previous = scoreboard.getPlayersTeam(name);
+        if (previous != null) scoreboard.removePlayerFromTeam(name, previous);
+        ensureScoreboardTeam(server, team);
+        scoreboard.addPlayerToTeam(name, scoreboard.getPlayerTeam(team));
+        invites.consume(team, name);
+
+        if (roleCarried) {
+            RoleSavedData.get(server).setRole(player.getUUID(), player.getName().getString(), team, role);
+            FactionSelectionSavedData.get(server)
+                    .markComplete(player.getUUID(), player.getName().getString(), team, role);
+        } else {
+            // Роль не переносится — снимаем её и сбрасываем запись выбора: игроку откроется
+            // штатный экран, где он доберёт роль. Фракция уже его, замка на ней нет.
+            RoleSavedData.get(server).clearRole(player.getUUID());
+            FactionSelectionSavedData.get(server).clear(player.getUUID());
+        }
+        RoleService.sync(player);
+        FactionCommanderService.sync(player);
+        FactionCommanderService.refreshTabName(player);
+
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.FACTION,
+                String.format("%s принял приглашение и перешёл во фракцию %s (роль %s)",
+                        name, team, roleCarried ? role.id() : "не перенесена"));
+
+        player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.invite.accepted",
+                Teams.displayName(server, team)), false);
+
+        if (roleCarried) {
+            // Переход завершён здесь — запускаем join-команды фракции (teams.joinCommands: телепорт
+            // на базу, выдача комплекта и т.п.).
+            FactionJoinActions.run(player, team);
+        } else {
+            // Роль добирается на экране выбора, и join-команды запустит handleSelection после него.
+            // Вызвать их здесь — значит выполнить дважды (двойной телепорт, двойная выдача).
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.invite.pick_role"), false);
+            openSelection(player);
         }
     }
 

@@ -3,6 +3,7 @@ package ru.liko.pjmbasemod.common.role;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.common.faction.DeputyPermission;
 import ru.liko.pjmbasemod.common.faction.FactionCommanderService;
 import ru.liko.pjmbasemod.common.faction.FactionDeputySavedData;
@@ -137,6 +138,10 @@ public final class RoleService {
         // OP/ADMIN выдаёт любую роль в обход лимитов команды; командир/зам — строго в пределах лимита.
         boolean adminBypass = actor != null && RolePermissions.can(actor, RolePermissions.ADMIN);
         if (!adminBypass) {
+            AssignmentResult cooldown = validateChangeCooldown(server, targetId, targetTeam, role);
+            if (!cooldown.success()) {
+                return cooldown;
+            }
             AssignmentResult capResult = validateRoleCap(server, targetId, targetTeam, role);
             if (!capResult.success()) {
                 return capResult;
@@ -213,6 +218,34 @@ public final class RoleService {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             sync(player);
         }
+    }
+
+    /**
+     * Кулдаун смены боевой роли ({@code faction.roleChangeCooldownMinutes}): игрок с уже
+     * выданной ролью не может получить другую, пока не пройдёт интервал. Первая выдача,
+     * снятие роли и переназначение той же роли ограничением не считаются; OP обходит.
+     */
+    public static AssignmentResult validateChangeCooldown(MinecraftServer server, UUID targetId,
+                                                          String teamId, CombatRole role) {
+        int minutes = Config.getRoleChangeCooldownMinutes();
+        if (server == null || role == null || minutes <= 0) {
+            return AssignmentResult.success(Component.empty());
+        }
+        RoleSavedData.RoleEntry entry = RoleSavedData.get(server).entry(targetId);
+        if (entry == null || !Teams.normalize(teamId).equals(entry.teamId())) {
+            return AssignmentResult.success(Component.empty());
+        }
+        if (role.id().equals(entry.roleId())) {
+            return AssignmentResult.success(Component.empty());
+        }
+        long elapsed = System.currentTimeMillis() - entry.changedAt();
+        long cooldownMs = minutes * 60_000L;
+        if (elapsed >= cooldownMs) {
+            return AssignmentResult.success(Component.empty());
+        }
+        long leftMinutes = Math.max(1L, (cooldownMs - elapsed + 59_999L) / 60_000L);
+        return AssignmentResult.failure(Component.translatable(
+                "gui.pjmbasemod.role.change_cooldown", leftMinutes));
     }
 
     public static AssignmentResult validateRoleCap(MinecraftServer server, UUID targetId,

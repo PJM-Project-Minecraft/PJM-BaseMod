@@ -18,7 +18,6 @@ import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.role.RoleSavedData;
 import ru.liko.pjmbasemod.common.role.RoleService;
 import ru.liko.pjmbasemod.common.warehouse.WarehousePersonalBudgetSavedData;
-import ru.liko.pjmbasemod.common.warehouse.WarehouseSavedData;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -26,7 +25,8 @@ import java.util.UUID;
 
 /**
  * Оркестратор вайпа сезонного прогресса игроков. Не трогает админ-разметку
- * (регионы, зоны базы, настройки склада, терминалы, скины, баны).
+ * (регионы, зоны базы, настройки склада, терминалы, скины, баны) и накопленные
+ * очки складов — склад считается инфраструктурой фракции и переживает вайп.
  */
 public final class WipeService {
 
@@ -44,10 +44,15 @@ public final class WipeService {
         resyncAll(server);
     }
 
-    /** Полный вайп прогресса игроков. Админ-разметка сохраняется. */
+    /**
+     * Полный вайп прогресса игроков. Админ-разметка сохраняется.
+     *
+     * <p>Накопленные очки складов ({@code WarehouseSavedData}) намеренно НЕ чистятся:
+     * склад — инфраструктура фракции, а не личный прогресс. Личные бюджеты сбрасываются,
+     * иначе в новом сезоне игрок стартовал бы с израсходованным лимитом прошлого.</p>
+     */
     public static void wipeAll(MinecraftServer server) {
         RankSavedData.get(server).clearAll();
-        WarehouseSavedData.get(server).clearAll();
         WarehousePersonalBudgetSavedData.get(server).clearAll();
         GarageSavedData.get(server).clearVehicles();
         VehicleFleetSavedData.get(server).clearAll();

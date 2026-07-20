@@ -7,6 +7,8 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.liko.pjmbasemod.common.compat.WrbDronesCompat;
+import ru.liko.pjmbasemod.common.init.PjmBlockEntities;
+import ru.liko.pjmbasemod.common.init.PjmBlocks;
 import ru.liko.pjmbasemod.common.init.PjmEntities;
 import ru.liko.pjmbasemod.common.init.PjmItems;
 import ru.liko.pjmbasemod.common.init.PjmSounds;
@@ -22,6 +24,8 @@ public final class Pjmbasemod {
         LOGGER.info("PJM-BaseMod loading…");
 
         PjmSounds.register(modBus);
+        PjmBlocks.register(modBus);
+        PjmBlockEntities.register(modBus);
         PjmEntities.register(modBus);
         PjmItems.register(modBus);
         modBus.addListener(PjmNetworking::onRegisterPayloads);

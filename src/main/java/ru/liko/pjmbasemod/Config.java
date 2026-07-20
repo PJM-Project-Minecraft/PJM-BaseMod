@@ -122,6 +122,7 @@ public final class Config {
     public static int getFactionOrderDefaultTtlMinutes() { return data().faction.orderDefaultTtlMinutes; }
     public static int getFactionOrderMaxTtlMinutes()     { return data().faction.orderMaxTtlMinutes; }
     public static int getFactionInviteTtlMinutes()       { return data().faction.inviteTtlMinutes; }
+    public static int getRoleChangeCooldownMinutes()     { return data().faction.roleChangeCooldownMinutes; }
     public static boolean isAntiGriefEnabled()           { return data().antigrief.enabled; }
     public static boolean isAntiGriefExemptCreative()    { return data().antigrief.exemptCreative; }
     public static int getAntiGriefBypassPermissionLevel(){ return data().antigrief.bypassPermissionLevel; }
@@ -131,6 +132,12 @@ public final class Config {
     public static boolean isBaseZoneEnabled()          { return data().baseZone.enabled; }
     public static int     getBaseZoneCountdownSeconds() { return data().baseZone.countdownSeconds; }
     public static boolean isBaseZoneBlockExplosions()   { return data().baseZone.blockExplosions; }
+
+    public static boolean isRemkaEnabled()              { return data().remka.enabled; }
+    public static double  getRemkaRadius()              { return data().remka.radius; }
+    public static int     getRemkaIntervalTicks()       { return data().remka.intervalTicks; }
+    public static double  getRemkaHullPercentPerCycle() { return data().remka.hullPercentPerCycle; }
+    public static double  getRemkaPartPercentPerCycle() { return data().remka.partPercentPerCycle; }
 
     public static boolean isNightDarknessEnabled()      { return data().nightDarkness.enabled; }
     public static double  getNightDarknessIntensity()   { return data().nightDarkness.intensity; }
@@ -424,6 +431,7 @@ public final class Config {
         Web web = new Web();
         Logging logging = new Logging();
         BaseZone baseZone = new BaseZone();
+        Remka remka = new Remka();
         NightDarkness nightDarkness = new NightDarkness();
         Commands commands = new Commands();
         Events events = new Events();
@@ -454,6 +462,7 @@ public final class Config {
             faction.orderMaxTtlMinutes = clamp(faction.orderMaxTtlMinutes, 0, 10_080);
             faction.orderDefaultTtlMinutes = clamp(faction.orderDefaultTtlMinutes, 0, faction.orderMaxTtlMinutes);
             faction.inviteTtlMinutes = clamp(faction.inviteTtlMinutes, 0, 43_200);
+            faction.roleChangeCooldownMinutes = clamp(faction.roleChangeCooldownMinutes, 0, 43_200);
             if (antigrief == null) antigrief = new AntiGrief();
             antigrief.bypassPermissionLevel = clamp(antigrief.bypassPermissionLevel, 0, 4);
             if (antigrief.allowedBreakBlocks == null) antigrief.allowedBreakBlocks = new ArrayList<>();
@@ -473,6 +482,11 @@ public final class Config {
             if (logging == null) logging = new Logging();
             if (baseZone == null) baseZone = new BaseZone();
             baseZone.countdownSeconds = clamp(baseZone.countdownSeconds, 1, 60);
+            if (remka == null) remka = new Remka();
+            remka.radius = Math.min(Math.max(remka.radius, 1.0), 64.0);
+            remka.intervalTicks = clamp(remka.intervalTicks, 1, 12_000);
+            remka.hullPercentPerCycle = Math.min(Math.max(remka.hullPercentPerCycle, 0.0), 1.0);
+            remka.partPercentPerCycle = Math.min(Math.max(remka.partPercentPerCycle, 0.0), 1.0);
             if (nightDarkness == null) nightDarkness = new NightDarkness();
             nightDarkness.intensity = nightDarkness.intensity < 0.0 ? 0.0 : Math.min(nightDarkness.intensity, 2.0);
             if (commands == null) commands = new Commands();
@@ -582,6 +596,8 @@ public final class Config {
         int orderMaxTtlMinutes = 240;
         /** Срок жизни приглашения в закрытую фракцию, минуты; 0 = бессрочно. */
         int inviteTtlMinutes = 1440;
+        /** Как часто игроку можно менять боевую роль, минуты; 0 = без ограничения. OP обходит. */
+        int roleChangeCooldownMinutes = 120;
     }
 
     /**
@@ -652,6 +668,22 @@ public final class Config {
         int countdownSeconds = 5;
         /** Отключать урон от взрывов (SBW) и гранат (WarBorn) внутри зоны базы. */
         boolean blockExplosions = true;
+    }
+
+    /**
+     * Ремонтная станция «Ремка». Работает в паре с отключённой саморегенерацией техники
+     * в SuperbWarfare ({@code vehicle.repair.repair_cooldown = -1}).
+     */
+    static final class Remka {
+        boolean enabled = true;
+        /** Радиус ремонта в блоках. */
+        double radius = 8.0;
+        /** Период между тактами ремонта, в тиках (20 тиков = 1 секунда). */
+        int intervalTicks = 20;
+        /** Доля максимального HP корпуса, восстанавливаемая за такт. */
+        double hullPercentPerCycle = 0.02;
+        /** Доля максимального HP частей (башня, гусеницы, двигатели), восстанавливаемая за такт. */
+        double partPercentPerCycle = 0.02;
     }
 
     /**

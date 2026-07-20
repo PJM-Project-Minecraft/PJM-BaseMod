@@ -7,6 +7,7 @@ import ru.liko.pjmbasemod.common.network.packet.HudConfigPacket;
 import ru.liko.pjmbasemod.common.network.packet.GarageSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.LockedSlotsPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionManagementPacket;
+import ru.liko.pjmbasemod.common.network.packet.OpenFactionInvitePacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenFactionSelectionPacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenGaragePacket;
 import ru.liko.pjmbasemod.common.network.packet.OpenModerationPacket;
@@ -53,6 +54,7 @@ public interface ClientPacketProxy {
     default void openWarehouse(OpenWarehousePacket payload) {}
     default void warehouseSync(WarehouseSyncPacket payload) {}
     default void openFactionSelection(OpenFactionSelectionPacket payload) {}
+    default void openFactionInvite(OpenFactionInvitePacket payload) {}
     default void openFactionManagement(OpenFactionManagementPacket payload) {}
     default void factionManagementSync(FactionManagementSyncPacket payload) {}
     default void factionOrderSync(FactionOrderSyncPacket payload) {}

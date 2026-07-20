@@ -9,9 +9,11 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.scores.PlayerTeam;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.alliance.Alliances;
 import ru.liko.pjmbasemod.common.capturepoint.CapturePointManager;
 import ru.liko.pjmbasemod.common.capturepoint.CapturePointSavedData;
 import ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier;
+import ru.liko.pjmbasemod.common.faction.FactionMenuService;
 import ru.liko.pjmbasemod.common.logging.LogCategory;
 import ru.liko.pjmbasemod.common.logging.PjmActionLogger;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
@@ -40,6 +42,9 @@ import java.util.UUID;
  * XP-бонус победителям начисляется ПОСЛЕ вайпа — стартовая фора нового сезона.
  */
 public final class CampaignManager {
+
+    /** Сколько висят итоги сезона, мс. На это же время подавляется экран выбора фракции. */
+    private static final int RESULTS_DURATION_MS = 15_000;
 
     private static int tickCounter;
 
@@ -87,22 +92,29 @@ public final class CampaignManager {
         String winner = winner(scores);
         String scoreLine = scoreLine(server, scores);
 
-        // UUID победителей резолвим ДО вайпа — он снимает игроков со scoreboard-команд.
-        Set<UUID> winnerMembers = winner == null ? Set.of()
-                : WipeService.resolveTeamMemberUuids(server, winner);
+        // Победа принадлежит союзу целиком: союзник победителя получает и упоминание в
+        // объявлении, и XP-фору. UUID резолвим ДО вайпа — он снимает игроков со scoreboard-команд.
+        String winnerAlly = winner == null ? null : Alliances.allyOf(server, winner);
+        Set<UUID> winnerMembers = new java.util.HashSet<>(winner == null ? Set.of()
+                : WipeService.resolveTeamMemberUuids(server, winner));
+        if (winnerAlly != null) winnerMembers.addAll(WipeService.resolveTeamMemberUuids(server, winnerAlly));
+
+        // Итоги должны провисеть целиком: вайп ниже снимает всех со scoreboard-команд,
+        // и без этой паузы экран выбора фракции открылся бы сразу и погасил уведомление.
+        FactionMenuService.suppressSelectionFor(RESULTS_DURATION_MS + 1000L);
 
         if (winner != null) {
-            String winnerName = Teams.displayName(server, winner);
+            String winnerName = Alliances.sideName(server, winner);
             int color = Teams.color(server, winner);
             PjmNetworking.sendToAll(server, new NotificationPacket(
-                    Component.literal("Кампания окончена"),
-                    Component.literal("Победа: " + winnerName), color, 8000));
+                    Component.literal("Кампания окончена · Победа: " + winnerName),
+                    Component.literal(scoreLine), color, RESULTS_DURATION_MS));
             broadcast(server, "Кампания окончена (" + reason + "). Победитель: " + winnerName
                     + ". Итог: " + scoreLine);
         } else {
             PjmNetworking.sendToAll(server, new NotificationPacket(
-                    Component.literal("Кампания окончена"),
-                    Component.literal("Без победителя"), 0x9B9B9B, 8000));
+                    Component.literal("Кампания окончена · Без победителя"),
+                    Component.literal(scoreLine), 0x9B9B9B, RESULTS_DURATION_MS));
             broadcast(server, "Кампания окончена (" + reason + ") без победителя. Итог: " + scoreLine);
         }
         PjmActionLogger.instance().logSubsystem(LogCategory.CAPTURE,
@@ -130,6 +142,8 @@ public final class CampaignManager {
      */
     private static void wipeSeason(MinecraftServer server) {
         WipeService.wipeAll(server);
+        // Союзы — часть сезона: новый раунд начинается со всеми против всех.
+        ru.liko.pjmbasemod.common.alliance.AllianceSavedData.get(server).clearAll();
 
         CapturePointSavedData points = CapturePointSavedData.get(server);
         points.resetForNewSeason();

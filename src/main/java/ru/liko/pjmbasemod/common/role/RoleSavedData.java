@@ -38,7 +38,8 @@ public final class RoleSavedData extends SavedData {
                 String team = Teams.normalize(entryTag.getString("team"));
                 if (role == null || team.isBlank()) continue;
                 String name = safeName(entryTag.getString("name"));
-                data.rolesByPlayer.put(playerId, new RoleEntry(role.id(), team, name));
+                data.rolesByPlayer.put(playerId, new RoleEntry(role.id(), team, name,
+                        entryTag.getLong("changedAt")));
             } catch (IllegalArgumentException ignored) {
             }
         }
@@ -54,6 +55,7 @@ public final class RoleSavedData extends SavedData {
             entryTag.putString("role", entry.getValue().roleId());
             entryTag.putString("team", entry.getValue().teamId());
             entryTag.putString("name", entry.getValue().lastKnownName());
+            entryTag.putLong("changedAt", entry.getValue().changedAt());
             list.add(entryTag);
         }
         tag.put("roles", list);
@@ -73,8 +75,14 @@ public final class RoleSavedData extends SavedData {
         if (playerId == null || role == null) return;
         String team = Teams.normalize(teamId);
         if (team.isBlank()) return;
-        RoleEntry next = new RoleEntry(role.id(), team, safeName(lastKnownName));
-        RoleEntry previous = rolesByPlayer.put(playerId, next);
+        RoleEntry previous = rolesByPlayer.get(playerId);
+        // Отметка времени обновляется только при реальной смене роли — переназначение той же
+        // роли не должно перезапускать кулдаун.
+        boolean sameRole = previous != null && previous.roleId().equals(role.id())
+                && previous.teamId().equals(team);
+        RoleEntry next = new RoleEntry(role.id(), team, safeName(lastKnownName),
+                sameRole ? previous.changedAt() : System.currentTimeMillis());
+        rolesByPlayer.put(playerId, next);
         if (!next.equals(previous)) setDirty();
     }
 
@@ -97,6 +105,7 @@ public final class RoleSavedData extends SavedData {
         return name == null || name.isBlank() ? "unknown" : name.trim();
     }
 
-    public record RoleEntry(String roleId, String teamId, String lastKnownName) {
+    /** @param changedAt время последней смены роли (epoch ms) — для кулдауна смены роли. */
+    public record RoleEntry(String roleId, String teamId, String lastKnownName, long changedAt) {
     }
 }

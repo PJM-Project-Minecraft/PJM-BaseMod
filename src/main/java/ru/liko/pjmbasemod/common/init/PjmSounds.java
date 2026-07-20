@@ -24,6 +24,8 @@ public final class PjmSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> RADIO_START           = reg("radio.start");
     public static final DeferredHolder<SoundEvent, SoundEvent> RADIO_END             = reg("radio.end");
     public static final DeferredHolder<SoundEvent, SoundEvent> RADIO_BACKGROUND      = reg("radio.background");
+    public static final DeferredHolder<SoundEvent, SoundEvent> REMKA_REPAIR          = reg("remka.repair");
+    public static final DeferredHolder<SoundEvent, SoundEvent> REMKA_DEPLOY          = reg("remka.deploy");
 
     private PjmSounds() {}
 

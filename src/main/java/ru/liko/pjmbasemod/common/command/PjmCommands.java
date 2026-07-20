@@ -76,6 +76,7 @@ public final class PjmCommands {
                 // --- игроковые подсистемы ---
                 .then(chatCommand())
                 .then(factionCommand())
+                .then(allianceCommand())
                 .then(roleCommand())
                 .then(rankCommand())
                 .then(garageCommand())
@@ -504,6 +505,7 @@ public final class PjmCommands {
                                 .executes(ctx -> openGarage(ctx.getSource(),
                                         StringArgumentType.getString(ctx, "type")))))
                 .then(Commands.literal("info")
+                        .requires(source -> source.hasPermission(2))
                         .executes(ctx -> garagePointInfo(ctx.getSource())))
                 .then(Commands.literal("set")
                         .requires(source -> source.hasPermission(2))
@@ -685,6 +687,98 @@ public final class PjmCommands {
                         }));
     }
 
+    // ---------------------------------------------------------------- alliance (союзы фракций)
+
+    /**
+     * {@code /pjm alliance offer <фракция> [часы]} — предложить союз (0 часов = навсегда),
+     * {@code accept|decline} — ответ на предложение, {@code break} — разрыв, {@code list} — состояние.
+     * Распоряжается союзом командир фракции; OP действует от имени своей команды.
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> allianceCommand() {
+        return Commands.literal("alliance")
+                .then(Commands.literal("offer")
+                        .then(Commands.argument("team", StringArgumentType.word())
+                                .suggests((ctx, builder) -> suggestCombatTeams(builder))
+                                .executes(ctx -> allianceOffer(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "team"), 0))
+                                .then(Commands.argument("hours", IntegerArgumentType.integer(0, 720))
+                                        .executes(ctx -> allianceOffer(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "team"),
+                                                IntegerArgumentType.getInteger(ctx, "hours"))))))
+                .then(Commands.literal("accept")
+                        .executes(ctx -> allianceRespond(ctx.getSource(), true)))
+                .then(Commands.literal("decline")
+                        .executes(ctx -> allianceRespond(ctx.getSource(), false)))
+                .then(Commands.literal("break")
+                        .executes(ctx -> allianceBreak(ctx.getSource())))
+                .then(Commands.literal("list")
+                        .executes(ctx -> allianceList(ctx.getSource())));
+    }
+
+    /** Фракция, от чьего имени игрок распоряжается союзом, либо {@code null} с сообщением об отказе. */
+    @Nullable
+    private static String requireAllianceAuthority(CommandSourceStack source, ServerPlayer actor) {
+        String team = ru.liko.pjmbasemod.common.alliance.Alliances.authorityTeam(actor);
+        if (team == null) {
+            source.sendFailure(Component.literal("Союзами распоряжается только командир фракции."));
+        }
+        return team;
+    }
+
+    private static int allianceOffer(CommandSourceStack source, String targetTeam, int hours) {
+        ServerPlayer actor = requirePlayer(source);
+        if (actor == null) return 0;
+        String team = requireAllianceAuthority(source, actor);
+        if (team == null) return 0;
+        return report(source, ru.liko.pjmbasemod.common.alliance.Alliances.offer(
+                source.getServer(), team, targetTeam, hours * 60L));
+    }
+
+    private static int allianceRespond(CommandSourceStack source, boolean accept) {
+        ServerPlayer actor = requirePlayer(source);
+        if (actor == null) return 0;
+        String team = requireAllianceAuthority(source, actor);
+        if (team == null) return 0;
+        return report(source, accept
+                ? ru.liko.pjmbasemod.common.alliance.Alliances.accept(source.getServer(), team, null)
+                : ru.liko.pjmbasemod.common.alliance.Alliances.decline(source.getServer(), team));
+    }
+
+    private static int allianceBreak(CommandSourceStack source) {
+        ServerPlayer actor = requirePlayer(source);
+        if (actor == null) return 0;
+        String team = requireAllianceAuthority(source, actor);
+        if (team == null) return 0;
+        return report(source, ru.liko.pjmbasemod.common.alliance.Alliances.dissolve(source.getServer(), team));
+    }
+
+    private static int allianceList(CommandSourceStack source) {
+        var data = ru.liko.pjmbasemod.common.alliance.AllianceSavedData.get(source.getServer());
+        var alliances = data.alliances();
+        if (alliances.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("Действующих союзов нет."), false);
+            return 1;
+        }
+        for (var alliance : alliances) {
+            long minutesLeft = alliance.expiresAt() == 0L ? 0L
+                    : Math.max(1L, (alliance.expiresAt() - System.currentTimeMillis()) / 60_000L);
+            String suffix = alliance.expiresAt() == 0L ? "навсегда" : "осталось " + minutesLeft + " мин";
+            source.sendSuccess(() -> Component.literal("· "
+                    + Teams.displayName(source.getServer(), alliance.teamA()) + " + "
+                    + Teams.displayName(source.getServer(), alliance.teamB()) + " (" + suffix + ")"), false);
+        }
+        return 1;
+    }
+
+    private static int report(CommandSourceStack source, ru.liko.pjmbasemod.common.alliance.Alliances.Result result) {
+        if (result.success()) {
+            source.sendSuccess(() -> Component.literal(result.message()), false);
+            return 1;
+        }
+        source.sendFailure(Component.literal(result.message()));
+        return 0;
+    }
+
     private static LiteralArgumentBuilder<CommandSourceStack> factionCommand() {
         return Commands.literal("faction")
                 .then(Commands.literal("manage")
@@ -794,11 +888,13 @@ public final class PjmCommands {
         source.sendSuccess(() -> Component.translatable("gui.pjmbasemod.faction.invite.list_header",
                 Teams.displayName(source.getServer(), team), invites.size()), false);
         for (var entry : invites.entrySet()) {
-            String suffix = entry.getValue() == 0L
+            long expiresAt = entry.getValue().expiresAt();
+            String suffix = expiresAt == 0L
                     ? Component.translatable("gui.pjmbasemod.faction.invite.no_expiry").getString()
                     : Component.translatable("gui.pjmbasemod.faction.invite.expires_minutes",
-                            Math.max(1, (entry.getValue() - now) / 60_000L)).getString();
-            source.sendSuccess(() -> Component.literal(" - " + entry.getKey() + " (" + suffix + ")"), false);
+                            Math.max(1, (expiresAt - now) / 60_000L)).getString();
+            String from = entry.getValue().inviter().isBlank() ? "" : ", от " + entry.getValue().inviter();
+            source.sendSuccess(() -> Component.literal(" - " + entry.getKey() + " (" + suffix + from + ")"), false);
         }
         return 1;
     }

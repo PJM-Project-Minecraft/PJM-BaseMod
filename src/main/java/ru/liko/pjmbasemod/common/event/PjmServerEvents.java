@@ -261,6 +261,14 @@ public final class PjmServerEvents {
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer victim)) return;
+        // Союзники не бьют друг друга: фракции разные, поэтому ванильный friendlyFire
+        // scoreboard-команды тут не срабатывает — гейт обязан быть здесь. Урон внутри
+        // одной фракции не трогаем: им по-прежнему заведует ванильный friendlyFire.
+        if (event.getSource().getEntity() instanceof ServerPlayer attacker && attacker != victim
+                && ru.liko.pjmbasemod.common.alliance.Alliances.allied(attacker, victim)) {
+            event.setCanceled(true);
+            return;
+        }
         if (BaseZoneManager.shouldCancelPlayerDamage(event.getSource().getEntity(), victim)) {
             event.setCanceled(true);
             return;
@@ -393,6 +401,7 @@ public final class PjmServerEvents {
         ServerEventManager.onServerTick(event.getServer());
         CapturePointManager.onServerTick(event.getServer());
         ru.liko.pjmbasemod.common.campaign.CampaignManager.onServerTick(event.getServer());
+        ru.liko.pjmbasemod.common.alliance.Alliances.onServerTick(event.getServer());
         ru.liko.pjmbasemod.common.garage.GarageManager.onServerTick(event.getServer());
         tickDayCycle(event.getServer());
 

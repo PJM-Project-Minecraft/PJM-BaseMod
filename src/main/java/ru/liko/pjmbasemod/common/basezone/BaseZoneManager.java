@@ -19,6 +19,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.alliance.Alliances;
 import ru.liko.pjmbasemod.common.teams.Teams;
 
 import java.util.HashMap;
@@ -56,7 +57,8 @@ public final class BaseZoneManager {
         if (zone == null) { clear(player); return; }
 
         String team = Teams.resolvePlayerTeamId(player);
-        if (team != null && zone.owner().equalsIgnoreCase(team)) { clear(player); return; }
+        // Союзник ходит по базе союзника как по своей — отсчёта и смерти нет.
+        if (Alliances.friendly(server, zone.owner(), team)) { clear(player); return; }
 
         // Игрок-враг внутри чужой зоны — ведём отсчёт.
         UUID id = player.getUUID();
@@ -105,7 +107,7 @@ public final class BaseZoneManager {
         if (server == null) return false;
         String dimension = victim.serverLevel().dimension().location().toString();
         BaseZone zone = BaseZoneSavedData.get(server).findZoneAt(dimension, victim.blockPosition());
-        return zone != null && zone.owner().equalsIgnoreCase(victimTeam);
+        return zone != null && Alliances.friendly(server, zone.owner(), victimTeam);
     }
 
     /**
