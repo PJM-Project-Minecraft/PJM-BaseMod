@@ -3,6 +3,7 @@ package ru.liko.pjmbasemod.client.worldmap.gui;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -11,12 +12,19 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.world.scores.Team;
 import org.lwjgl.glfw.GLFW;
+import ru.liko.pjmbasemod.client.basezone.ClientBaseZoneState;
+import ru.liko.pjmbasemod.client.radiospawn.ClientRadioCarrierState;
 import ru.liko.pjmbasemod.client.worldmap.WorldMapEngine;
 import ru.liko.pjmbasemod.client.worldmap.data.MapConstants;
 import ru.liko.pjmbasemod.client.worldmap.edit.CapturePointEditor;
 import ru.liko.pjmbasemod.client.worldmap.edit.MapContextMenu;
 import ru.liko.pjmbasemod.client.worldmap.overlay.MapOverlays;
+import ru.liko.pjmbasemod.common.basezone.BaseZoneView;
+import ru.liko.pjmbasemod.common.network.PjmNetworking;
+import ru.liko.pjmbasemod.common.network.packet.DeployToRadioPacket;
+import ru.liko.pjmbasemod.common.network.packet.RadioSpawnListPacket;
 
 /**
  * Полноэкранная карта в стиле JourneyMap/Xaero. Камера в мировых координатах, drag-пан,
@@ -99,6 +107,46 @@ public final class MapScreen extends Screen {
         mc.setScreen(null);
     }
 
+    /** Носитель рации под курсором (в радиусе maxDist блоков), либо null. */
+    private RadioSpawnListPacket.Entry carrierAt(BlockPos wb, double maxDist) {
+        double bestSq = maxDist * maxDist;
+        RadioSpawnListPacket.Entry best = null;
+        for (RadioSpawnListPacket.Entry e : ClientRadioCarrierState.carriers()) {
+            double dx = e.pos().getX() - wb.getX();
+            double dz = e.pos().getZ() - wb.getZ();
+            double d = dx * dx + dz * dz;
+            if (d <= bestSq) {
+                bestSq = d;
+                best = e;
+            }
+        }
+        return best;
+    }
+
+    /** Стоит ли локальный игрок в зоне базы своей команды (для показа «Десант»). Сервер валидирует. */
+    private boolean inOwnBaseZone() {
+        Minecraft mc = this.minecraft;
+        if (mc == null || mc.player == null) return false;
+        Team t = mc.player.getTeam();
+        if (t == null) return false;
+        String myTeam = t.getName();
+        String dim = dimStr();
+        BlockPos pp = mc.player.blockPosition();
+        for (BaseZoneView z : ClientBaseZoneState.zones()) {
+            if (!z.dimension().equals(dim) || !z.owner().equalsIgnoreCase(myTeam)) continue;
+            if (pp.getX() >= z.minX() && pp.getX() <= z.maxX()
+                    && pp.getZ() >= z.minZ() && pp.getZ() <= z.maxZ()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void deployTo(UUID carrierId) {
+        PjmNetworking.sendToServer(new DeployToRadioPacket(carrierId));
+        if (minecraft != null) minecraft.setScreen(null);
+    }
+
     @Override
     public void render(GuiGraphics gg, int mouseX, int mouseY, float partial) {
         Minecraft mc = this.minecraft;
@@ -115,6 +163,7 @@ public final class MapScreen extends Screen {
         if (mc != null && mc.level != null) {
             String skip = editorOn() ? CapturePointEditor.get().selectedId() : null;
             MapOverlays.render(gg, font, cameraX, cameraZ, scale, width, height, dimStr(), skip);
+            MapOverlays.drawRadioCarriers(gg, font, cameraX, cameraZ, scale, width, height);
         }
         if (editorOn()) {
             CapturePointEditor.get().render(gg, font, cameraX, cameraZ, scale, width, height);
@@ -171,14 +220,23 @@ public final class MapScreen extends Screen {
             CapturePointEditor.get().toggleEnabled();
             return true;
         }
-        if (isOp() && button == 1) {
-            // ПКМ (OP): контекст-меню — правка точек (если включена) + телепорт сюда, как в JourneyMap.
+        if (button == 1) {
             BlockPos wb = worldBlockAt(mouseX, mouseY);
+            double maxDist = Math.max(2.0, 10.0 / scale);
             List<MapContextMenu.Entry> items = new ArrayList<>();
+            // Десант к носителю рации — любому игроку, стоя в своей базе (спавн на рации из базы).
+            RadioSpawnListPacket.Entry carrier = carrierAt(wb, maxDist);
+            if (carrier != null && inOwnBaseZone()) {
+                UUID cid = carrier.id();
+                items.add(MapContextMenu.Entry.leaf("Десант к " + carrier.owner(), () -> deployTo(cid)));
+            }
             if (editorOn()) items.addAll(CapturePointEditor.get().contextEntries(wb, dimStr()));
-            items.add(MapContextMenu.Entry.leaf("Телепорт сюда", () -> teleportTo(wb.getX(), wb.getZ())));
-            contextMenu.open((int) mouseX, (int) mouseY, items);
-            return true;
+            if (isOp()) items.add(MapContextMenu.Entry.leaf("Телепорт сюда", () -> teleportTo(wb.getX(), wb.getZ())));
+            if (!items.isEmpty()) {
+                contextMenu.open((int) mouseX, (int) mouseY, items);
+                return true;
+            }
+            return super.mouseClicked(mouseX, mouseY, button);
         }
         if (editorOn() && button == 0) {
             CapturePointEditor.get().handleLeftClick(worldBlockAt(mouseX, mouseY), dimStr(), Math.max(2.0, 8.0 / scale));

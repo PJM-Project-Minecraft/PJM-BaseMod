@@ -20,6 +20,7 @@ import ru.liko.pjmbasemod.common.network.packet.CampaignSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointMapSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointHudPacket;
 import ru.liko.pjmbasemod.common.network.packet.BaseZoneMapSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.RadioCarrierSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.DeathScreenPacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioSpawnListPacket;
 import ru.liko.pjmbasemod.common.network.packet.ModerationSyncPacket;
@@ -70,6 +71,7 @@ public interface ClientPacketProxy {
     default void capturePointMapSync(CapturePointMapSyncPacket payload) {}
     default void capturePointHud(CapturePointHudPacket payload) {}
     default void baseZoneMapSync(BaseZoneMapSyncPacket payload) {}
+    default void radioCarrierSync(RadioCarrierSyncPacket payload) {}
     default void campaignSync(CampaignSyncPacket payload) {}
     default void openReports(OpenReportsPacket payload) {}
     default void reportSync(ReportSyncPacket payload) {}

@@ -6,9 +6,11 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import ru.liko.pjmbasemod.client.basezone.ClientBaseZoneState;
 import ru.liko.pjmbasemod.client.capturepoint.ClientCapturePointState;
+import ru.liko.pjmbasemod.client.radiospawn.ClientRadioCarrierState;
 import ru.liko.pjmbasemod.client.worldmap.gui.MapRenderer;
 import ru.liko.pjmbasemod.common.basezone.BaseZoneView;
 import ru.liko.pjmbasemod.common.capturepoint.CapturePoint;
+import ru.liko.pjmbasemod.common.network.packet.RadioSpawnListPacket;
 
 /**
  * Тактические оверлеи поверх карты: зоны баз (AABB команд) и точки захвата (полигоны).
@@ -26,6 +28,47 @@ public final class MapOverlays {
                               double scale, int width, int height, String dim, String skipCaptureId) {
         drawBaseZones(gg, font, camX, camZ, scale, width, height, dim);
         drawCapturePoints(gg, font, camX, camZ, scale, width, height, dim, skipCaptureId);
+    }
+
+    /** Носители рации своей команды (точки десанта). Данные уже отфильтрованы сервером по измерению. */
+    public static void drawRadioCarriers(GuiGraphics gg, Font font, double camX, double camZ,
+                                         double scale, int width, int height) {
+        for (RadioSpawnListPacket.Entry e : ClientRadioCarrierState.carriers()) {
+            int sx = (int) MapRenderer.worldToScreenX(e.pos().getX() + 0.5, camX, scale, width);
+            int sy = (int) MapRenderer.worldToScreenY(e.pos().getZ() + 0.5, camZ, scale, height);
+            if (sx < -24 || sx > width + 24 || sy < -32 || sy > height + 24) continue;
+            drawRadioMarker(gg, font, sx, sy, e.owner(), e.cooldownSeconds());
+        }
+    }
+
+    /** Иконка рации: антенна с сигнал-волнами + корпус + ник; серая с отсчётом на перезарядке. */
+    private static void drawRadioMarker(GuiGraphics gg, Font font, int sx, int sy, String name, int cooldown) {
+        int col = cooldown > 0 ? 0xFF9AA0A6 : 0xFF4CE05A;
+        int dark = 0xFF0C120B;
+        // антенна + наконечник
+        gg.fill(sx - 1, sy - 13, sx + 1, sy - 3, dark);
+        gg.fill(sx, sy - 13, sx + 1, sy - 3, 0xFFF0F0F0);
+        gg.fill(sx - 1, sy - 15, sx + 2, sy - 13, col);
+        // сигнал-волны по бокам
+        gg.fill(sx - 4, sy - 15, sx - 3, sy - 10, col);
+        gg.fill(sx + 3, sy - 15, sx + 4, sy - 10, col);
+        gg.fill(sx - 6, sy - 17, sx - 5, sy - 8, col);
+        gg.fill(sx + 5, sy - 17, sx + 6, sy - 8, col);
+        // корпус рации
+        gg.fill(sx - 5, sy - 3, sx + 6, sy + 5, dark);
+        gg.fill(sx - 4, sy - 2, sx + 5, sy + 4, col);
+        gg.fill(sx - 2, sy - 1, sx + 2, sy + 3, dark);
+        // ник
+        int tw = font.width(name);
+        gg.fill(sx - tw / 2 - 2, sy + 7, sx + tw / 2 + 2, sy + 17, 0x99000000);
+        gg.drawCenteredString(font, name, sx, sy + 8, cooldown > 0 ? 0xFFCFCFCF : 0xFFCDEFD2);
+        // отсчёт перезарядки
+        if (cooldown > 0) {
+            String cd = cooldown + "s";
+            int cw = font.width(cd);
+            gg.fill(sx - cw / 2 - 2, sy - 28, sx + cw / 2 + 2, sy - 18, 0x99000000);
+            gg.drawCenteredString(font, cd, sx, sy - 27, 0xFFFF7777);
+        }
     }
 
     private static void drawBaseZones(GuiGraphics gg, Font font, double camX, double camZ,

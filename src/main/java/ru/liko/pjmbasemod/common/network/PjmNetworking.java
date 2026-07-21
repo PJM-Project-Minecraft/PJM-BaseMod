@@ -16,7 +16,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "48";
+    public static final String VERSION = "49";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -56,6 +56,7 @@ public final class PjmNetworking {
         r.playToServer(RequestModerationPacket.TYPE,   RequestModerationPacket.STREAM_CODEC,   (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleRequestModeration(p, (ServerPlayer) ctx.player())));
         r.playToServer(ModerationActionPacket.TYPE,    ModerationActionPacket.STREAM_CODEC,    (p, ctx) -> ctx.enqueueWork(() -> ServerPacketHandlers.handleModerationAction(p, (ServerPlayer) ctx.player())));
         r.playToServer(CapturePointEditorActionPacket.TYPE, CapturePointEditorActionPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ru.liko.pjmbasemod.common.capturepoint.CapturePointManager.handleEditorAction(p, (ServerPlayer) ctx.player())));
+        r.playToServer(DeployToRadioPacket.TYPE,       DeployToRadioPacket.STREAM_CODEC,       (p, ctx) -> ctx.enqueueWork(() -> ru.liko.pjmbasemod.common.radiospawn.RadioSpawnManager.handleDeploy((ServerPlayer) ctx.player(), p.carrierId())));
         r.playToServer(SubmitReportPacket.TYPE,        SubmitReportPacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> ReportManager.submit((ServerPlayer) ctx.player(), p.category(), p.text())));
         r.playToServer(RequestReportsPacket.TYPE,      RequestReportsPacket.STREAM_CODEC,      (p, ctx) -> ctx.enqueueWork(() -> ReportManager.openAdmin((ServerPlayer) ctx.player())));
         r.playToServer(ReportActionPacket.TYPE,        ReportActionPacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> ReportManager.handleAction((ServerPlayer) ctx.player(), p.id(), p.action(), p.text())));
@@ -90,6 +91,7 @@ public final class PjmNetworking {
         r.playToClient(SignalHuntHudPacket.TYPE, SignalHuntHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.signalHuntHud(p)));
         r.playToClient(CapturePointMapSyncPacket.TYPE, CapturePointMapSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.capturePointMapSync(p)));
         r.playToClient(BaseZoneMapSyncPacket.TYPE, BaseZoneMapSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.baseZoneMapSync(p)));
+        r.playToClient(RadioCarrierSyncPacket.TYPE, RadioCarrierSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.radioCarrierSync(p)));
         r.playToClient(CapturePointHudPacket.TYPE, CapturePointHudPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.capturePointHud(p)));
         r.playToClient(CampaignSyncPacket.TYPE, CampaignSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.campaignSync(p)));
         r.playToClient(OpenReportsPacket.TYPE, OpenReportsPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.openReports(p)));

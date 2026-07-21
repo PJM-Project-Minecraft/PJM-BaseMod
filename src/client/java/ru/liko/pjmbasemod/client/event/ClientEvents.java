@@ -81,6 +81,7 @@ public final class ClientEvents {
         ru.liko.pjmbasemod.client.worldmap.WorldMapEngine.get().reset();
         ru.liko.pjmbasemod.client.basezone.ClientBaseZoneState.reset();
         ru.liko.pjmbasemod.client.worldmap.edit.CapturePointEditor.get().onLogout();
+        ru.liko.pjmbasemod.client.radiospawn.ClientRadioCarrierState.reset();
     }
 
     @SubscribeEvent

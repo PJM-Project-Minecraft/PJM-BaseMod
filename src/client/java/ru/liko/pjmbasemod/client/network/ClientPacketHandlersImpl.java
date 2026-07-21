@@ -256,6 +256,11 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     }
 
     @Override
+    public void radioCarrierSync(ru.liko.pjmbasemod.common.network.packet.RadioCarrierSyncPacket payload) {
+        ru.liko.pjmbasemod.client.radiospawn.ClientRadioCarrierState.update(payload);
+    }
+
+    @Override
     public void signalHuntHud(ru.liko.pjmbasemod.common.network.packet.SignalHuntHudPacket payload) {
         ru.liko.pjmbasemod.client.serverevent.ClientSignalHuntState.update(payload);
     }

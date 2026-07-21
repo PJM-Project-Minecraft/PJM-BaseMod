@@ -12,7 +12,11 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.common.alliance.Alliances;
+import ru.liko.pjmbasemod.common.basezone.BaseZone;
+import ru.liko.pjmbasemod.common.basezone.BaseZoneSavedData;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
+import ru.liko.pjmbasemod.common.network.packet.RadioCarrierSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioSpawnListPacket;
 import ru.liko.pjmbasemod.common.rank.RankService;
 import ru.liko.pjmbasemod.common.teams.Teams;
@@ -92,6 +96,7 @@ public final class RadioSpawnManager {
     public static void onServerTick(ServerTickEvent.Post event) {
         if (++tickCounter % 20 != 0) return;
         refresh(event.getServer());
+        syncMapCarriers(event.getServer());
     }
 
     private static void refresh(MinecraftServer server) {
@@ -167,6 +172,64 @@ public final class RadioSpawnManager {
      * Рация на перезарядке остаётся в списке с остатком времени — клиент досчитывает его локально
      * и разблокирует кнопку сам, иначе игрок не понимал бы, почему точка пропала.
      */
+    /** Активные (в пределах лимита) живые носители рации команды. */
+    private static List<ServerPlayer> activeCarriersOfTeam(MinecraftServer server, String team) {
+        List<ServerPlayer> result = new ArrayList<>();
+        List<UUID> claims = CLAIMS.getOrDefault(team, List.of());
+        for (int i = 0; i < claims.size() && i < MAX_ACTIVE; i++) {
+            ServerPlayer p = server.getPlayerList().getPlayer(claims.get(i));
+            if (p == null || p.isDeadOrDying() || p.isSpectator()) continue;
+            result.add(p);
+        }
+        return result;
+    }
+
+    /** Раз в секунду: каждому игроку — носители рации его команды в его измерении (для карты). */
+    private static void syncMapCarriers(MinecraftServer server) {
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            String team = Teams.resolvePlayerTeamId(p);
+            List<RadioSpawnListPacket.Entry> entries = new ArrayList<>();
+            if (team != null && !team.isBlank()) {
+                for (ServerPlayer carrier : activeCarriersOfTeam(server, team)) {
+                    if (carrier == p) continue; // себя не показываем — есть маркер игрока
+                    if (!carrier.level().dimension().equals(p.level().dimension())) continue;
+                    entries.add(new RadioSpawnListPacket.Entry(carrier.getUUID(),
+                            carrier.getGameProfile().getName(), carrier.blockPosition(),
+                            cooldownSeconds(server, carrier.getUUID())));
+                }
+            }
+            PjmNetworking.sendToPlayer(p, new RadioCarrierSyncPacket(entries));
+        }
+    }
+
+    /** Обработчик {@code DeployToRadioPacket}: десант из своей базы к носителю рации. */
+    public static void handleDeploy(ServerPlayer player, UUID carrierId) {
+        MinecraftServer server = player.getServer();
+        if (server == null) return;
+        String team = Teams.resolvePlayerTeamId(player);
+        if (team == null || team.isBlank()) return;
+
+        String dim = player.serverLevel().dimension().location().toString();
+        BaseZone zone = BaseZoneSavedData.get(server).findZoneAt(dim, player.blockPosition());
+        if (zone == null || !(zone.owner().equals(team) || Alliances.friendly(server, zone.owner(), team))) {
+            player.sendSystemMessage(Component.literal("Десант доступен только из своей базы.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+        ServerPlayer carrier = server.getPlayerList().getPlayer(carrierId);
+        if (carrier == null || carrier == player || carrier.isDeadOrDying() || carrier.isSpectator()
+                || !team.equals(Teams.resolvePlayerTeamId(carrier))
+                || !isWearingRadio(carrier) || !isActiveCarrier(team, carrierId)) {
+            player.sendSystemMessage(Component.literal("Носитель рации недоступен.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+        player.teleportTo(carrier.serverLevel(), carrier.getX(), carrier.getY(), carrier.getZ(),
+                carrier.getYRot(), carrier.getXRot());
+        player.sendSystemMessage(Component.literal("Десант к " + carrier.getGameProfile().getName() + ".")
+                .withStyle(ChatFormatting.GREEN));
+    }
+
     public static void sendDeathOptions(ServerPlayer victim) {
         List<RadioSpawnListPacket.Entry> entries = new ArrayList<>();
         String team = Teams.resolvePlayerTeamId(victim);
