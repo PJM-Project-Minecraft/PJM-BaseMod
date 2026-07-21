@@ -22,13 +22,18 @@ import ru.liko.pjmbasemod.client.worldmap.data.MapConstants;
 import ru.liko.pjmbasemod.client.worldmap.data.Region;
 import ru.liko.pjmbasemod.client.worldmap.data.RegionKey;
 import ru.liko.pjmbasemod.client.worldmap.gpu.RegionTexture;
+import ru.liko.pjmbasemod.client.worldmap.io.RegionStore;
+import ru.liko.pjmbasemod.client.worldmap.io.WorldId;
 
 /**
  * Фасад мировой карты (клиентский синглтон). Держит LRU-кэш регионов, сканирует загруженные
- * чанки вокруг игрока (главный поток — доступ к ClientLevel), пересобирает GPU-текстуры.
+ * чанки вокруг игрока (главный поток — доступ к ClientLevel), пересобирает GPU-текстуры,
+ * пишет/читает регионы с диска (исследованное переживает разгрузку/релог).
  *
  * <p>Инвариант потоков: всё на клиентском/рендер-потоке (тик и рендер идут последовательно в
- * одном потоке). Фоновый воркер — Фаза 3 (усреднение текстур, оффлоадится).
+ * одном потоке); кодирование региона — тоже здесь (консистентный снимок), запись — асинхронно
+ * в {@link RegionStore}. Фоновый воркер цвета не нужен: сам Xaero считает цвет на рендер-потоке
+ * с кэшем по BlockState.
  *
  * <p>Инвариант LinkedHashMap(accessOrder): {@code get()} переупорядочивает и потому НЕ вызывается
  * во время итерации {@code regions.values()}. Все итерации {@code values()} — read-only без get().
@@ -41,13 +46,16 @@ public final class WorldMapEngine {
         return INSTANCE;
     }
 
-    /** LRU: eldest выселяется с освобождением GPU-текстуры при превышении лимита. */
+    private final RegionStore store = new RegionStore();
+
+    /** LRU: eldest выселяется (с сохранением на диск и освобождением текстуры) при переполнении. */
     private final Map<RegionKey, Region> regions =
             new LinkedHashMap<>(16, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<RegionKey, Region> eldest) {
                     if (size() > MapConstants.REGION_CACHE_CAP) {
                         Region r = eldest.getValue();
+                        if (r.diskDirty) store.saveAsync(r); // не потерять исследованное
                         if (r.gpu != null) r.gpu.free();
                         return true;
                     }
@@ -57,6 +65,7 @@ public final class WorldMapEngine {
 
     private final BlockPos.MutableBlockPos scanPos = new BlockPos.MutableBlockPos();
     private String dimKey;
+    private long tickCounter;
 
     private WorldMapEngine() {}
 
@@ -65,11 +74,15 @@ public final class WorldMapEngine {
         if (mc.level == null || mc.player == null) return;
         String dk = mc.level.dimension().location().toString();
         if (!dk.equals(dimKey)) {
-            reset();               // смена измерения — сбрасываем (без персистентности в Фазе 1–2)
+            reset();                                       // сохраняет старые регионы (текущий baseDir)
             dimKey = dk;
+            store.setBaseDir(WorldId.resolveDir(mc, dk));  // папка нового измерения
         }
         scanAround(mc);
         refreshDirty();
+        if (++tickCounter % MapConstants.AUTOSAVE_INTERVAL_TICKS == 0) {
+            autosave();
+        }
     }
 
     /**
@@ -104,12 +117,37 @@ public final class WorldMapEngine {
         return r.height[lz * MapConstants.REGION_BLOCKS + lx];
     }
 
+    /** Логаут/смена измерения: сохранить всё на диск, освободить текстуры, очистить. */
     public void reset() {
+        persistAll();
         for (Region region : regions.values()) {
             if (region.gpu != null) region.gpu.free();
         }
         regions.clear();
         dimKey = null;
+    }
+
+    // --- Персистентность ---
+
+    private void autosave() {
+        for (Region region : regions.values()) {
+            if (region.diskDirty) {
+                store.saveAsync(region);
+                region.diskDirty = false;
+            }
+        }
+    }
+
+    private void persistAll() {
+        boolean any = false;
+        for (Region region : regions.values()) {
+            if (region.diskDirty) {
+                store.saveAsync(region);
+                region.diskDirty = false;
+                any = true;
+            }
+        }
+        if (any) store.flush();
     }
 
     // --- Скан ---
@@ -134,6 +172,7 @@ public final class WorldMapEngine {
                 scanChunk(level, region, chunk, cx, cz);
                 region.markChunkScanned(lcx, lcz);
                 region.gpuDirty = true;
+                region.diskDirty = true;
                 markAdjacentDirty(region.key, lcx, lcz); // залечивание швов между регионами
                 if (++scanned >= MapConstants.SCAN_PER_TICK) return;
             }
@@ -144,8 +183,13 @@ public final class WorldMapEngine {
         RegionKey key = RegionKey.ofChunk(dimKey, chunkX, chunkZ);
         Region r = regions.get(key);
         if (r == null) {
-            r = new Region(key);
-            regions.put(key, r); // может выселить eldest (removeEldestEntry)
+            r = store.load(key);          // попытка загрузить исследованное с диска
+            if (r == null) {
+                r = new Region(key);
+            } else {
+                r.gpuDirty = true;        // построить текстуру из загруженных данных
+            }
+            regions.put(key, r);          // может выселить eldest (с сохранением)
         }
         return r;
     }

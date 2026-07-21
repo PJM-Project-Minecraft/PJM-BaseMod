@@ -30,6 +30,12 @@ public final class MapConstants {
     /** Лимит регионов в памяти (LRU). ponytail: фикс; вынести в конфиг, если OOM на большой дальности. */
     public static final int REGION_CACHE_CAP = 64;
 
+    // --- Персистентность ---
+    /** Версия формата файла региона. Бампать при изменении раскладки — старые файлы перескантся. */
+    public static final int FORMAT_VERSION = 1;
+    /** Интервал автосейва грязных регионов (тики; 1200 = 60с). */
+    public static final int AUTOSAVE_INTERVAL_TICKS = 1200;
+
     // Фон карты там, где ещё не исследовано.
     public static final int BACKGROUND_ARGB = 0xFF0A0A17;
 }

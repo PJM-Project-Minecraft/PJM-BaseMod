@@ -22,6 +22,8 @@ public final class Region {
 
     /** Нужно ли пересобрать GPU-текстуру. */
     public boolean gpuDirty;
+    /** Есть несохранённые на диск изменения. */
+    public boolean diskDirty;
     /** Ленивая GPU-текстура (создаётся на рендер-потоке). */
     public RegionTexture gpu;
 
@@ -44,5 +46,9 @@ public final class Region {
 
     public void markChunkScanned(int localChunkX, int localChunkZ) {
         scannedChunks.set(localChunkZ * MapConstants.CHUNKS_PER_REGION + localChunkX);
+    }
+
+    public boolean hasAnyScanned() {
+        return !scannedChunks.isEmpty();
     }
 }
