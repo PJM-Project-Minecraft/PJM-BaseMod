@@ -5,6 +5,7 @@ import java.util.List;
 import net.minecraft.Util;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.resources.ResourceLocation;
 import ru.liko.pjmbasemod.client.basezone.ClientBaseZoneState;
 import ru.liko.pjmbasemod.client.capturepoint.ClientCapturePointState;
 import ru.liko.pjmbasemod.client.radiospawn.ClientRadioCarrierState;
@@ -138,26 +139,29 @@ public final class MapOverlays {
             CapturePoint.Vertex c = CapturePoint.centroid(vs);
             int cx = (int) MapRenderer.worldToScreenX(c.x() + 0.5, camX, scale, width);
             int cy = (int) MapRenderer.worldToScreenY(c.z() + 0.5, camZ, scale, height);
-            drawObjective(gg, cx, cy, rgb, contested ? pulse : -1f, width, height);
-            drawLabelPill(gg, font, cx, cy - 18, cp.displayName(), rgb);
+            drawPointIcon(gg, cx, cy, rgb, contested ? pulse : -1f, width, height);
+            drawLabelPill(gg, font, cx, cy - 30, cp.displayName(), rgb);
             if (!cp.captureTeamId().isEmpty() && cp.progressPercent() > 0) {
-                drawProgressBar(gg, cx, cy + 7, cp.progressPercent(), rgb);
+                drawProgressBar(gg, cx, cy + 4, cp.progressPercent(), rgb);
             }
         }
     }
 
-    /** Маркер-objective точки: кольцо-октагон цвета владельца; при pulse≥0 — пульс-хало (контест). */
-    private static void drawObjective(GuiGraphics gg, int cx, int cy, int rgb, float pulse, int w, int h) {
+    private static final ResourceLocation POINT_ICON =
+            ResourceLocation.fromNamespaceAndPath("pjmbasemod", "textures/gui/map/point.png");
+    private static final int ICON_W = 15, ICON_H = 18, ICON_TW = 165, ICON_TH = 196;
+
+    /** Маркер-знамя точки (иконка Xaero, тинт по владельцу), остриём в центроид; pulse≥0 — хало контеста. */
+    private static void drawPointIcon(GuiGraphics gg, int cx, int cy, int rgb, float pulse, int w, int h) {
         int c = rgb & 0xFFFFFF;
         if (pulse >= 0f) {
-            double pr = 6.5 + pulse * 9.0;
+            double pr = 7.0 + pulse * 9.0;
             int pa = (int) ((1f - pulse) * 0x55);
-            octagon(gg, cx, cy, pr, (pa << 24) | c, w, h);      // расходящееся хало
+            octagon(gg, cx, cy - ICON_H / 2, pr, (pa << 24) | c, w, h);
         }
-        octagon(gg, cx, cy, 6.2, 0xFF0A0A0F, w, h);             // тёмная окантовка
-        octagon(gg, cx, cy, 5.0, 0xFF000000 | c, w, h);         // кольцо владельца
-        octagon(gg, cx, cy, 2.4, 0xF00C0C12, w, h);             // сердцевина → «бублик»
-        gg.fill(cx, cy, cx + 1, cy + 1, 0xFFFFFFFF);            // блик в центре
+        gg.setColor(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f, 1f);
+        gg.blit(POINT_ICON, cx - ICON_W / 2, cy - ICON_H, ICON_W, ICON_H, 0f, 0f, ICON_TW, ICON_TH, ICON_TW, ICON_TH);
+        gg.setColor(1f, 1f, 1f, 1f);
     }
 
     /** Правильный восьмиугольник (радиус r) заливкой. */

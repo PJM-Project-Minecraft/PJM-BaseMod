@@ -1,0 +1,2 @@
+point.png — маркер-знамя из ресурс-пака "Xaero's Vanilla GUI" (атлас xaeroworldmap/gui/gui.png).
+Тинтуется на карте по цвету владельца точки захвата.
