@@ -206,7 +206,7 @@ public final class MapScreen extends Screen {
         if (player == null) return;
         float px = (float) MapRenderer.worldToScreenX(player.getX(), cameraX, scale, width);
         float py = (float) MapRenderer.worldToScreenY(player.getZ(), cameraZ, scale, height);
-        int iw = 14, ih = 17;
+        int iw = 9, ih = 11;
         gg.pose().pushPose();
         gg.pose().translate(px, py, 0);
         gg.pose().mulPose(Axis.ZP.rotationDegrees(player.getYRot())); // остриё по взгляду
