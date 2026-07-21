@@ -1,0 +1,4 @@
+Пиксельные курсоры взяты из ресурс-пака "Pixel Cursor ++".
+Значительная часть курсоров — Astropulse: https://astropulse.itch.io/familiar-pixel-cursors
+Ресурс-пак: https://modrinth.com/resourcepack/pixel-cursor++
+Хотспоты: default (0,0), grabbing (7,0), pointing_hand (7,0).

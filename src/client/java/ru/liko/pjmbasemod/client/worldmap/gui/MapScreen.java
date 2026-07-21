@@ -262,6 +262,7 @@ public final class MapScreen extends Screen {
         }
         if (dragging && button == 0) {
             attached = false;
+            ru.liko.pjmbasemod.client.gui.PjmCursor.applyGrab(); // курсор-«хватка» при панораме
             cameraX = downCamX + (downMouseX - mouseX) / scale;
             cameraZ = downCamZ + (downMouseY - mouseY) / scale;
             return true;
@@ -274,6 +275,7 @@ public final class MapScreen extends Screen {
         if (button == 0) {
             dragging = false;
             CapturePointEditor.get().endDrag();
+            ru.liko.pjmbasemod.client.gui.PjmCursor.applyDefault(); // вернуть обычный курсор после панорамы
             return true;
         }
         return super.mouseReleased(mouseX, mouseY, button);
