@@ -80,6 +80,7 @@ public final class ClientEvents {
         RadioManager.get().reset();
         LockedSlotsClientState.reset();
         ru.liko.pjmbasemod.client.gui.screen.WelcomeGuideScreen.reset();
+        ru.liko.pjmbasemod.client.worldmap.WorldMapEngine.get().reset();
     }
 
     @SubscribeEvent
@@ -95,6 +96,9 @@ public final class ClientEvents {
         RadioManager.get().tick();
         VoiceChatActionBarHud.tick(mc);
         ru.liko.pjmbasemod.client.serverevent.SignalHuntActionBarHud.tick(mc);
+
+        // Скан мировой карты идёт всегда (и с открытым экраном карты) — до guard'а на mc.screen ниже.
+        ru.liko.pjmbasemod.client.worldmap.WorldMapEngine.get().onClientTick(mc);
 
         // F1 (скрытие HUD) — только для OP. У обычных игроков сразу возвращаем HUD,
         // чтобы нельзя было спрятать интерфейс (уровень прав синкается с сервера).
@@ -120,6 +124,9 @@ public final class ClientEvents {
         }
         while (ModKeyBindings.OPEN_MODERATION.consumeClick()) {
             PjmNetworking.sendToServer(RequestModerationPacket.INSTANCE);
+        }
+        while (ModKeyBindings.OPEN_WORLD_MAP.consumeClick()) {
+            mc.setScreen(new ru.liko.pjmbasemod.client.worldmap.gui.MapScreen());
         }
     }
 

@@ -27,6 +27,9 @@ public final class ModKeyBindings {
     public static final KeyMapping OPEN_MODERATION = new KeyMapping(
             "key.pjmbasemod.moderation", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, CATEGORY);
 
+    public static final KeyMapping OPEN_WORLD_MAP = new KeyMapping(
+            "key.pjmbasemod.world_map", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_N, CATEGORY);
+
     private ModKeyBindings() {}
 
     @SubscribeEvent
@@ -35,5 +38,6 @@ public final class ModKeyBindings {
         event.register(CYCLE_CHAT_MODE);
         event.register(COMMAND_RADIO);
         event.register(OPEN_MODERATION);
+        event.register(OPEN_WORLD_MAP);
     }
 }
