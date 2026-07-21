@@ -5,8 +5,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-import com.mojang.math.Axis;
-
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -201,19 +199,15 @@ public final class MapScreen extends Screen {
     private static final ResourceLocation PLAYER_ICON =
             ResourceLocation.fromNamespaceAndPath("pjmbasemod", "textures/gui/map/player.png");
 
-    /** Маркер игрока — иконка player.png, повёрнутая по направлению взгляда, бело-голубой тинт. */
+    /** Маркер игрока — пин player.png остриём в позицию игрока («ты здесь»), бело-голубой тинт. */
     private void drawPlayerArrow(GuiGraphics gg, LocalPlayer player) {
         if (player == null) return;
-        float px = (float) MapRenderer.worldToScreenX(player.getX(), cameraX, scale, width);
-        float py = (float) MapRenderer.worldToScreenY(player.getZ(), cameraZ, scale, height);
-        int iw = 9, ih = 11;
-        gg.pose().pushPose();
-        gg.pose().translate(px, py, 0);
-        gg.pose().mulPose(Axis.ZP.rotationDegrees(player.getYRot())); // остриё по взгляду
-        gg.setColor(0.75f, 0.90f, 1.0f, 1.0f);
-        gg.blit(PLAYER_ICON, -iw / 2, -ih / 2, iw, ih, 0f, 0f, 165, 196, 165, 196);
+        int px = (int) MapRenderer.worldToScreenX(player.getX(), cameraX, scale, width);
+        int py = (int) MapRenderer.worldToScreenY(player.getZ(), cameraZ, scale, height);
+        int iw = 11, ih = 13;
+        gg.setColor(0.80f, 0.92f, 1.0f, 1.0f);
+        gg.blit(PLAYER_ICON, px - iw / 2, py - ih, iw, ih, 0f, 0f, 165, 196, 165, 196);
         gg.setColor(1f, 1f, 1f, 1f);
-        gg.pose().popPose();
     }
 
     private void drawHud(GuiGraphics gg, int mouseX, int mouseY) {
