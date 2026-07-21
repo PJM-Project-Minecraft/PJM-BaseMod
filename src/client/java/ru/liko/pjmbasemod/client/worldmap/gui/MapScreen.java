@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
+import com.mojang.math.Axis;
+
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -12,6 +14,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.scores.Team;
 import org.lwjgl.glfw.GLFW;
@@ -195,25 +198,22 @@ public final class MapScreen extends Screen {
         contextMenu.render(gg, font, mouseX, mouseY);
     }
 
+    private static final ResourceLocation PLAYER_ICON =
+            ResourceLocation.fromNamespaceAndPath("pjmbasemod", "textures/gui/map/player.png");
+
+    /** Маркер игрока — иконка player.png, повёрнутая по направлению взгляда, бело-голубой тинт. */
     private void drawPlayerArrow(GuiGraphics gg, LocalPlayer player) {
         if (player == null) return;
-        double px = MapRenderer.worldToScreenX(player.getX(), cameraX, scale, width);
-        double py = MapRenderer.worldToScreenY(player.getZ(), cameraZ, scale, height);
-        double yaw = Math.toRadians(player.getYRot());
-        double fx = -Math.sin(yaw), fy = Math.cos(yaw); // экранное направление взгляда
-        double rx = -fy, ry = fx;
-        double s = 9.0;
-        double tipX = px + fx * s,                       tipY = py + fy * s;
-        double lX = px - fx * s * 0.72 + rx * s * 0.72,  lY = py - fy * s * 0.72 + ry * s * 0.72;
-        double nX = px - fx * s * 0.32,                  nY = py - fy * s * 0.32; // выемка сзади
-        double rX = px - fx * s * 0.72 - rx * s * 0.72,  rY = py - fy * s * 0.72 - ry * s * 0.72;
-        double[] xs = {tipX, lX, nX, rX};
-        double[] ys = {tipY, lY, nY, rY};
-        MapRenderer.fillPolygon(gg, xs, ys, 4, 0xFFFFFFFF, width, height);   // белая стрелка-навигатор
-        MapRenderer.line(gg, tipX, tipY, lX, lY, 1.8f, 0xFF1E9BE0);          // голубой контур
-        MapRenderer.line(gg, lX, lY, nX, nY, 1.8f, 0xFF1E9BE0);
-        MapRenderer.line(gg, nX, nY, rX, rY, 1.8f, 0xFF1E9BE0);
-        MapRenderer.line(gg, rX, rY, tipX, tipY, 1.8f, 0xFF1E9BE0);
+        float px = (float) MapRenderer.worldToScreenX(player.getX(), cameraX, scale, width);
+        float py = (float) MapRenderer.worldToScreenY(player.getZ(), cameraZ, scale, height);
+        int iw = 14, ih = 17;
+        gg.pose().pushPose();
+        gg.pose().translate(px, py, 0);
+        gg.pose().mulPose(Axis.ZP.rotationDegrees(player.getYRot())); // остриё по взгляду
+        gg.setColor(0.75f, 0.90f, 1.0f, 1.0f);
+        gg.blit(PLAYER_ICON, -iw / 2, -ih / 2, iw, ih, 0f, 0f, 165, 196, 165, 196);
+        gg.setColor(1f, 1f, 1f, 1f);
+        gg.pose().popPose();
     }
 
     private void drawHud(GuiGraphics gg, int mouseX, int mouseY) {
