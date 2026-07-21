@@ -27,6 +27,9 @@ public final class MapConstants {
     public static final int SCAN_PER_TICK = 8;
     public static final int UPLOADS_PER_TICK = 2;
 
+    /** Лимит регионов в памяти (LRU). ponytail: фикс; вынести в конфиг, если OOM на большой дальности. */
+    public static final int REGION_CACHE_CAP = 64;
+
     // Фон карты там, где ещё не исследовано.
     public static final int BACKGROUND_ARGB = 0xFF0A0A17;
 }

@@ -21,12 +21,9 @@ public final class MapRenderer {
         double halfW = width / 2.0;
         double halfH = height / 2.0;
         int side = MapConstants.REGION_BLOCKS;
-        for (Region region : engine.renderRegions()) {
-            if (region.gpu == null) continue;
+        for (Region region : engine.regionsInView(camX, camZ, scale, width, height)) {
             double sx = (region.worldMinX() - camX) * scale + halfW;
             double sy = (region.worldMinZ() - camZ) * scale + halfH;
-            double sizePx = side * scale;
-            if (sx + sizePx < 0 || sy + sizePx < 0 || sx > width || sy > height) continue; // отсечение
 
             PoseStack pose = gg.pose();
             pose.pushPose();

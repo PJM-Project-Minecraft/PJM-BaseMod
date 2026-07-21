@@ -1,11 +1,13 @@
 package ru.liko.pjmbasemod.client.worldmap;
 
-import java.util.Collection;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BushBlock;
 import net.minecraft.world.level.block.RenderShape;
@@ -21,11 +23,14 @@ import ru.liko.pjmbasemod.client.worldmap.data.RegionKey;
 import ru.liko.pjmbasemod.client.worldmap.gpu.RegionTexture;
 
 /**
- * Фасад мировой карты (клиентский синглтон). Держит кэш регионов, сканирует загруженные чанки
- * вокруг игрока, пересобирает GPU-текстуры. Фаза 1: всё синхронно на клиентском тике, без диска
- * и фонового потока; цвет — ванильный MapColor (текстурный цвет и биом-тинт — Фаза 3).
+ * Фасад мировой карты (клиентский синглтон). Держит LRU-кэш регионов, сканирует загруженные
+ * чанки вокруг игрока (главный поток — доступ к ClientLevel), пересобирает GPU-текстуры.
  *
- * ponytail: кэш регионов без эвикции — при дальней прогулке память растёт (Фаза 2 добавит LRU).
+ * <p>Инвариант потоков: всё на клиентском/рендер-потоке (тик и рендер идут последовательно в
+ * одном потоке). Фоновый воркер — Фаза 3 (усреднение текстур, оффлоадится).
+ *
+ * <p>Инвариант LinkedHashMap(accessOrder): {@code get()} переупорядочивает и потому НЕ вызывается
+ * во время итерации {@code regions.values()}. Все итерации {@code values()} — read-only без get().
  */
 public final class WorldMapEngine {
 
@@ -35,7 +40,20 @@ public final class WorldMapEngine {
         return INSTANCE;
     }
 
-    private final Map<RegionKey, Region> regions = new HashMap<>();
+    /** LRU: eldest выселяется с освобождением GPU-текстуры при превышении лимита. */
+    private final Map<RegionKey, Region> regions =
+            new LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<RegionKey, Region> eldest) {
+                    if (size() > MapConstants.REGION_CACHE_CAP) {
+                        Region r = eldest.getValue();
+                        if (r.gpu != null) r.gpu.free();
+                        return true;
+                    }
+                    return false;
+                }
+            };
+
     private final BlockPos.MutableBlockPos scanPos = new BlockPos.MutableBlockPos();
     private String dimKey;
 
@@ -46,15 +64,34 @@ public final class WorldMapEngine {
         if (mc.level == null || mc.player == null) return;
         String dk = mc.level.dimension().location().toString();
         if (!dk.equals(dimKey)) {
-            reset();               // смена измерения — сбрасываем (без персистентности в Фазе 1)
+            reset();               // смена измерения — сбрасываем (без персистентности в Фазе 1–2)
             dimKey = dk;
         }
         scanAround(mc);
         refreshDirty();
     }
 
-    public Collection<Region> renderRegions() {
-        return regions.values();
+    /**
+     * Регионы, попадающие в видимую область (с отсечением). {@code get()} по каждому ключу
+     * «прогревает» LRU, чтобы видимые регионы не выселялись. Возвращает свежий список — итерировать
+     * его в рендере безопасно.
+     */
+    public List<Region> regionsInView(double camX, double camZ, double scale, int width, int height) {
+        List<Region> out = new ArrayList<>();
+        if (dimKey == null) return out;
+        double halfW = width / 2.0;
+        double halfH = height / 2.0;
+        int rMinX = Mth.floor(camX - halfW / scale) >> MapConstants.REGION_SHIFT;
+        int rMaxX = Mth.floor(camX + halfW / scale) >> MapConstants.REGION_SHIFT;
+        int rMinZ = Mth.floor(camZ - halfH / scale) >> MapConstants.REGION_SHIFT;
+        int rMaxZ = Mth.floor(camZ + halfH / scale) >> MapConstants.REGION_SHIFT;
+        for (int rz = rMinZ; rz <= rMaxZ; rz++) {
+            for (int rx = rMinX; rx <= rMaxX; rx++) {
+                Region r = regions.get(new RegionKey(dimKey, rx, rz)); // прогрев LRU
+                if (r != null && r.gpu != null) out.add(r);
+            }
+        }
+        return out;
     }
 
     /** Высота поверхности в мировых координатах, или HEIGHT_UNSET. Для затенения на кромках регионов. */
@@ -96,6 +133,7 @@ public final class WorldMapEngine {
                 scanChunk(level, region, chunk, cx, cz);
                 region.markChunkScanned(lcx, lcz);
                 region.gpuDirty = true;
+                markAdjacentDirty(region.key, lcx, lcz); // залечивание швов между регионами
                 if (++scanned >= MapConstants.SCAN_PER_TICK) return;
             }
         }
@@ -103,7 +141,25 @@ public final class WorldMapEngine {
 
     private Region regionForChunk(int chunkX, int chunkZ) {
         RegionKey key = RegionKey.ofChunk(dimKey, chunkX, chunkZ);
-        return regions.computeIfAbsent(key, Region::new);
+        Region r = regions.get(key);
+        if (r == null) {
+            r = new Region(key);
+            regions.put(key, r); // может выселить eldest (removeEldestEntry)
+        }
+        return r;
+    }
+
+    /** Если отсканирован пограничный чанк — сосед-регион должен переотрисовать свою кромку. */
+    private void markAdjacentDirty(RegionKey key, int localChunkX, int localChunkZ) {
+        if (localChunkX == 0) markRegionDirty(key.rx() - 1, key.rz());
+        if (localChunkX == MapConstants.CHUNKS_PER_REGION - 1) markRegionDirty(key.rx() + 1, key.rz());
+        if (localChunkZ == 0) markRegionDirty(key.rx(), key.rz() - 1);
+        if (localChunkZ == MapConstants.CHUNKS_PER_REGION - 1) markRegionDirty(key.rx(), key.rz() + 1);
+    }
+
+    private void markRegionDirty(int rx, int rz) {
+        Region r = regions.get(new RegionKey(dimKey, rx, rz));
+        if (r != null) r.gpuDirty = true;
     }
 
     private void scanChunk(Level level, Region region, LevelChunk chunk, int chunkX, int chunkZ) {
@@ -156,14 +212,23 @@ public final class WorldMapEngine {
     }
 
     private void refreshDirty() {
-        int uploads = 0;
+        // Сначала собираем dirty-регионы БЕЗ get() (иначе CME при access-order итерации),
+        // затем reshade (который дёргает heightAt→get()) уже по отдельному списку.
+        List<Region> dirty = null;
         for (Region region : regions.values()) {
-            if (!region.gpuDirty) continue;
+            if (region.gpuDirty) {
+                if (dirty == null) dirty = new ArrayList<>();
+                dirty.add(region);
+            }
+        }
+        if (dirty == null) return;
+        int uploads = 0;
+        for (Region region : dirty) {
             if (region.gpu == null) region.gpu = new RegionTexture(region.key);
             region.gpu.reshade(region, this);
             region.gpu.upload();
             region.gpuDirty = false;
-            if (++uploads >= MapConstants.UPLOADS_PER_TICK) return;
+            if (++uploads >= MapConstants.UPLOADS_PER_TICK) break;
         }
     }
 }
