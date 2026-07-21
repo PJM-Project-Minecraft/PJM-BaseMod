@@ -11,6 +11,7 @@ import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 import ru.liko.pjmbasemod.client.worldmap.WorldMapEngine;
 import ru.liko.pjmbasemod.client.worldmap.data.MapConstants;
+import ru.liko.pjmbasemod.client.worldmap.overlay.MapOverlays;
 
 /**
  * Полноэкранная карта в стиле JourneyMap/Xaero. Камера в мировых координатах, drag-пан,
@@ -61,6 +62,12 @@ public final class MapScreen extends Screen {
 
         gg.fill(0, 0, width, height, MapConstants.BACKGROUND_ARGB);
         MapRenderer.render(gg, WorldMapEngine.get(), cameraX, cameraZ, scale, width, height);
+
+        // Тактические оверлеи (точки захвата + зоны баз) поверх карты.
+        if (mc != null && mc.level != null) {
+            MapOverlays.render(gg, font, cameraX, cameraZ, scale, width, height,
+                    mc.level.dimension().location().toString());
+        }
 
         // Маркер игрока.
         if (player != null) {

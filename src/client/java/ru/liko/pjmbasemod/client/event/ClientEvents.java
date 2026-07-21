@@ -81,6 +81,7 @@ public final class ClientEvents {
         LockedSlotsClientState.reset();
         ru.liko.pjmbasemod.client.gui.screen.WelcomeGuideScreen.reset();
         ru.liko.pjmbasemod.client.worldmap.WorldMapEngine.get().reset();
+        ru.liko.pjmbasemod.client.basezone.ClientBaseZoneState.reset();
     }
 
     @SubscribeEvent

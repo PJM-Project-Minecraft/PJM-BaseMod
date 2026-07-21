@@ -87,6 +87,7 @@ public final class PjmServerEvents {
         ServerPacketHandlers.sendHudConfig(sp);
         RankService.sync(sp);
         CapturePointManager.sendInitialSync(sp);
+        ru.liko.pjmbasemod.common.basezone.BaseZoneManager.sendTo(sp);
         ru.liko.pjmbasemod.common.campaign.CampaignManager.sendInitialSync(sp);
         FactionCommanderService.onPlayerLogin(sp);
         RoleService.onPlayerLogin(sp);
@@ -400,6 +401,7 @@ public final class PjmServerEvents {
         ru.liko.pjmbasemod.common.fleet.VehicleFleetManager.onServerTick(event.getServer());
         ServerEventManager.onServerTick(event.getServer());
         CapturePointManager.onServerTick(event.getServer());
+        ru.liko.pjmbasemod.common.basezone.BaseZoneManager.broadcastIfChanged(event.getServer());
         ru.liko.pjmbasemod.common.campaign.CampaignManager.onServerTick(event.getServer());
         ru.liko.pjmbasemod.common.alliance.Alliances.onServerTick(event.getServer());
         ru.liko.pjmbasemod.common.garage.GarageManager.onServerTick(event.getServer());

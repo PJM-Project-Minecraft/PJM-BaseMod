@@ -22,7 +22,12 @@ import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.alliance.Alliances;
 import ru.liko.pjmbasemod.common.teams.Teams;
 
+import ru.liko.pjmbasemod.common.network.PjmNetworking;
+import ru.liko.pjmbasemod.common.network.packet.BaseZoneMapSyncPacket;
+
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -80,6 +85,38 @@ public final class BaseZoneManager {
 
     public static void onPlayerLogout(ServerPlayer player) {
         COUNTDOWN.remove(player.getUUID());
+    }
+
+    // --- Синхронизация зон на карту (S→C) ---
+
+    private static int broadcastCheckCounter = 0;
+    private static int lastBroadcastSig = 0;
+
+    private static BaseZoneMapSyncPacket buildPacket(MinecraftServer server) {
+        List<BaseZoneView> views = new ArrayList<>();
+        for (BaseZone z : BaseZoneSavedData.get(server).zones()) {
+            if (!z.isComplete()) continue;
+            views.add(new BaseZoneView(z.displayName(), z.dimension(), z.owner(),
+                    Teams.color(server, z.owner()), z.minX(), z.minZ(), z.maxX(), z.maxZ()));
+        }
+        return new BaseZoneMapSyncPacket(views);
+    }
+
+    /** Первичная синхронизация зон конкретному игроку (логин). */
+    public static void sendTo(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server != null) PjmNetworking.sendToPlayer(player, buildPacket(server));
+    }
+
+    /** Раз в секунду: если набор зон изменился — разослать всем. Зоны меняются редко (OP-команды). */
+    public static void broadcastIfChanged(MinecraftServer server) {
+        if (++broadcastCheckCounter < 20) return;
+        broadcastCheckCounter = 0;
+        BaseZoneMapSyncPacket packet = buildPacket(server);
+        int sig = packet.zones().hashCode();
+        if (sig == lastBroadcastSig) return;
+        lastBroadcastSig = sig;
+        PjmNetworking.sendToAll(server, packet);
     }
 
     /**
