@@ -1,5 +1,7 @@
 package ru.liko.pjmbasemod.client.worldmap.gui;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 import net.minecraft.client.Minecraft;
@@ -86,6 +88,17 @@ public final class MapScreen extends Screen {
                 Mth.floor(MapRenderer.screenToWorldZ(my, cameraZ, scale, height)));
     }
 
+    /** Телепорт OP в точку карты (Y — из высот карты, иначе текущий). Через /tp — сервер проверяет права. */
+    private void teleportTo(int x, int z) {
+        Minecraft mc = this.minecraft;
+        if (mc == null || mc.player == null || mc.getConnection() == null) return;
+        int y = WorldMapEngine.get().heightAt(x, z);
+        if (y == MapConstants.HEIGHT_UNSET) y = mc.player.blockPosition().getY();
+        else y += 1;
+        mc.getConnection().sendCommand("tp @s " + x + " " + y + " " + z);
+        mc.setScreen(null);
+    }
+
     @Override
     public void render(GuiGraphics gg, int mouseX, int mouseY, float partial) {
         Minecraft mc = this.minecraft;
@@ -158,17 +171,17 @@ public final class MapScreen extends Screen {
             CapturePointEditor.get().toggleEnabled();
             return true;
         }
-        if (editorOn()) {
+        if (isOp() && button == 1) {
+            // ПКМ (OP): контекст-меню — правка точек (если включена) + телепорт сюда, как в JourneyMap.
             BlockPos wb = worldBlockAt(mouseX, mouseY);
-            double maxDist = Math.max(2.0, 8.0 / scale);
-            if (button == 1) {
-                contextMenu.open((int) mouseX, (int) mouseY,
-                        CapturePointEditor.get().contextEntries(wb, dimStr()));
-                return true;
-            }
-            if (button == 0) {
-                CapturePointEditor.get().handleLeftClick(wb, dimStr(), maxDist);
-            }
+            List<MapContextMenu.Entry> items = new ArrayList<>();
+            if (editorOn()) items.addAll(CapturePointEditor.get().contextEntries(wb, dimStr()));
+            items.add(MapContextMenu.Entry.leaf("Телепорт сюда", () -> teleportTo(wb.getX(), wb.getZ())));
+            contextMenu.open((int) mouseX, (int) mouseY, items);
+            return true;
+        }
+        if (editorOn() && button == 0) {
+            CapturePointEditor.get().handleLeftClick(worldBlockAt(mouseX, mouseY), dimStr(), Math.max(2.0, 8.0 / scale));
         }
         if (button == 0) {
             dragging = true;
