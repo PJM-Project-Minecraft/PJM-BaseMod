@@ -17,6 +17,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.MapColor;
+import ru.liko.pjmbasemod.client.worldmap.color.ColorPipeline;
 import ru.liko.pjmbasemod.client.worldmap.data.MapConstants;
 import ru.liko.pjmbasemod.client.worldmap.data.Region;
 import ru.liko.pjmbasemod.client.worldmap.data.RegionKey;
@@ -189,15 +190,15 @@ public final class WorldMapEngine {
                     } else if (s.getBlock() instanceof BushBlock || s.getRenderShape() == RenderShape.INVISIBLE) {
                         continue; // трава/цветы/невидимые — не поверхность
                     }
-                    int col;
+                    int mapCol;
                     try {
                         MapColor mc0 = eff.getMapColor(level, scanPos);
-                        col = (mc0 == null) ? 0 : mc0.col;
+                        mapCol = (mc0 == null) ? 0 : mc0.col;
                     } catch (Throwable t) {
                         continue;
                     }
-                    if (col == 0) continue;
-                    base = 0xFF000000 | (col & 0xFFFFFF);
+                    if (mapCol == 0) continue; // невидимые/бесцветные (стекло, воздух-подобные) — не поверхность
+                    base = ColorPipeline.compute(eff, level, scanPos); // текстурный цвет + биом-тинт + glow
                     surfY = h;
                     break;
                 }
