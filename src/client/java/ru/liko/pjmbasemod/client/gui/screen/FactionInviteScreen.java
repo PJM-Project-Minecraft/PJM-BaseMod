@@ -77,7 +77,7 @@ public final class FactionInviteScreen extends PjmBaseScreen {
         g.pose().pushPose();
         g.pose().translate(left + GUI_WIDTH / 2f, y, 0);
         g.pose().scale(1.6f, 1.6f, 1f);
-        g.drawString(font, team, -font.width(team) / 2, 0, teamColor, false);
+        PjmGuiUtils.drawOutlinedString(g, font, team, -font.width(team) / 2, 0, teamColor);
         g.pose().popPose();
         y += 24;
 

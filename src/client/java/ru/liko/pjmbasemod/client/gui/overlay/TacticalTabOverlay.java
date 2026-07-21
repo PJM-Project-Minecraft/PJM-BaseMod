@@ -12,6 +12,7 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import ru.liko.pjmbasemod.client.faction.FactionRankIcons;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.common.rank.RankDefinition;
 import ru.liko.pjmbasemod.common.rank.RankRegistry;
 
@@ -152,7 +153,7 @@ public class TacticalTabOverlay {
             graphics.fill(colLeft + PADDING, teamHeaderTop + 1, colLeft + PADDING + 2,
                     teamHeaderTop + TEAM_HEADER_HEIGHT - 1, col.color);
             String teamLabel = font.plainSubstrByWidth(col.name + " — " + col.players.size(), colWidth - PADDING * 2 - 6);
-            graphics.drawString(font, teamLabel, colLeft + PADDING + 6, teamHeaderTop + 3, col.color, false);
+            PjmGuiUtils.drawOutlinedString(graphics, font, teamLabel, colLeft + PADDING + 6, teamHeaderTop + 3, col.color);
 
             int shown = Math.min(col.players.size(), maxRows);
             boolean overflow = col.players.size() > maxRows;
@@ -238,7 +239,7 @@ public class TacticalTabOverlay {
         int pingWidth = font.width(pingText) + PADDING;
 
         String name = font.plainSubstrByWidth(rawName, colRight - PADDING - pingWidth - currentX);
-        graphics.drawString(font, name, currentX, y, teamColor, false);
+        PjmGuiUtils.drawOutlinedString(graphics, font, name, currentX, y, teamColor);
         graphics.drawString(font, pingText, colRight - PADDING - font.width(pingText), y, pingColor(ping), false);
     }
 

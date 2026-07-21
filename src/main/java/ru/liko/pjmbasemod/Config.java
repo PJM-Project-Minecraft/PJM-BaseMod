@@ -284,6 +284,7 @@ public final class Config {
     public static boolean isModerationBroadcast()            { return data().moderation.broadcastPunishments; }
     public static int  getModerationWarnDecayDays()          { return data().moderation.warnDecayDays; }
     public static List<? extends String> getModerationWarnEscalationRaw() { return data().moderation.warnEscalation; }
+    public static List<String> getModerationPresetReasons()  { return data().moderation.presetReasons; }
 
     public static boolean isLoggingEnabled()       { return data().logging.enabled; }
 
@@ -473,6 +474,7 @@ public final class Config {
             moderation.defaultMuteMinutes = clamp(moderation.defaultMuteMinutes, 1, 5_256_000);
             moderation.warnDecayDays = clamp(moderation.warnDecayDays, 0, 3650);
             if (moderation.warnEscalation == null) moderation.warnEscalation = new ArrayList<>();
+            if (moderation.presetReasons == null) moderation.presetReasons = new ArrayList<>();
             if (web == null) web = new Web();
             web.port = clamp(web.port, 1, 65_535);
             web.sessionTtlMinutes = clamp(web.sessionTtlMinutes, 5, 43_200);
@@ -634,6 +636,10 @@ public final class Config {
         int warnDecayDays = 0;
         List<String> warnEscalation = new ArrayList<>(List.of(
                 "3 mute_voice 30m", "5 tempban 1d", "7 ban permanent"));
+        /** Пресеты причин для автодополнения аргумента reason в командах модерации. */
+        List<String> presetReasons = new ArrayList<>(List.of(
+                "Читы", "Использование стороннего ПО", "Оскорбления", "Токсичность",
+                "Гриферство", "Реклама", "Спам", "Читерский клиент", "Нарушение правил"));
     }
 
     /**

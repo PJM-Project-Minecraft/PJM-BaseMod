@@ -8,14 +8,17 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
+import ru.liko.pjmbasemod.Config;
 import ru.liko.pjmbasemod.common.moderation.DurationParser;
 import ru.liko.pjmbasemod.common.moderation.ModerationPermissions;
 import ru.liko.pjmbasemod.common.moderation.ModerationSavedData;
+import ru.liko.pjmbasemod.common.moderation.ModerationSavedData.BanEntry;
 import ru.liko.pjmbasemod.common.moderation.ModerationSavedData.HistoryEntry;
 import ru.liko.pjmbasemod.common.moderation.ModerationSavedData.ModerationProfile;
 import ru.liko.pjmbasemod.common.moderation.ModerationSavedData.WarnEntry;
@@ -27,6 +30,8 @@ import javax.annotation.Nullable;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -70,9 +75,9 @@ public final class ModerationCommands {
                 // banip <name|ip> <duration> <reason>
                 .then(Commands.literal("banip")
                         .requires(src -> can(src, ModerationPermissions.BAN))
-                        .then(Commands.argument("target", StringArgumentType.word())
-                                .then(Commands.argument("duration", StringArgumentType.word())
-                                        .then(Commands.argument("reason", StringArgumentType.greedyString())
+                        .then(Commands.argument("target", StringArgumentType.word()).suggests(SUGGEST_TARGETS)
+                                .then(Commands.argument("duration", StringArgumentType.word()).suggests(SUGGEST_DURATIONS)
+                                        .then(Commands.argument("reason", StringArgumentType.greedyString()).suggests(SUGGEST_REASONS)
                                                 .executes(ctx -> executeBanIp(ctx.getSource(),
                                                         StringArgumentType.getString(ctx, "target"),
                                                         StringArgumentType.getString(ctx, "duration"),
@@ -114,8 +119,8 @@ public final class ModerationCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> banLike(String literal) {
         return Commands.literal(literal)
                 .requires(src -> can(src, ModerationPermissions.BAN))
-                .then(nameArg().then(Commands.argument("duration", StringArgumentType.word())
-                        .then(Commands.argument("reason", StringArgumentType.greedyString())
+                .then(nameArg().then(Commands.argument("duration", StringArgumentType.word()).suggests(SUGGEST_DURATIONS)
+                        .then(Commands.argument("reason", StringArgumentType.greedyString()).suggests(SUGGEST_REASONS)
                                 .executes(ctx -> executeBan(ctx.getSource(),
                                         StringArgumentType.getString(ctx, "name"),
                                         StringArgumentType.getString(ctx, "duration"),
@@ -132,8 +137,8 @@ public final class ModerationCommands {
         PermissionNode<Boolean> node = voice ? ModerationPermissions.MUTE_VOICE : ModerationPermissions.MUTE_TEXT;
         return Commands.literal(literal)
                 .requires(src -> can(src, node))
-                .then(nameArg().then(Commands.argument("duration", StringArgumentType.word())
-                        .then(Commands.argument("reason", StringArgumentType.greedyString())
+                .then(nameArg().then(Commands.argument("duration", StringArgumentType.word()).suggests(SUGGEST_DURATIONS)
+                        .then(Commands.argument("reason", StringArgumentType.greedyString()).suggests(SUGGEST_REASONS)
                                 .executes(ctx -> executeMute(ctx.getSource(),
                                         StringArgumentType.getString(ctx, "name"),
                                         StringArgumentType.getString(ctx, "duration"),
@@ -308,20 +313,30 @@ public final class ModerationCommands {
     }
 
     private static int showInfo(CommandSourceStack source, ResolvedTarget t) {
-        ModerationProfile p = ModerationSavedData.get(source.getServer()).profile(t.id());
-        boolean banned = ModerationService.isBanned(source.getServer(), t.id());
-        boolean vMute = ModerationService.isVoiceMuted(source.getServer(), t.id());
-        boolean tMute = ModerationService.isTextMuted(source.getServer(), t.id());
+        MinecraftServer server = source.getServer();
+        ModerationSavedData data = ModerationSavedData.get(server);
+        ModerationProfile p = data.profile(t.id());
+        boolean banned = ModerationService.isBanned(server, t.id());
+        boolean vMute = ModerationService.isVoiceMuted(server, t.id());
+        boolean tMute = ModerationService.isTextMuted(server, t.id());
         int warns = p == null ? 0 : p.warnCount();
         String yes = Component.translatable("pjmbasemod.moderation.cmd.yes").getString();
         String no = Component.translatable("pjmbasemod.moderation.cmd.no").getString();
-        Component msg = Component.translatable("pjmbasemod.moderation.cmd.info",
-                t.name(),
-                banned ? yes : no,
-                vMute ? yes : no,
-                tMute ? yes : no,
-                warns);
-        source.sendSuccess(() -> msg, false);
+
+        source.sendSuccess(() -> Component.translatable("pjmbasemod.moderation.cmd.info.header", t.name()), false);
+        BanEntry ban = banned ? data.activeBan(t.id()) : null;
+        if (ban != null) {
+            String until = ban.isPermanent()
+                    ? DurationParser.format(DurationParser.PERMANENT)
+                    : DurationParser.formatInstant(ban.expiresAtMs());
+            source.sendSuccess(() -> Component.translatable("pjmbasemod.moderation.cmd.info.ban_active",
+                    ban.reason(), until, ban.moderatorName()), false);
+        } else {
+            source.sendSuccess(() -> Component.translatable("pjmbasemod.moderation.cmd.info.ban_none"), false);
+        }
+        source.sendSuccess(() -> Component.translatable("pjmbasemod.moderation.cmd.info.mutes",
+                vMute ? yes : no, tMute ? yes : no), false);
+        source.sendSuccess(() -> Component.translatable("pjmbasemod.moderation.cmd.info.warns", warns), false);
         return 1;
     }
 
@@ -369,7 +384,7 @@ public final class ModerationCommands {
     }
 
     private static RequiredArgumentBuilder<CommandSourceStack, String> reasonArg(ReasonAction action) {
-        return Commands.argument("reason", StringArgumentType.greedyString()).executes(ctx ->
+        return Commands.argument("reason", StringArgumentType.greedyString()).suggests(SUGGEST_REASONS).executes(ctx ->
                 action.run(ctx, StringArgumentType.getString(ctx, "name"), StringArgumentType.getString(ctx, "reason")));
     }
 
@@ -385,16 +400,24 @@ public final class ModerationCommands {
         return source.getEntity() instanceof ServerPlayer p ? p : null;
     }
 
-    private static final SuggestionProvider<CommandSourceStack> SUGGEST_TARGETS = (ctx, builder) -> {
+    /** Подсказка ников: онлайн-игроки + известные из SavedData, без дублей, с фильтром по набранному префиксу. */
+    public static final SuggestionProvider<CommandSourceStack> SUGGEST_TARGETS = (ctx, builder) -> {
         MinecraftServer server = ctx.getSource().getServer();
-        if (server != null) {
-            server.getPlayerList().getPlayers().forEach(p -> builder.suggest(p.getGameProfile().getName()));
-            for (ModerationProfile p : ModerationSavedData.get(server).entries().values()) {
-                builder.suggest(p.lastKnownName());
-            }
-        }
-        return builder.buildFuture();
+        if (server == null) return builder.buildFuture();
+        LinkedHashSet<String> names = new LinkedHashSet<>();
+        server.getPlayerList().getPlayers().forEach(p -> names.add(p.getGameProfile().getName()));
+        for (ModerationProfile p : ModerationSavedData.get(server).entries().values()) names.add(p.lastKnownName());
+        return SharedSuggestionProvider.suggest(names, builder);
     };
+
+    /** Подсказка длительности наказания. */
+    private static final SuggestionProvider<CommandSourceStack> SUGGEST_DURATIONS = (ctx, builder) ->
+            SharedSuggestionProvider.suggest(
+                    List.of("30m", "1h", "6h", "12h", "1d", "3d", "7d", "30d", "permanent"), builder);
+
+    /** Подсказка причины наказания — пресеты из конфига ({@code moderation.presetReasons}). */
+    private static final SuggestionProvider<CommandSourceStack> SUGGEST_REASONS = (ctx, builder) ->
+            SharedSuggestionProvider.suggest(Config.getModerationPresetReasons(), builder);
 
     @FunctionalInterface
     private interface TargetAction {

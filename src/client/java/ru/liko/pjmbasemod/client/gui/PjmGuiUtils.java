@@ -134,6 +134,35 @@ public final class PjmGuiUtils {
     }
 
     /**
+     * Рисует текст с белой окантовкой в 1px (8 соседей) под цветным глифом.
+     * Нужно для командно-цветных имён: тёмные цвета фракций иначе сливаются с фоном.
+     * Окантовка наследует альфу текста (для fade-анимаций). Тень не рисуется.
+     */
+    public static void drawOutlinedString(GuiGraphics g, Font font, String text, int x, int y, int color) {
+        int outline = (color & 0xFF000000) | 0x00FFFFFF; // белый с альфой текста
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                g.drawString(font, text, x + dx, y + dy, outline, false);
+            }
+        }
+        g.drawString(font, text, x, y, color, false);
+    }
+
+    /** Вариант для {@link net.minecraft.network.chat.Component}. */
+    public static void drawOutlinedString(GuiGraphics g, Font font,
+                                          net.minecraft.network.chat.Component text, int x, int y, int color) {
+        int outline = (color & 0xFF000000) | 0x00FFFFFF;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                g.drawString(font, text, x + dx, y + dy, outline, false);
+            }
+        }
+        g.drawString(font, text, x, y, color, false);
+    }
+
+    /**
      * Рисует тонкую горизонтальную янтарную линию (2 px).
      * Используется как акцент-разделитель под хедером.
      */

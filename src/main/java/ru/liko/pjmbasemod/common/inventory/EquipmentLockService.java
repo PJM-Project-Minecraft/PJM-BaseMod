@@ -28,13 +28,24 @@ public final class EquipmentLockService {
 
     private EquipmentLockService() {}
 
-    /** Предмет роль-локирован И активная роль игрока не входит в его allowedRoles (или роли нет). */
+    /**
+     * Предмет запрещён игроку, если нарушен любой из локов:
+     * роль-лок (роль не входит в allowedRoles) или тим-лок (команда не входит в allowedTeams —
+     * «нельзя носить чужие вещи»).
+     */
     public static boolean isForbidden(ServerPlayer player, ItemStack stack) {
         if (player == null || stack.isEmpty()) return false;
         EquipmentRoleIndex.LockInfo info = EquipmentRoleIndex.get().lookup(stack);
         if (info == null) return false;
-        var role = RoleService.currentRole(player);
-        return role == null || !info.allowedRoles().contains(role.id());
+        if (!info.allowedRoles().isEmpty()) {
+            var role = RoleService.currentRole(player);
+            if (role == null || !info.allowedRoles().contains(role.id())) return true;
+        }
+        if (!info.allowedTeams().isEmpty()) {
+            String team = ru.liko.pjmbasemod.common.teams.Teams.resolvePlayerTeamId(player);
+            if (team == null || !info.allowedTeams().contains(team)) return true;
+        }
+        return false;
     }
 
     /** Выталкивает из обеих рук запрещённое HOLD-оружие (нельзя держать → нельзя выстрелить). */

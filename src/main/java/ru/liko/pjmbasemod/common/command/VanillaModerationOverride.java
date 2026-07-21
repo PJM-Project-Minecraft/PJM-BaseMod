@@ -56,7 +56,7 @@ public final class VanillaModerationOverride {
     private static void registerBan(CommandDispatcher<CommandSourceStack> d, String literal) {
         d.register(Commands.literal(literal)
                 .requires(src -> can(src, ModerationPermissions.BAN))
-                .then(Commands.argument("name", StringArgumentType.word())
+                .then(Commands.argument("name", StringArgumentType.word()).suggests(ModerationCommands.SUGGEST_TARGETS)
                         .executes(ctx -> ModerationCommands.executeBan(ctx.getSource(),
                                 StringArgumentType.getString(ctx, "name"), "permanent", "Забанен администратором"))
                         .then(Commands.argument("reason", StringArgumentType.greedyString())
@@ -68,7 +68,7 @@ public final class VanillaModerationOverride {
     private static void registerKick(CommandDispatcher<CommandSourceStack> d) {
         d.register(Commands.literal("kick")
                 .requires(src -> can(src, ModerationPermissions.KICK))
-                .then(Commands.argument("name", StringArgumentType.word())
+                .then(Commands.argument("name", StringArgumentType.word()).suggests(ModerationCommands.SUGGEST_TARGETS)
                         .executes(ctx -> ModerationCommands.executeKick(ctx.getSource(),
                                 StringArgumentType.getString(ctx, "name"), "Кикнут администратором"))
                         .then(Commands.argument("reason", StringArgumentType.greedyString())
@@ -80,7 +80,7 @@ public final class VanillaModerationOverride {
     private static void registerPardon(CommandDispatcher<CommandSourceStack> d) {
         d.register(Commands.literal("pardon")
                 .requires(src -> can(src, ModerationPermissions.BAN))
-                .then(Commands.argument("name", StringArgumentType.word())
+                .then(Commands.argument("name", StringArgumentType.word()).suggests(ModerationCommands.SUGGEST_TARGETS)
                         .executes(ctx -> {
                             ModerationCommands.ResolvedTarget t = ModerationCommands.resolve(
                                     ctx.getSource(), StringArgumentType.getString(ctx, "name"));
@@ -91,7 +91,7 @@ public final class VanillaModerationOverride {
     private static void registerBanIp(CommandDispatcher<CommandSourceStack> d) {
         d.register(Commands.literal("ban-ip")
                 .requires(src -> can(src, ModerationPermissions.BAN))
-                .then(Commands.argument("target", StringArgumentType.word())
+                .then(Commands.argument("target", StringArgumentType.word()).suggests(ModerationCommands.SUGGEST_TARGETS)
                         .executes(ctx -> ModerationCommands.executeBanIp(ctx.getSource(),
                                 StringArgumentType.getString(ctx, "target"), "permanent", "IP-бан администратором"))
                         .then(Commands.argument("reason", StringArgumentType.greedyString())

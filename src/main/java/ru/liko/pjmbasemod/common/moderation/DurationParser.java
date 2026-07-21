@@ -1,5 +1,8 @@
 package ru.liko.pjmbasemod.common.moderation;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 /**
@@ -14,6 +17,10 @@ public final class DurationParser {
     public static final long PERMANENT = Long.MAX_VALUE;
     /** Возвращается при некорректном вводе. */
     public static final long INVALID = -1L;
+
+    /** Абсолютное время истечения ("28.07.2026 14:30") в зоне сервера — как в бан-плагинах. */
+    private static final DateTimeFormatter INSTANT_FMT =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.systemDefault());
 
     private static final long SEC = 1000L;
     private static final long MIN = 60L * SEC;
@@ -81,6 +88,11 @@ public final class DurationParser {
         if (sec > 0 && d == 0 && h == 0) sb.append(sec).append('с').append(' ');
         String out = sb.toString().trim();
         return out.isEmpty() ? "0с" : out;
+    }
+
+    /** Абсолютная дата/время момента эпохи ({@code "28.07.2026 14:30"}) в зоне сервера. */
+    public static String formatInstant(long epochMs) {
+        return INSTANT_FMT.format(Instant.ofEpochMilli(epochMs));
     }
 
     /** Абсолютное время истечения от текущего момента, либо {@link #PERMANENT}. */

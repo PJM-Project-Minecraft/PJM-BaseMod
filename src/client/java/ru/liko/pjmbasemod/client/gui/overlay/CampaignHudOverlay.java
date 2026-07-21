@@ -55,7 +55,8 @@ public final class CampaignHudOverlay {
             int textY = TOP + 3;
             for (CampaignSyncPacket.TeamScore score : scores) {
                 String label = label(score);
-                graphics.drawString(font, label, textX, textY, 0xFF000000 | (score.color() & 0xFFFFFF), false);
+                PjmGuiUtils.drawOutlinedString(graphics, font, label, textX, textY,
+                        0xFF000000 | (score.color() & 0xFFFFFF));
                 textX += font.width(label);
                 graphics.drawString(font, SEP, textX, textY, PjmGuiUtils.TEXT_MUTED, false);
                 textX += font.width(SEP);

@@ -105,7 +105,7 @@ public final class FactionMenuService {
         String team = Teams.resolvePlayerTeamId(target);
         if (team == null || team.isBlank()) return false;
         // Debug всегда открывает с полными правами, минуя проверки прав.
-        Authority full = new Authority(team, true, true, true, true, true);
+        Authority full = new Authority(team, true, true, true, true, true, true);
         PjmNetworking.sendToPlayer(target, new OpenFactionManagementPacket(managementSnapshot(target, full)));
         return true;
     }
@@ -292,12 +292,14 @@ public final class FactionMenuService {
         boolean roles = full || DeputyPermission.has(perms, DeputyPermission.ASSIGN_ROLES);
         boolean order = full || DeputyPermission.has(perms, DeputyPermission.SET_ORDER);
         boolean invite = full || DeputyPermission.has(perms, DeputyPermission.INVITE);
-        return new Authority(team, open, roles, order, full, invite);
+        boolean kick = full || DeputyPermission.has(perms, DeputyPermission.KICK);
+        return new Authority(team, open, roles, order, full, invite, kick);
     }
 
     public record Authority(String teamId, boolean canOpen, boolean canAssignRoles,
-                            boolean canSetOrder, boolean canManageDeputies, boolean canInvite) {
-        public static final Authority NONE = new Authority("", false, false, false, false, false);
+                            boolean canSetOrder, boolean canManageDeputies, boolean canInvite,
+                            boolean canKick) {
+        public static final Authority NONE = new Authority("", false, false, false, false, false, false);
 
         public boolean valid() {
             return teamId != null && !teamId.isBlank();
@@ -366,7 +368,7 @@ public final class FactionMenuService {
                 Config.getFactionMaxDeputies(),
                 deputies.deputyCount(team),
                 orderText, orderAuthor, orderSeconds,
-                inviteOnly, authority.canInvite(), List.copyOf(invites));
+                inviteOnly, authority.canInvite(), List.copyOf(invites), authority.canKick());
     }
 
     /** Выдать/отозвать приглашение в закрытую фракцию. Доступно командиру, заму с правом INVITE и админу. */
@@ -412,6 +414,96 @@ public final class FactionMenuService {
                         playerName), false);
             }
         }
+    }
+
+    // ---------------------------------------------------------------- кик из фракции
+
+    /** Обработчик {@code ManageFactionKickPacket}: кик из GUI по праву {@code KICK} (командир/зам/админ). */
+    public static void handleManageKick(ServerPlayer actor, UUID targetId) {
+        if (actor == null || actor.getServer() == null || targetId == null) return;
+        Authority authority = authority(actor);
+        if (!authority.valid() || !authority.canKick()) {
+            actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.manage.no_access"), true);
+            return;
+        }
+        ManagedTarget target = resolveTarget(actor.getServer(), targetId);
+        if (target == null) {
+            actor.displayClientMessage(Component.translatable("gui.pjmbasemod.role.target_missing"), true);
+            resync(actor);
+            return;
+        }
+        if (!authority.teamId().equals(target.teamId())) {
+            actor.displayClientMessage(Component.translatable("gui.pjmbasemod.role.target_wrong_faction"), true);
+            resync(actor);
+            return;
+        }
+        kickCore(actor, authority.teamId(), targetId, target.name(), target.online());
+        resync(actor);
+    }
+
+    /**
+     * Исключает игрока (в т.ч. оффлайн) из фракции по имени — для команды {@code /pjm faction kick}.
+     * Право проверяет вызывающий (командир/зам с {@code MANAGE}/админ через resolve-фракции).
+     * Возвращает {@code true}, если кто-то реально исключён.
+     */
+    public static boolean kickByName(ServerPlayer actor, String team, String playerName) {
+        MinecraftServer server = actor.getServer();
+        ServerPlayer online = server.getPlayerList().getPlayerByName(playerName);
+        UUID id = online != null ? online.getUUID() : profileId(server, playerName);
+        if (id == null) {
+            actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.kick.not_found", playerName), false);
+            return false;
+        }
+        String memberTeam = online != null ? Teams.resolvePlayerTeamId(online)
+                : Teams.resolveTeamIdByName(server, playerName);
+        if (!team.equals(memberTeam)) {
+            actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.kick.not_member", playerName), false);
+            return false;
+        }
+        return kickCore(actor, team, id, online != null ? online.getName().getString() : playerName, online);
+    }
+
+    /**
+     * Общее ядро кика: снимает игрока со scoreboard-команды фракции, чистит роль, статус зама,
+     * запись выбора (чтобы закрытая фракция снова заперлась) и гасит его приглашение туда же.
+     * Командира и самого себя исключить нельзя.
+     */
+    private static boolean kickCore(ServerPlayer actor, String team, UUID targetId,
+                                    String targetName, @Nullable ServerPlayer targetOnline) {
+        MinecraftServer server = actor.getServer();
+
+        FactionCommanderSavedData.CommanderEntry commander = FactionCommanderSavedData.get(server).commander(team);
+        if (commander != null && commander.playerId().equals(targetId)) {
+            actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.kick.cant_commander"), true);
+            return false;
+        }
+        if (targetId.equals(actor.getUUID())) {
+            actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.kick.cant_self"), true);
+            return false;
+        }
+
+        Scoreboard scoreboard = server.getScoreboard();
+        PlayerTeam pt = scoreboard.getPlayersTeam(targetName);
+        if (pt != null) scoreboard.removePlayerFromTeam(targetName, pt);
+        RoleSavedData.get(server).clearRole(targetId);
+        FactionDeputySavedData.get(server).removeDeputy(team, targetId);
+        FactionSelectionSavedData.get(server).clear(targetId);
+        FactionInviteSavedData.get(server).revoke(team, targetName);
+
+        if (targetOnline != null) {
+            RoleService.sync(targetOnline);
+            FactionCommanderService.sync(targetOnline);
+            FactionCommanderService.refreshTabName(targetOnline);
+            server.getCommands().sendCommands(targetOnline);
+            targetOnline.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.kick.kicked",
+                    Teams.displayName(server, team)), false);
+        }
+
+        ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
+                ru.liko.pjmbasemod.common.logging.LogCategory.FACTION,
+                String.format("%s исключил %s из фракции %s", actor.getName().getString(), targetName, team));
+        actor.displayClientMessage(Component.translatable("gui.pjmbasemod.faction.kick.done", targetName), true);
+        return true;
     }
 
     // ---------------------------------------------------------------- приглашение как «контракт»

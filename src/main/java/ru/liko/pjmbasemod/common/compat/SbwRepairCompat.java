@@ -24,18 +24,8 @@ public final class SbwRepairCompat {
     }
 
     /**
-     * UUID последнего водителя — по нему определяется, чьей фракции техника.
-     * {@code null}, если техника ещё никем не управлялась.
-     */
-    @Nullable
-    public static String lastDriverUuid(Entity entity) {
-        if (!(entity instanceof VehicleEntity vehicle)) return null;
-        String uuid = vehicle.getLastDriverUUID();
-        return uuid == null || uuid.isBlank() || "undefined".equals(uuid) ? null : uuid;
-    }
-
-    /**
-     * Чинит корпус и части техники на долю от их максимума.
+     * Чинит корпус и части техники на долю от их максимума, а также подзаряжает энергию
+     * (у электротехники) тем же темпом {@code partPercent} за цикл.
      *
      * <p>Обломки ({@code isWreck}) не чиним — их поднимает только ремонтный инструмент игрока.
      * {@code VehicleEntity.heal} не ограничивает здоровье сверху, поэтому зажимаем сами.</p>
@@ -47,6 +37,17 @@ public final class SbwRepairCompat {
         if (vehicle.isWreck() || vehicle.getHealth() <= 0) return false;
 
         boolean healed = false;
+
+        if (vehicle.hasEnergyStorage()) {
+            int maxEnergy = vehicle.getMaxEnergy();
+            int energy = vehicle.getEnergy();
+            if (energy < maxEnergy) {
+                // max(1,…): при малом проценте round мог бы дать 0 — тогда заряд не рос бы никогда.
+                int add = Math.max(1, Math.round(partPercent * maxEnergy));
+                vehicle.setEnergy(Math.min(maxEnergy, energy + add));
+                healed = true;
+            }
+        }
 
         float maxHealth = vehicle.getMaxHealth();
         if (vehicle.getHealth() < maxHealth) {

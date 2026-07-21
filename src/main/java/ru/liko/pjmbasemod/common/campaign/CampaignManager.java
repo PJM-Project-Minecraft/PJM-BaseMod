@@ -69,7 +69,9 @@ public final class CampaignManager {
         }
 
         if (now >= data.lastVpGrantEpochMs() + Config.getCampaignVpIntervalMinutes() * 60_000L) {
-            grantVp(server, data);
+            // Захват выключен — точки не удерживаются по-настоящему, VP не капают.
+            // Таймер всё равно двигаем, иначе на включении сразу выпадет тик.
+            if (Config.isCapturePointsEnabled()) grantVp(server, data);
             data.markVpGrant(now);
             syncAll(server);
         }

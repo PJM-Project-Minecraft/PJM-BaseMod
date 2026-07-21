@@ -15,6 +15,7 @@ import ru.liko.pjmbasemod.common.faction.FactionSelectionSnapshot;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionDeputyPacket;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionInvitePacket;
+import ru.liko.pjmbasemod.common.network.packet.ManageFactionKickPacket;
 import ru.liko.pjmbasemod.common.network.packet.ManageFactionRolePacket;
 import ru.liko.pjmbasemod.common.network.packet.SetFactionOrderPacket;
 
@@ -150,7 +151,26 @@ public class FactionManagementScreen extends PjmBaseScreen {
     }
 
     private int rowsVisible() {
-        return Math.max(1, (GUI_HEIGHT - HEADER_HEIGHT - 46) / MEMBER_ROW_HEIGHT);
+        // Если зритель может кикать — внизу сайдбара резервируем строку под кнопку «Исключить».
+        int reserved = snapshot.viewerCanKick() ? 30 : 0;
+        return Math.max(1, (GUI_HEIGHT - HEADER_HEIGHT - 46 - reserved) / MEMBER_ROW_HEIGHT);
+    }
+
+    /** Прямоугольник кнопки «Исключить» внизу сайдбара (доступна только при праве KICK). */
+    private int[] kickButtonRect(int left, int top) {
+        int x = left + 8;
+        int w = SIDEBAR_WIDTH - 16;
+        int y = top + GUI_HEIGHT - 28;
+        return new int[]{x, y, w, 22};
+    }
+
+    /** Можно ли кикнуть выбранного участника: право есть, кто-то выбран, не командир и не сам зритель. */
+    private boolean canKickSelected() {
+        if (!snapshot.viewerCanKick()) return false;
+        FactionManagementSnapshot.MemberEntry member = selectedMemberEntry();
+        if (member == null || member.commander()) return false;
+        return Minecraft.getInstance().player == null
+                || !member.playerId().equals(Minecraft.getInstance().player.getUUID());
     }
 
     private void clampScroll() {
@@ -240,6 +260,7 @@ public class FactionManagementScreen extends PjmBaseScreen {
                 closeHovered ? 0xFFD06060 : 0xFFB05050, false);
 
         drawMembers(graphics, left, top, mouseX, mouseY);
+        drawKickButton(graphics, left, top, mouseX, mouseY);
         drawTabs(graphics, left, top, mouseX, mouseY);
 
         if (activeTab == Tab.ROLE) {
@@ -295,6 +316,17 @@ public class FactionManagementScreen extends PjmBaseScreen {
                             : "gui.pjmbasemod.faction.manage.search.no_match"),
                     x, y + 4, 0xFF777777, false);
         }
+    }
+
+    private void drawKickButton(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        if (!snapshot.viewerCanKick()) return;
+        int[] r = kickButtonRect(left, top);
+        boolean enabled = canKickSelected();
+        boolean hovered = enabled && mouseX >= r[0] && mouseX <= r[0] + r[2] && mouseY >= r[1] && mouseY <= r[1] + r[3];
+        int bg = !enabled ? PjmGuiUtils.BTN_DISABLED : hovered ? PjmGuiUtils.BTN_RED_HOVER : PjmGuiUtils.BTN_RED;
+        graphics.fill(r[0], r[1], r[0] + r[2], r[1] + r[3], bg);
+        graphics.drawCenteredString(font, Component.translatable("gui.pjmbasemod.faction.manage.kick"),
+                r[0] + r[2] / 2, r[1] + 7, enabled ? PjmGuiUtils.TEXT_PRIMARY : PjmGuiUtils.TEXT_MUTED);
     }
 
     private void drawSearchBox(GuiGraphics graphics, int x, int y, int w, int mouseX, int mouseY) {
@@ -442,6 +474,7 @@ public class FactionManagementScreen extends PjmBaseScreen {
             case SET_ORDER -> Component.translatable("gui.pjmbasemod.faction.manage.deputy.perm.set_order");
             case OPEN_GUI -> Component.translatable("gui.pjmbasemod.faction.manage.deputy.perm.open_gui");
             case INVITE -> Component.translatable("gui.pjmbasemod.faction.manage.deputy.perm.invite");
+            case KICK -> Component.translatable("gui.pjmbasemod.faction.manage.deputy.perm.kick");
         };
     }
 
@@ -611,6 +644,18 @@ public class FactionManagementScreen extends PjmBaseScreen {
                     && mouseY >= y && mouseY <= y + MEMBER_ROW_HEIGHT - 4) {
                 selectedMember = i;
                 PjmUiSounds.playClick();
+                return true;
+            }
+        }
+
+        // Кнопка «Исключить» внизу сайдбара
+        if (snapshot.viewerCanKick()) {
+            int[] kr = kickButtonRect(left, top);
+            if (mouseX >= kr[0] && mouseX <= kr[0] + kr[2] && mouseY >= kr[1] && mouseY <= kr[1] + kr[3]) {
+                if (canKickSelected()) {
+                    PjmUiSounds.playPress();
+                    PjmNetworking.sendToServer(new ManageFactionKickPacket(selectedMemberEntry().playerId()));
+                }
                 return true;
             }
         }

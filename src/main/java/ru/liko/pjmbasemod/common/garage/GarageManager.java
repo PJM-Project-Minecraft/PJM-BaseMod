@@ -393,7 +393,7 @@ public final class GarageManager {
             return;
         }
 
-        CompoundTag nbt = buildDefaultNbt(player.serverLevel(), def.entityTypeId());
+        CompoundTag nbt = buildDefaultNbt(player.serverLevel(), def);
         if (nbt == null) {
             player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.entity_missing", def.entityTypeString()));
             return;
@@ -419,7 +419,7 @@ public final class GarageManager {
 
                 VehicleDefinition def = VehicleRegistry.get().get(craft.defId());
                 CompoundTag nbt = def == null || def.entityTypeId() == null
-                        ? null : buildDefaultNbt(server.overworld(), def.entityTypeId());
+                        ? null : buildDefaultNbt(server.overworld(), def);
                 if (nbt == null) {
                     Pjmbasemod.LOGGER.warn("Garage: сборка '{}' отменена — определение или тип сущности недоступны.",
                             craft.defId());
@@ -784,7 +784,7 @@ public final class GarageManager {
     public static boolean giveDefault(ServerPlayer target, String defId) {
         VehicleDefinition def = VehicleRegistry.get().get(defId);
         if (def == null || def.entityTypeId() == null) return false;
-        CompoundTag nbt = buildDefaultNbt(target.serverLevel(), def.entityTypeId());
+        CompoundTag nbt = buildDefaultNbt(target.serverLevel(), def);
         if (nbt == null) return false;
         GarageSavedData.get(target.server).add(garageKey(target), StoredVehicle.create(def.id(), def.displayName(), nbt));
         return true;
@@ -827,7 +827,8 @@ public final class GarageManager {
             defs.add(new GarageSnapshot.DefEntry(def.id(), def.displayName(), def.entityTypeString(), iconItem,
                     def.category(), def.assemblyTime(), List.copyOf(costViews), affordable,
                     roleAllowed, def.allowedRoles(), rankAllowed, requiredRankName,
-                    pendingCount, pendingSeconds));
+                    pendingCount, pendingSeconds,
+                    def.extraNbt() == null ? new CompoundTag() : def.extraNbt().copy()));
         }
 
         List<GarageSnapshot.InstanceEntry> instances = new ArrayList<>();
@@ -900,14 +901,16 @@ public final class GarageManager {
     }
 
     @Nullable
-    private static CompoundTag buildDefaultNbt(ServerLevel level, ResourceLocation typeId) {
-        EntityType<?> type = resolveType(typeId);
+    private static CompoundTag buildDefaultNbt(ServerLevel level, VehicleDefinition def) {
+        EntityType<?> type = def.entityTypeId() == null ? null : resolveType(def.entityTypeId());
         if (type == null) return null;
         Entity temp = type.create(level);
         if (temp == null) return null;
         CompoundTag tag = temp.saveWithoutId(new CompoundTag());
         tag.remove("UUID");
         temp.discard();
+        CompoundTag extra = def.extraNbt();
+        if (extra != null) tag.merge(extra);
         return tag;
     }
 

@@ -93,7 +93,7 @@ public final class ModerationService {
         if (online != null) online.connection.disconnect(banScreen(ban));
 
         broadcast(server, Component.translatable("pjmbasemod.moderation.ban.broadcast", targetName,
-                DurationParser.format(durationMs), reason));
+                modName(moderator), DurationParser.format(durationMs), reason));
         ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
                 ru.liko.pjmbasemod.common.logging.LogCategory.MOD,
                 modName(moderator) + " забанил " + targetName + " (" + DurationParser.format(durationMs) + "): " + reason);
@@ -126,7 +126,8 @@ public final class ModerationService {
         for (ServerPlayer p : new ArrayList<>(server.getPlayerList().getPlayers())) {
             if (ip.equals(p.getIpAddress())) p.connection.disconnect(banScreen(ban));
         }
-        broadcast(server, Component.translatable("pjmbasemod.moderation.ipban.broadcast", ip, reason));
+        broadcast(server, Component.translatable("pjmbasemod.moderation.ipban.broadcast", ip,
+                modName(moderator), DurationParser.format(durationMs), reason));
         ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
                 ru.liko.pjmbasemod.common.logging.LogCategory.MOD,
                 modName(moderator) + " забанил IP " + ip + ": " + reason);
@@ -139,7 +140,7 @@ public final class ModerationService {
         if (removed == null) return false;
         data.addHistory(target, targetName, new HistoryEntry(PunishmentType.BAN, "revoke", "", modName(moderator),
                 System.currentTimeMillis(), 0L));
-        broadcast(server, Component.translatable("pjmbasemod.moderation.pardon.broadcast", targetName));
+        broadcast(server, Component.translatable("pjmbasemod.moderation.pardon.broadcast", targetName, modName(moderator)));
         return true;
     }
 
@@ -153,8 +154,9 @@ public final class ModerationService {
         ModerationSavedData.get(server).addHistory(target.getUUID(), target.getGameProfile().getName(),
                 new HistoryEntry(PunishmentType.KICK, "apply", reason, modName(moderator),
                         System.currentTimeMillis(), 0L));
-        target.connection.disconnect(Component.translatable("pjmbasemod.moderation.disconnect.kick", reason));
-        broadcast(server, Component.translatable("pjmbasemod.moderation.kick.broadcast", target.getGameProfile().getName(), reason));
+        target.connection.disconnect(kickScreen(reason, modName(moderator)));
+        broadcast(server, Component.translatable("pjmbasemod.moderation.kick.broadcast",
+                target.getGameProfile().getName(), modName(moderator), reason));
         ru.liko.pjmbasemod.common.logging.PjmActionLogger.instance().logSubsystem(
                 ru.liko.pjmbasemod.common.logging.LogCategory.MOD,
                 modName(moderator) + " кикнул " + target.getGameProfile().getName() + ": " + reason);
@@ -171,9 +173,9 @@ public final class ModerationService {
         data.addHistory(target, targetName, new HistoryEntry(PunishmentType.MUTE_VOICE, "apply", reason, modName(moderator), now, durationMs));
         VoicechatBridge.setVoiceMuted(target, true);
         notifyTarget(server, target, Component.translatable("pjmbasemod.moderation.mute.voice.notify",
-                DurationParser.format(durationMs), reason));
+                DurationParser.format(durationMs), untilLabel(expires), reason));
         broadcast(server, Component.translatable("pjmbasemod.moderation.mute.voice.broadcast", targetName,
-                DurationParser.format(durationMs)));
+                modName(moderator), DurationParser.format(durationMs)));
     }
 
     public static boolean unmuteVoice(MinecraftServer server, UUID target, String targetName, @Nullable ServerPlayer moderator) {
@@ -195,9 +197,9 @@ public final class ModerationService {
         data.setTextMute(target, targetName, new MuteEntry(reason, modId(moderator), modName(moderator), now, expires));
         data.addHistory(target, targetName, new HistoryEntry(PunishmentType.MUTE_TEXT, "apply", reason, modName(moderator), now, durationMs));
         notifyTarget(server, target, Component.translatable("pjmbasemod.moderation.mute.text.notify",
-                DurationParser.format(durationMs), reason));
+                DurationParser.format(durationMs), untilLabel(expires), reason));
         broadcast(server, Component.translatable("pjmbasemod.moderation.mute.text.broadcast", targetName,
-                DurationParser.format(durationMs)));
+                modName(moderator), DurationParser.format(durationMs)));
     }
 
     public static boolean unmuteText(MinecraftServer server, UUID target, String targetName, @Nullable ServerPlayer moderator) {
@@ -334,16 +336,37 @@ public final class ModerationService {
         return expiresAtMs != DurationParser.PERMANENT && expiresAtMs <= System.currentTimeMillis();
     }
 
+    /** Экран отключения при бане — как в бан-плагинах: причина, кто выдал, до какого времени. */
     private static Component banScreen(BanEntry ban) {
-        return Component.empty()
-                .append(Component.translatable("pjmbasemod.moderation.ban.title").withStyle(ChatFormatting.RED))
-                .append("\n")
+        var screen = Component.empty()
+                .append(Component.translatable("pjmbasemod.moderation.ban.title").withStyle(ChatFormatting.RED, ChatFormatting.BOLD))
+                .append("\n\n")
                 .append(Component.translatable("pjmbasemod.moderation.ban.reason", ban.reason()).withStyle(ChatFormatting.GRAY))
                 .append("\n")
-                .append(ban.isPermanent()
-                        ? Component.translatable("pjmbasemod.moderation.ban.permanent").withStyle(ChatFormatting.GRAY)
-                        : Component.translatable("pjmbasemod.moderation.ban.expires",
-                                DurationParser.format(ban.expiresAtMs() - System.currentTimeMillis())).withStyle(ChatFormatting.GRAY));
+                .append(Component.translatable("pjmbasemod.moderation.ban.by", ban.moderatorName()).withStyle(ChatFormatting.GRAY))
+                .append("\n");
+        return ban.isPermanent()
+                ? screen.append(Component.translatable("pjmbasemod.moderation.ban.permanent").withStyle(ChatFormatting.RED))
+                : screen.append(Component.translatable("pjmbasemod.moderation.ban.expires",
+                        DurationParser.formatInstant(ban.expiresAtMs()),
+                        DurationParser.format(ban.expiresAtMs() - System.currentTimeMillis())).withStyle(ChatFormatting.GRAY));
+    }
+
+    /** Экран отключения при кике: причина + кто кикнул. */
+    private static Component kickScreen(String reason, String modName) {
+        return Component.empty()
+                .append(Component.translatable("pjmbasemod.moderation.kick.title").withStyle(ChatFormatting.RED, ChatFormatting.BOLD))
+                .append("\n\n")
+                .append(Component.translatable("pjmbasemod.moderation.ban.reason", reason).withStyle(ChatFormatting.GRAY))
+                .append("\n")
+                .append(Component.translatable("pjmbasemod.moderation.ban.by", modName).withStyle(ChatFormatting.GRAY));
+    }
+
+    /** Метка «до какого времени» для мутов: абсолютная дата или «вечно». */
+    private static String untilLabel(long expiresAtMs) {
+        return expiresAtMs == DurationParser.PERMANENT
+                ? DurationParser.format(DurationParser.PERMANENT)
+                : DurationParser.formatInstant(expiresAtMs);
     }
 
     private static void broadcast(MinecraftServer server, Component msg) {

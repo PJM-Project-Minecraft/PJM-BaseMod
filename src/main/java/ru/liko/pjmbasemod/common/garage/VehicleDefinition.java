@@ -1,6 +1,8 @@
 package ru.liko.pjmbasemod.common.garage;
 
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -44,6 +46,9 @@ public final class VehicleDefinition {
     private int minPlayersOnline;
     /** Тип гаража: "ground" (наземка) или "aviation" (авиация). Пусто/неизвестно — наземка. */
     private String garageType;
+    /** Доп. NBT в формате SNBT, накладывается на дефолтный тег сущности, напр. "{SkinId:'black'}". */
+    private String nbt;
+    private transient CompoundTag parsedNbt;
 
     public VehicleDefinition() {
         // для Gson
@@ -147,6 +152,10 @@ public final class VehicleDefinition {
         return ResourceLocation.tryParse(entityTypeString());
     }
 
+    /** Доп. NBT из конфига или null. */
+    @Nullable
+    public CompoundTag extraNbt() { return parsedNbt; }
+
     public ItemStack iconStack() {
         ResourceLocation iconId = icon == null ? null : ResourceLocation.tryParse(icon);
         Item item = iconId == null ? null : BuiltInRegistries.ITEM.get(iconId);
@@ -201,6 +210,18 @@ public final class VehicleDefinition {
             }
         } else {
             minRank = null;
+        }
+        if (nbt != null && !nbt.isBlank()) {
+            try {
+                parsedNbt = TagParser.parseTag(nbt);
+            } catch (Exception e) {
+                ru.liko.pjmbasemod.Pjmbasemod.LOGGER.warn(
+                        "Garage: техника '{}' содержит некорректный nbt '{}', он проигнорирован: {}",
+                        id(), nbt, e.getMessage());
+                parsedNbt = null;
+            }
+        } else {
+            parsedNbt = null;
         }
         // Канонизируем тип гаража только если он задан явно; пустой — оставляем для авто-классификации.
         if (garageType != null && !garageType.isBlank()) {

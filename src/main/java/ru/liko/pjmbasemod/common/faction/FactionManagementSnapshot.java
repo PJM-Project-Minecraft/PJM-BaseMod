@@ -23,7 +23,8 @@ public record FactionManagementSnapshot(
         int orderSecondsRemaining,
         boolean inviteOnly,
         boolean viewerCanInvite,
-        List<InviteEntry> invites
+        List<InviteEntry> invites,
+        boolean viewerCanKick
 ) {
 
     public record MemberEntry(UUID playerId, String name, String roleId, boolean commander,
@@ -76,6 +77,7 @@ public record FactionManagementSnapshot(
             buf.writeUtf(invite.name());
             buf.writeInt(invite.minutesRemaining());
         }
+        buf.writeBoolean(snapshot.viewerCanKick());
     }
 
     public static FactionManagementSnapshot read(FriendlyByteBuf buf) {
@@ -114,11 +116,12 @@ public record FactionManagementSnapshot(
         for (int i = 0; i < inviteCount; i++) {
             invites.add(new InviteEntry(buf.readUtf(), buf.readInt()));
         }
+        boolean viewerCanKick = buf.readBoolean();
 
         return new FactionManagementSnapshot(teamId, teamName, teamColor, canManage,
                 List.copyOf(members), List.copyOf(roles),
                 viewerCanAssignRoles, viewerCanManageDeputies, viewerCanSetOrder,
                 maxDeputies, deputyCount, orderText, orderAuthor, orderSecondsRemaining,
-                inviteOnly, viewerCanInvite, List.copyOf(invites));
+                inviteOnly, viewerCanInvite, List.copyOf(invites), viewerCanKick);
     }
 }

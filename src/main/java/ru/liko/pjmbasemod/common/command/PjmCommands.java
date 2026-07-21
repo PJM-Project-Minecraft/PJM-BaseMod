@@ -14,7 +14,10 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
@@ -85,6 +88,7 @@ public final class PjmCommands {
                 .then(webCommand())
                 .then(baseZoneCommand())
                 .then(vanishCommand())
+                .then(invseeCommand())
                 .then(skinCommand())
                 .then(eventCommand())
                 .then(capturePointCommand())
@@ -388,6 +392,27 @@ public final class PjmCommands {
             builder.suggest(s);
         }
         return builder.buildFuture();
+    }
+
+    // ---------------------------------------------------------------- invsee (просмотр инвентаря)
+
+    /** {@code /pjm invsee <цель>} — открыть админу живой инвентарь игрока ванильным меню сундука. */
+    private static LiteralArgumentBuilder<CommandSourceStack> invseeCommand() {
+        return Commands.literal("invsee")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.argument("target", EntityArgument.player())
+                        .executes(ctx -> openInvsee(ctx.getSource(), EntityArgument.getPlayer(ctx, "target"))));
+    }
+
+    private static int openInvsee(CommandSourceStack source, ServerPlayer target)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer admin = source.getPlayerOrException();
+        Component title = Component.literal(target.getGameProfile().getName() + " — инвентарь");
+        admin.openMenu(new SimpleMenuProvider(
+                (id, playerInv, p) -> new ChestMenu(MenuType.GENERIC_9x5, id, playerInv,
+                        new ru.liko.pjmbasemod.common.moderation.InventoryPeekContainer(target), 5),
+                title));
+        return 1;
     }
 
     // ---------------------------------------------------------------- vanish (невидимость админа)
@@ -813,6 +838,18 @@ public final class PjmCommands {
                                 .suggests((ctx, builder) -> suggestCombatTeams(builder))
                                 .executes(ctx -> factionInvites(ctx.getSource(),
                                         StringArgumentType.getString(ctx, "team")))))
+                .then(Commands.literal("kick")
+                        .then(Commands.argument("player", StringArgumentType.word())
+                                .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(
+                                        ctx.getSource().getOnlinePlayerNames(), builder))
+                                .executes(ctx -> factionKick(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "player"), null))
+                                .then(Commands.argument("team", StringArgumentType.word())
+                                        .requires(src -> src.hasPermission(2))
+                                        .suggests((ctx, builder) -> suggestCombatTeams(builder))
+                                        .executes(ctx -> factionKick(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "player"),
+                                                StringArgumentType.getString(ctx, "team"))))))
                 .then(Commands.literal("commander")
                         .then(Commands.literal("set")
                                 .requires(PjmCommands::canManageFactionCommanders)
@@ -863,6 +900,36 @@ public final class PjmCommands {
             return null;
         }
         return authority.teamId();
+    }
+
+    /**
+     * Резолв фракции для кика: явный аргумент (только OP) или своя фракция, если у игрока есть
+     * право кикать (командир / зам с правом KICK / админ).
+     */
+    @Nullable
+    private static String resolveKickTeam(CommandSourceStack source, ServerPlayer actor, @Nullable String teamArg) {
+        if (teamArg != null) {
+            String team = Teams.resolveAlias(teamArg);
+            if (team == null || !Teams.isCombatTeam(team)) {
+                source.sendFailure(Component.translatable("gui.pjmbasemod.faction.selection.invalid_team"));
+                return null;
+            }
+            return team;
+        }
+        FactionMenuService.Authority authority = FactionMenuService.authority(actor);
+        if (!authority.valid() || !authority.canKick()) {
+            source.sendFailure(Component.translatable("gui.pjmbasemod.faction.manage.no_access"));
+            return null;
+        }
+        return authority.teamId();
+    }
+
+    private static int factionKick(CommandSourceStack source, String playerName, @Nullable String teamArg) {
+        ServerPlayer actor = requirePlayer(source);
+        if (actor == null) return 0;
+        String team = resolveKickTeam(source, actor, teamArg);
+        if (team == null) return 0;
+        return FactionMenuService.kickByName(actor, team, playerName) ? 1 : 0;
     }
 
     private static int factionInvite(CommandSourceStack source, String playerName, @Nullable String teamArg, boolean invite) {
@@ -1618,7 +1685,7 @@ public final class PjmCommands {
         CapturePointManager.broadcastMapSync(source.getServer(), data, "capturepoint_added");
         source.sendSuccess(() -> Component.literal("Создана точка захвата '" + id + "'"
                 + (displayName != null ? " (" + displayName + ")" : "")
-                + ". Добавь вершины через редактор: /pjm capturepoint editor"), true);
+                + ". Открой карту (N), включи «Правка точек» и обведи зону."), true);
         return 1;
     }
 

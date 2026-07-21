@@ -827,7 +827,7 @@ public class GarageScreen extends PjmBaseScreen {
             if (index >= snapshot.definitions().size()) return null;
             GarageSnapshot.DefEntry def = snapshot.definitions().get(index);
             if (def.entityType().isBlank()) return null;
-            return new PreviewTarget("def:" + def.id(), def.displayName(), def.entityType(), new CompoundTag());
+            return new PreviewTarget("def:" + def.id(), def.displayName(), def.entityType(), def.previewNbt());
         }
 
         var rows = garageRows();

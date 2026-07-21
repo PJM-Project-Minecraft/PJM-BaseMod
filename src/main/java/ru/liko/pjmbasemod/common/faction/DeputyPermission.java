@@ -7,7 +7,8 @@ public enum DeputyPermission {
     ASSIGN_ROLES(1),
     SET_ORDER(2),
     OPEN_GUI(4),
-    INVITE(8);
+    INVITE(8),
+    KICK(16);
 
     private final int bit;
 

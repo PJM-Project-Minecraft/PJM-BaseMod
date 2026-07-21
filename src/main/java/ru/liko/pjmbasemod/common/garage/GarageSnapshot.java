@@ -23,7 +23,7 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
                            int assemblyTime, List<CostView> cost, boolean affordable,
                            boolean roleAllowed, List<String> allowedRoles,
                            boolean rankAllowed, String requiredRankName,
-                           int pendingCount, int pendingSeconds) {}
+                           int pendingCount, int pendingSeconds, CompoundTag previewNbt) {}
 
     public record CostView(String item, int count, boolean enough) {}
 
@@ -55,6 +55,7 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
             buf.writeUtf(def.requiredRankName());
             buf.writeVarInt(def.pendingCount());
             buf.writeVarInt(def.pendingSeconds());
+            buf.writeNbt(def.previewNbt());
             buf.writeVarInt(def.cost().size());
             for (CostView cost : def.cost()) {
                 buf.writeUtf(cost.item());
@@ -105,6 +106,7 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
             String requiredRankName = buf.readUtf();
             int pendingCount = buf.readVarInt();
             int pendingSeconds = buf.readVarInt();
+            CompoundTag previewNbt = buf.readNbt();
             int costCount = buf.readVarInt();
             List<CostView> cost = new ArrayList<>(costCount);
             for (int j = 0; j < costCount; j++) {
@@ -112,7 +114,8 @@ public record GarageSnapshot(List<DefEntry> definitions, List<InstanceEntry> ins
             }
             defs.add(new DefEntry(id, displayName, entityType, icon, category, assemblyTime,
                     List.copyOf(cost), affordable, roleAllowed, List.copyOf(allowedRoles),
-                    rankAllowed, requiredRankName, pendingCount, pendingSeconds));
+                    rankAllowed, requiredRankName, pendingCount, pendingSeconds,
+                    previewNbt == null ? new CompoundTag() : previewNbt));
         }
 
         int instCount = buf.readVarInt();
