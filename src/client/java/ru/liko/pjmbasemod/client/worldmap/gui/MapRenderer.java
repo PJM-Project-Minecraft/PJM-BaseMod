@@ -50,4 +50,19 @@ public final class MapRenderer {
     public static double screenToWorldZ(double screenY, double camZ, double scale, int height) {
         return (screenY - height / 2.0) / scale + camZ;
     }
+
+    /** Отрезок произвольного угла — повёрнутый тонкий прямоугольник через PoseStack. */
+    public static void line(GuiGraphics gg, double x1, double y1, double x2, double y2, float thickness, int argb) {
+        double dx = x2 - x1, dy = y2 - y1;
+        double len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 0.5) return;
+        float angle = (float) Math.toDegrees(Math.atan2(dy, dx));
+        PoseStack pose = gg.pose();
+        pose.pushPose();
+        pose.translate(x1, y1, 0);
+        pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(angle));
+        int half = Math.max(1, Math.round(thickness / 2f));
+        gg.fill(0, -half, (int) Math.round(len), half, argb);
+        pose.popPose();
+    }
 }

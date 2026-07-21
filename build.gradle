@@ -79,11 +79,6 @@ repositories {
         url = 'https://repo.bluecolored.de/releases'
     }
     maven {
-        name = 'JourneyMap'
-        url = 'https://maven.blamejared.com'
-        content { includeGroup 'info.journeymap' }
-    }
-    maven {
         name = 'GeckoLib'
         url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
         content {
@@ -133,10 +128,6 @@ dependencies {
     // LuckPerms API (optional) — прямой строковый запрос прав в обход реестра нод NeoForge,
     // чтобы донат-ключи из items.json работали сразу после /pjm reload без рестарта сервера.
     compileOnly "net.luckperms:api:5.4"
-
-    // JourneyMap API (optional, client-side integration)
-    compileOnly(group: 'info.journeymap', name: 'journeymap-api-neoforge', version: project.journeymap_api_version, changing: true)
-    clientCompileOnly(group: 'info.journeymap', name: 'journeymap-api-neoforge', version: project.journeymap_api_version, changing: true)
 
     // TACZ (optional warehouse item integration) — local reference/dev runtime jar, not bundled
     compileOnly files(taczReferenceJar)

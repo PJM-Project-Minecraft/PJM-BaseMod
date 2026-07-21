@@ -2,9 +2,6 @@ package ru.liko.pjmbasemod.client.worldmap.overlay;
 
 import java.util.List;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
-
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import ru.liko.pjmbasemod.client.basezone.ClientBaseZoneState;
@@ -26,9 +23,9 @@ public final class MapOverlays {
     private MapOverlays() {}
 
     public static void render(GuiGraphics gg, Font font, double camX, double camZ,
-                              double scale, int width, int height, String dim) {
+                              double scale, int width, int height, String dim, String skipCaptureId) {
         drawBaseZones(gg, font, camX, camZ, scale, width, height, dim);
-        drawCapturePoints(gg, font, camX, camZ, scale, width, height, dim);
+        drawCapturePoints(gg, font, camX, camZ, scale, width, height, dim, skipCaptureId);
     }
 
     private static void drawBaseZones(GuiGraphics gg, Font font, double camX, double camZ,
@@ -55,9 +52,10 @@ public final class MapOverlays {
     }
 
     private static void drawCapturePoints(GuiGraphics gg, Font font, double camX, double camZ,
-                                          double scale, int width, int height, String dim) {
+                                          double scale, int width, int height, String dim, String skipCaptureId) {
         for (CapturePoint cp : ClientCapturePointState.points()) {
             if (!cp.dimension().equals(dim)) continue;
+            if (skipCaptureId != null && cp.id().equals(skipCaptureId)) continue; // рисует редактор
             List<CapturePoint.Vertex> vs = cp.vertices();
             if (vs.size() < 2) continue;
 
@@ -71,7 +69,7 @@ public final class MapOverlays {
                 double ay = MapRenderer.worldToScreenY(a.z() + 0.5, camZ, scale, height);
                 double bx = MapRenderer.worldToScreenX(b.x() + 0.5, camX, scale, width);
                 double by = MapRenderer.worldToScreenY(b.z() + 0.5, camZ, scale, height);
-                line(gg, ax, ay, bx, by, 2f, argb);
+                MapRenderer.line(gg, ax, ay, bx, by, 2f, argb);
             }
 
             CapturePoint.Vertex c = CapturePoint.centroid(vs);
@@ -82,20 +80,5 @@ public final class MapOverlays {
                     : cp.displayName() + " " + cp.progressPercent() + "%";
             gg.drawCenteredString(font, label, lx, ly - 4, 0xFFFFFFFF);
         }
-    }
-
-    /** Отрезок произвольного угла — повёрнутый тонкий прямоугольник через PoseStack. */
-    private static void line(GuiGraphics gg, double x1, double y1, double x2, double y2, float thickness, int argb) {
-        double dx = x2 - x1, dy = y2 - y1;
-        double len = Math.sqrt(dx * dx + dy * dy);
-        if (len < 0.5) return;
-        float angle = (float) Math.toDegrees(Math.atan2(dy, dx));
-        PoseStack pose = gg.pose();
-        pose.pushPose();
-        pose.translate(x1, y1, 0);
-        pose.mulPose(Axis.ZP.rotationDegrees(angle));
-        int half = Math.max(1, Math.round(thickness / 2f));
-        gg.fill(0, -half, (int) Math.round(len), half, argb);
-        pose.popPose();
     }
 }

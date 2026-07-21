@@ -53,13 +53,6 @@ ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies.${mod_id}]]
-modId = "journeymap"
-type = "optional"
-versionRange = "[1.21-6.0.0-beta.1,)"
-ordering = "AFTER"
-side = "CLIENT"
-
-[[dependencies.${mod_id}]]
 modId = "superbwarfare"
 type = "optional"
 versionRange = "*"

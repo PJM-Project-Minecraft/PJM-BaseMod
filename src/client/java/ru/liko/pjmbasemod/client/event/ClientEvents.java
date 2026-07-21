@@ -73,8 +73,6 @@ public final class ClientEvents {
         ru.liko.pjmbasemod.client.campaign.ClientCampaignState.reset();
         ClientFactionCommanderState.reset();
         ClientRoleState.reset();
-        ru.liko.pjmbasemod.client.serverevent.journeymap.EventJourneyMapBridge.onLogout();
-        ru.liko.pjmbasemod.client.capturepoint.journeymap.CapturePointJourneyMapBridge.onLogout();
         ru.liko.pjmbasemod.client.serverevent.ClientServerEventState.clear();
         ru.liko.pjmbasemod.client.serverevent.SignalHuntActionBarHud.reset();
         RadioManager.get().reset();
@@ -82,13 +80,12 @@ public final class ClientEvents {
         ru.liko.pjmbasemod.client.gui.screen.WelcomeGuideScreen.reset();
         ru.liko.pjmbasemod.client.worldmap.WorldMapEngine.get().reset();
         ru.liko.pjmbasemod.client.basezone.ClientBaseZoneState.reset();
+        ru.liko.pjmbasemod.client.worldmap.edit.CapturePointEditor.get().onLogout();
     }
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        ru.liko.pjmbasemod.client.serverevent.journeymap.EventJourneyMapBridge.onClientTick();
-        ru.liko.pjmbasemod.client.capturepoint.journeymap.CapturePointJourneyMapBridge.onClientTick();
         if (mc.player == null) {
             VoiceChatActionBarHud.tick(mc);
             return;
