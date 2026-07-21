@@ -43,40 +43,20 @@ public final class MapOverlays {
         }
     }
 
-    /** Иконка рации: антенна с сигнал-волнами + корпус + ник; серая с отсчётом на перезарядке. */
+    /** Маяк рации (иконки Xaero): циан-кольцо + расходящийся пинг; серый с отсчётом на перезарядке. */
     private static void drawRadioMarker(GuiGraphics gg, Font font, int sx, int sy, String name, int cooldown) {
-        int col = cooldown > 0 ? 0xFF9AA0A6 : 0xFF4CE05A;
-        int dark = 0xFF0C120B;
-        // радар-пинг активной рации (расходящийся ромб)
+        int rgb = cooldown > 0 ? 0x9AA0A6 : 0x4CE05A;
         if (cooldown == 0) {
-            float ping = (Util.getMillis() % 1600L) / 1600f;
-            int pr = (int) (7 + ping * 12);
-            int pc = (((int) ((1f - ping) * 0x55)) << 24) | (col & 0xFFFFFF);
-            ringDiamond(gg, sx, sy, pr, pc);
+            float t = (Util.getMillis() % 1600L) / 1600f;
+            blitSprite(gg, PING, sx, sy, 12 + t * 18, PING_TW, PING_TH, rgb, (1f - t) * 0.7f);
         }
-        // антенна + наконечник
-        gg.fill(sx - 1, sy - 13, sx + 1, sy - 3, dark);
-        gg.fill(sx, sy - 13, sx + 1, sy - 3, 0xFFF0F0F0);
-        gg.fill(sx - 1, sy - 15, sx + 2, sy - 13, col);
-        // сигнал-волны по бокам
-        gg.fill(sx - 4, sy - 15, sx - 3, sy - 10, col);
-        gg.fill(sx + 3, sy - 15, sx + 4, sy - 10, col);
-        gg.fill(sx - 6, sy - 17, sx - 5, sy - 8, col);
-        gg.fill(sx + 5, sy - 17, sx + 6, sy - 8, col);
-        // корпус рации
-        gg.fill(sx - 5, sy - 3, sx + 6, sy + 5, dark);
-        gg.fill(sx - 4, sy - 2, sx + 5, sy + 4, col);
-        gg.fill(sx - 2, sy - 1, sx + 2, sy + 3, dark);
-        // ник
-        int tw = font.width(name);
-        gg.fill(sx - tw / 2 - 2, sy + 7, sx + tw / 2 + 2, sy + 17, 0x99000000);
-        gg.drawCenteredString(font, name, sx, sy + 8, cooldown > 0 ? 0xFFCFCFCF : 0xFFCDEFD2);
-        // отсчёт перезарядки
+        blitSprite(gg, BEACON, sx, sy, 14, BEACON_TW, BEACON_TH, rgb, 1f);
+        drawLabelPill(gg, font, sx, sy + 8, name, rgb);
         if (cooldown > 0) {
             String cd = cooldown + "s";
             int cw = font.width(cd);
-            gg.fill(sx - cw / 2 - 2, sy - 28, sx + cw / 2 + 2, sy - 18, 0x99000000);
-            gg.drawCenteredString(font, cd, sx, sy - 27, 0xFFFF7777);
+            gg.fill(sx - cw / 2 - 2, sy - 20, sx + cw / 2 + 2, sy - 9, 0xC00A0A12);
+            gg.drawCenteredString(font, cd, sx, sy - 18, 0xFFFF7777);
         }
     }
 
@@ -151,36 +131,32 @@ public final class MapOverlays {
             ResourceLocation.fromNamespaceAndPath("pjmbasemod", "textures/gui/map/point.png");
     private static final int ICON_W = 15, ICON_H = 18, ICON_TW = 165, ICON_TH = 196;
 
-    /** Маркер-знамя точки (иконка Xaero, тинт по владельцу), остриём в центроид; pulse≥0 — хало контеста. */
-    private static void drawPointIcon(GuiGraphics gg, int cx, int cy, int rgb, float pulse, int w, int h) {
+    /** Маркер-знамя точки (иконка Xaero, тинт по владельцу), остриём в центроид; контест — пинг-вспышка. */
+    private static void drawPointIcon(GuiGraphics gg, int cx, int cy, int rgb, float contested, int w, int h) {
         int c = rgb & 0xFFFFFF;
-        if (pulse >= 0f) {
-            double pr = 7.0 + pulse * 9.0;
-            int pa = (int) ((1f - pulse) * 0x55);
-            octagon(gg, cx, cy - ICON_H / 2, pr, (pa << 24) | c, w, h);
+        if (contested >= 0f) {
+            float t = (Util.getMillis() % 1400L) / 1400f;
+            blitSprite(gg, PING, cx, cy - ICON_H / 2.0, 10 + t * 16, PING_TW, PING_TH, c, (1f - t) * 0.6f);
         }
         gg.setColor(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f, 1f);
         gg.blit(POINT_ICON, cx - ICON_W / 2, cy - ICON_H, ICON_W, ICON_H, 0f, 0f, ICON_TW, ICON_TH, ICON_TW, ICON_TH);
         gg.setColor(1f, 1f, 1f, 1f);
     }
 
-    /** Правильный восьмиугольник (радиус r) заливкой. */
-    private static void octagon(GuiGraphics gg, int cx, int cy, double r, int argb, int w, int h) {
-        double[] xs = new double[8];
-        double[] ys = new double[8];
-        for (int i = 0; i < 8; i++) {
-            double a = Math.toRadians(i * 45 + 22.5);
-            xs[i] = cx + Math.cos(a) * r;
-            ys[i] = cy + Math.sin(a) * r;
-        }
-        MapRenderer.fillPolygon(gg, xs, ys, 8, argb, w, h);
-    }
+    private static final ResourceLocation BEACON =
+            ResourceLocation.fromNamespaceAndPath("pjmbasemod", "textures/gui/map/beacon.png");
+    private static final ResourceLocation PING =
+            ResourceLocation.fromNamespaceAndPath("pjmbasemod", "textures/gui/map/ping.png");
+    private static final int BEACON_TW = 114, BEACON_TH = 106, PING_TW = 107, PING_TH = 105;
 
-    private static void ringDiamond(GuiGraphics gg, int cx, int cy, int r, int argb) {
-        MapRenderer.line(gg, cx, cy - r, cx + r, cy, 1.5f, argb);
-        MapRenderer.line(gg, cx + r, cy, cx, cy + r, 1.5f, argb);
-        MapRenderer.line(gg, cx, cy + r, cx - r, cy, 1.5f, argb);
-        MapRenderer.line(gg, cx - r, cy, cx, cy - r, 1.5f, argb);
+    /** Спрайт из атласа: центрированно, с тинтом и масштабом. */
+    private static void blitSprite(GuiGraphics gg, ResourceLocation rl, double cx, double cy,
+                                   double size, int tw, int th, int rgb, float alpha) {
+        int c = rgb & 0xFFFFFF;
+        gg.setColor(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f, alpha);
+        int s = (int) Math.round(size);
+        gg.blit(rl, (int) Math.round(cx - size / 2), (int) Math.round(cy - size / 2), s, s, 0f, 0f, tw, th, tw, th);
+        gg.setColor(1f, 1f, 1f, 1f);
     }
 
     private static void drawLabelPill(GuiGraphics gg, Font font, int cx, int topY, String text, int rgb) {
