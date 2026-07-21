@@ -68,12 +68,8 @@ public final class ClientEvents {
 
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
-        // Пиксельный курсор мода — на всех экранах мода (включая карту); на прочих — системный.
-        if (event.getScreen().getClass().getName().startsWith("ru.liko.pjmbasemod.")) {
-            ru.liko.pjmbasemod.client.gui.PjmCursor.applyDefault();
-        } else {
-            ru.liko.pjmbasemod.client.gui.PjmCursor.restore();
-        }
+        // Пиксельный курсор — глобально во всех GUI игры (как ресурс-пак), не только на экранах мода.
+        ru.liko.pjmbasemod.client.gui.PjmCursor.applyDefault();
     }
 
     @SubscribeEvent
