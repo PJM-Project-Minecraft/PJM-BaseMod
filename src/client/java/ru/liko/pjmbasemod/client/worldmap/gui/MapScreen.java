@@ -58,6 +58,8 @@ public final class MapScreen extends Screen {
     private double downMouseX, downMouseY, downCamX, downCamZ;
 
     private long openTime;
+    private boolean closing;
+    private long closeTime;
 
     private final MapContextMenu contextMenu = new MapContextMenu();
 
@@ -86,7 +88,13 @@ public final class MapScreen extends Screen {
     @Override
     public void onClose() {
         CapturePointEditor.get().commitAndDeselect();
-        super.onClose();
+        startClosing(); // не закрываем сразу — проигрываем выезд вниз
+    }
+
+    private void startClosing() {
+        if (closing) return;
+        closing = true;
+        closeTime = Util.getMillis();
     }
 
     // ─── доступы ───
@@ -110,7 +118,12 @@ public final class MapScreen extends Screen {
                 Mth.floor(MapRenderer.screenToWorldZ(my, cameraZ, scale, height)));
     }
 
-    private float slideProgress() {
+    /** Видимость панели 1→в кадре, 0→за нижним краем. Открытие: 0→1 (easeOut). Закрытие: 1→0 (easeIn). */
+    private float panelVisible() {
+        if (closing) {
+            float p = Mth.clamp((Util.getMillis() - closeTime) / (float) SLIDE_MS, 0f, 1f);
+            return 1f - p * p * p; // easeInCubic → уезжает вниз
+        }
         float p = Mth.clamp((Util.getMillis() - openTime) / (float) SLIDE_MS, 0f, 1f);
         return 1f - (1f - p) * (1f - p) * (1f - p); // easeOutCubic
     }
@@ -119,6 +132,10 @@ public final class MapScreen extends Screen {
 
     @Override
     public void render(GuiGraphics gg, int mouseX, int mouseY, float partial) {
+        if (closing && Util.getMillis() - closeTime >= SLIDE_MS) {
+            if (this.minecraft != null) this.minecraft.setScreen(null); // анимация выезда завершена
+            return;
+        }
         Minecraft mc = this.minecraft;
         LocalPlayer player = mc != null ? mc.player : null;
 
@@ -149,8 +166,8 @@ public final class MapScreen extends Screen {
 
         gg.fill(0, 0, width, height, MapConstants.BACKGROUND_ARGB);
 
-        // Анимация выезда снизу — весь контент карты едет вверх.
-        float sp = slideProgress();
+        // Анимация выезда снизу (открытие/закрытие) — весь контент карты по вертикали.
+        float sp = panelVisible();
         boolean sliding = sp < 1f;
         if (sliding) {
             gg.pose().pushPose();
@@ -185,16 +202,18 @@ public final class MapScreen extends Screen {
         double yaw = Math.toRadians(player.getYRot());
         double fx = -Math.sin(yaw), fy = Math.cos(yaw); // экранное направление взгляда
         double rx = -fy, ry = fx;
-        double s = 7.0;
-        double tipX = px + fx * s, tipY = py + fy * s;
-        double blX = px - fx * s * 0.55 + rx * s * 0.7, blY = py - fy * s * 0.55 + ry * s * 0.7;
-        double brX = px - fx * s * 0.55 - rx * s * 0.7, brY = py - fy * s * 0.55 - ry * s * 0.7;
-        double[] xs = {tipX, blX, brX};
-        double[] ys = {tipY, blY, brY};
-        MapRenderer.fillPolygon(gg, xs, ys, 3, 0xFF33CCFF, width, height);
-        MapRenderer.line(gg, tipX, tipY, blX, blY, 1.5f, 0xFF06283A);
-        MapRenderer.line(gg, blX, blY, brX, brY, 1.5f, 0xFF06283A);
-        MapRenderer.line(gg, brX, brY, tipX, tipY, 1.5f, 0xFF06283A);
+        double s = 9.0;
+        double tipX = px + fx * s,                       tipY = py + fy * s;
+        double lX = px - fx * s * 0.72 + rx * s * 0.72,  lY = py - fy * s * 0.72 + ry * s * 0.72;
+        double nX = px - fx * s * 0.32,                  nY = py - fy * s * 0.32; // выемка сзади
+        double rX = px - fx * s * 0.72 - rx * s * 0.72,  rY = py - fy * s * 0.72 - ry * s * 0.72;
+        double[] xs = {tipX, lX, nX, rX};
+        double[] ys = {tipY, lY, nY, rY};
+        MapRenderer.fillPolygon(gg, xs, ys, 4, 0xFFFFFFFF, width, height);   // белая стрелка-навигатор
+        MapRenderer.line(gg, tipX, tipY, lX, lY, 1.8f, 0xFF1E9BE0);          // голубой контур
+        MapRenderer.line(gg, lX, lY, nX, nY, 1.8f, 0xFF1E9BE0);
+        MapRenderer.line(gg, nX, nY, rX, rY, 1.8f, 0xFF1E9BE0);
+        MapRenderer.line(gg, rX, rY, tipX, tipY, 1.8f, 0xFF1E9BE0);
     }
 
     private void drawHud(GuiGraphics gg, int mouseX, int mouseY) {
@@ -241,6 +260,7 @@ public final class MapScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (closing) return true; // во время анимации закрытия ввод игнорируем
         if (contextMenu.visible()) {
             contextMenu.mouseClicked(mouseX, mouseY, font);
             return true;
@@ -333,7 +353,7 @@ public final class MapScreen extends Screen {
         if (y == MapConstants.HEIGHT_UNSET) y = mc.player.blockPosition().getY();
         else y += 1;
         mc.getConnection().sendCommand("tp @s " + x + " " + y + " " + z);
-        mc.setScreen(null);
+        startClosing();
     }
 
     private RadioSpawnListPacket.Entry carrierAt(BlockPos wb, double maxDist) {
@@ -371,6 +391,6 @@ public final class MapScreen extends Screen {
 
     private void deployTo(UUID carrierId) {
         PjmNetworking.sendToServer(new DeployToRadioPacket(carrierId));
-        if (minecraft != null) minecraft.setScreen(null);
+        startClosing();
     }
 }

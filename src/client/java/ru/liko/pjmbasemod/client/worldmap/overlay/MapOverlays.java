@@ -138,28 +138,38 @@ public final class MapOverlays {
             CapturePoint.Vertex c = CapturePoint.centroid(vs);
             int cx = (int) MapRenderer.worldToScreenX(c.x() + 0.5, camX, scale, width);
             int cy = (int) MapRenderer.worldToScreenY(c.z() + 0.5, camZ, scale, height);
-            drawDiamond(gg, cx, cy, rgb, contested ? pulse : -1f, width, height);
-            drawLabelPill(gg, font, cx, cy - 17, cp.displayName(), rgb);
+            drawObjective(gg, cx, cy, rgb, contested ? pulse : -1f, width, height);
+            drawLabelPill(gg, font, cx, cy - 18, cp.displayName(), rgb);
             if (!cp.captureTeamId().isEmpty() && cp.progressPercent() > 0) {
                 drawProgressBar(gg, cx, cy + 7, cp.progressPercent(), rgb);
             }
         }
     }
 
-    /** Ромб-маркер точки; при pulse≥0 — расходящийся радар-пинг (контест). */
-    private static void drawDiamond(GuiGraphics gg, int cx, int cy, int rgb, float pulse, int w, int h) {
+    /** Маркер-objective точки: кольцо-октагон цвета владельца; при pulse≥0 — пульс-хало (контест). */
+    private static void drawObjective(GuiGraphics gg, int cx, int cy, int rgb, float pulse, int w, int h) {
+        int c = rgb & 0xFFFFFF;
         if (pulse >= 0f) {
-            int pr = (int) (5 + pulse * 8);
-            int pc = (((int) ((1f - pulse) * 0x66)) << 24) | (rgb & 0xFFFFFF);
-            ringDiamond(gg, cx, cy, pr, pc);
+            double pr = 6.5 + pulse * 9.0;
+            int pa = (int) ((1f - pulse) * 0x55);
+            octagon(gg, cx, cy, pr, (pa << 24) | c, w, h);      // расходящееся хало
         }
-        double[] bx = {cx, cx + 5.0, cx, cx - 5.0};
-        double[] by = {cy - 5.0, cy, cy + 5.0, cy};
-        MapRenderer.fillPolygon(gg, bx, by, 4, 0xFF0A0A0A, w, h);
-        double[] fx = {cx, cx + 4.0, cx, cx - 4.0};
-        double[] fy = {cy - 4.0, cy, cy + 4.0, cy};
-        MapRenderer.fillPolygon(gg, fx, fy, 4, 0xFF000000 | (rgb & 0xFFFFFF), w, h);
-        gg.fill(cx - 1, cy - 1, cx + 1, cy + 1, 0xFFFFFFFF);
+        octagon(gg, cx, cy, 6.2, 0xFF0A0A0F, w, h);             // тёмная окантовка
+        octagon(gg, cx, cy, 5.0, 0xFF000000 | c, w, h);         // кольцо владельца
+        octagon(gg, cx, cy, 2.4, 0xF00C0C12, w, h);             // сердцевина → «бублик»
+        gg.fill(cx, cy, cx + 1, cy + 1, 0xFFFFFFFF);            // блик в центре
+    }
+
+    /** Правильный восьмиугольник (радиус r) заливкой. */
+    private static void octagon(GuiGraphics gg, int cx, int cy, double r, int argb, int w, int h) {
+        double[] xs = new double[8];
+        double[] ys = new double[8];
+        for (int i = 0; i < 8; i++) {
+            double a = Math.toRadians(i * 45 + 22.5);
+            xs[i] = cx + Math.cos(a) * r;
+            ys[i] = cy + Math.sin(a) * r;
+        }
+        MapRenderer.fillPolygon(gg, xs, ys, 8, argb, w, h);
     }
 
     private static void ringDiamond(GuiGraphics gg, int cx, int cy, int r, int argb) {
