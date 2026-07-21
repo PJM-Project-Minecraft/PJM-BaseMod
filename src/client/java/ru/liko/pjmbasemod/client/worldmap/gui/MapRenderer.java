@@ -51,6 +51,42 @@ public final class MapRenderer {
         return (screenY - height / 2.0) / scale + camZ;
     }
 
+    /** Заливка произвольного полигона (scanline, even-odd) с отсечением по экрану. */
+    public static void fillPolygon(GuiGraphics gg, double[] xs, double[] ys, int n, int argb, int clipW, int clipH) {
+        if (n < 3) return;
+        double minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+        for (int i = 0; i < n; i++) {
+            minY = Math.min(minY, ys[i]);
+            maxY = Math.max(maxY, ys[i]);
+        }
+        int y0 = Math.max(0, (int) Math.floor(minY));
+        int y1 = Math.min(clipH, (int) Math.ceil(maxY));
+        double[] cross = new double[n];
+        for (int y = y0; y < y1; y++) {
+            double yc = y + 0.5;
+            int cnt = 0;
+            for (int i = 0, j = n - 1; i < n; j = i++) {
+                if ((ys[i] > yc) != (ys[j] > yc)) {
+                    cross[cnt++] = xs[i] + (yc - ys[i]) / (ys[j] - ys[i]) * (xs[j] - xs[i]);
+                }
+            }
+            for (int a = 1; a < cnt; a++) {          // insertion sort
+                double v = cross[a];
+                int b = a - 1;
+                while (b >= 0 && cross[b] > v) {
+                    cross[b + 1] = cross[b];
+                    b--;
+                }
+                cross[b + 1] = v;
+            }
+            for (int k = 0; k + 1 < cnt; k += 2) {
+                int xa = Math.max(0, (int) Math.round(cross[k]));
+                int xb = Math.min(clipW, (int) Math.round(cross[k + 1]));
+                if (xb > xa) gg.fill(xa, y, xb, y + 1, argb);
+            }
+        }
+    }
+
     /** Отрезок произвольного угла — повёрнутый тонкий прямоугольник через PoseStack. */
     public static void line(GuiGraphics gg, double x1, double y1, double x2, double y2, float thickness, int argb) {
         double dx = x2 - x1, dy = y2 - y1;
