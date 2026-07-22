@@ -111,7 +111,8 @@ public class NotificationOverlay {
         int x = targetX;
         int y = targetY - (int)((height + 20) * (1.0f - currentAnimProgress));
 
-        graphics.pose().pushPose();
+        // Масштаб от разрешения вокруг верх-центра. Scissor ниже наследует pose (transformMaxBounds).
+        ru.liko.pjmbasemod.client.gui.PjmGuiUtils.pushHudScale(graphics, sw / 2f, 0);
         RenderSystem.enableBlend();
 
         try {

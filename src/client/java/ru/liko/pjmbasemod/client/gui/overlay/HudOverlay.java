@@ -13,6 +13,7 @@ import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.client.config.ClientHudConfig;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 
 @EventBusSubscriber(modid = Pjmbasemod.MODID, bus = EventBusSubscriber.Bus.GAME, value = Dist.CLIENT)
 public class HudOverlay {
@@ -35,6 +36,21 @@ public class HudOverlay {
 
     private static boolean inZone = false;
 
+    /** Ширина компаса, ужатая под узкий экран. Публично — чтобы голосовой оверлей вставал справа от него. */
+    public static int compassWidth(int guiWidth) {
+        return Math.min(COMPASS_WIDTH, guiWidth - 40);
+    }
+
+    /**
+     * Масштаб компаса: общий HUD-множитель, но клампится так, чтобы компас не вылез за
+     * края даже на узком экране. Голосовой оверлей берёт тот же множитель, чтобы вставать
+     * вплотную к масштабированному компасу.
+     */
+    public static float compassScale(GuiGraphics g) {
+        int cw = Math.max(1, compassWidth(g.guiWidth()));
+        return Math.min(PjmGuiUtils.hudScale(g), (g.guiWidth() - 8f) / cw);
+    }
+
     public static final LayeredDraw.Layer COMPASS_OVERLAY = (g, deltaTracker) -> {
         renderCompass(g, deltaTracker.getGameTimeDeltaPartialTick(false));
     };
@@ -47,7 +63,7 @@ public class HudOverlay {
 
         int width = graphics.guiWidth();
         int height = graphics.guiHeight();
-        int compassWidth = Math.min(COMPASS_WIDTH, width - 40);
+        int compassWidth = compassWidth(width);
         if (compassWidth < 120) {
             return;
         }
@@ -61,7 +77,12 @@ public class HudOverlay {
         // Offset by 180 to align 'N' to the north (0 in MC is South).
         float yaw = Mth.positiveModulo(mc.player.getViewYRot(partialTick) + 180.0f, 360.0f);
 
+        // Масштаб от разрешения вокруг ниж-центра (компас прижат к низу). Scissor наследует pose.
+        float cs = compassScale(graphics);
         graphics.pose().pushPose();
+        graphics.pose().translate(width / 2f, bottom, 0);
+        graphics.pose().scale(cs, cs, 1f);
+        graphics.pose().translate(-width / 2f, -bottom, 0);
         RenderSystem.enableBlend();
         try {
             // Draw custom horizontal gradients via strips

@@ -17,7 +17,6 @@ public class VoiceChatOverlay {
 
     private static final int ELEMENT_HEIGHT = 16;
     private static final int ELEMENT_GAP = 2;
-    private static final int COMPASS_HALF_WIDTH = 150;
     private static final int COMPASS_GAP = 8;
     private static final int COMPASS_BOTTOM_MARGIN = 10;
 
@@ -44,26 +43,37 @@ public class VoiceChatOverlay {
 
         if (commandRadioAlpha < 0.05f && localChatAlpha < 0.05f) return;
 
-        int xStart = sw / 2 + COMPASS_HALF_WIDTH + COMPASS_GAP;
+        // Встаём справа от компаса, используя его реальную ширину (а не старую константу 150).
+        int xStart = sw / 2 + HudOverlay.compassWidth(sw) / 2 + COMPASS_GAP;
         int currentY = sh - COMPASS_BOTTOM_MARGIN - ELEMENT_HEIGHT;
 
-        if (localChatAlpha > 0.05f) {
-            String localLabel = localSpeakerName == null || localSpeakerName.isBlank()
-                    ? Component.translatable("overlay.pjmbasemod.voice.local_chat").getString()
-                    : Component.translatable("overlay.pjmbasemod.voice.local_chat").getString() + ": " + localSpeakerName;
-            renderChannel(g, xStart, currentY,
-                    Component.literal(localLabel),
-                    LOCAL_CHAT_COLOR, localChatAlpha, deltaTracker);
-            currentY -= (ELEMENT_HEIGHT + ELEMENT_GAP);
-        }
+        // Тот же масштаб и опорная точка (ниж-центр), что у компаса — растём с ним синхронно.
+        float s = HudOverlay.compassScale(g);
+        g.pose().pushPose();
+        g.pose().translate(sw / 2f, sh, 0);
+        g.pose().scale(s, s, 1f);
+        g.pose().translate(-sw / 2f, -sh, 0);
+        try {
+            if (localChatAlpha > 0.05f) {
+                String localLabel = localSpeakerName == null || localSpeakerName.isBlank()
+                        ? Component.translatable("overlay.pjmbasemod.voice.local_chat").getString()
+                        : Component.translatable("overlay.pjmbasemod.voice.local_chat").getString() + ": " + localSpeakerName;
+                renderChannel(g, xStart, currentY,
+                        Component.literal(localLabel),
+                        LOCAL_CHAT_COLOR, localChatAlpha, deltaTracker);
+                currentY -= (ELEMENT_HEIGHT + ELEMENT_GAP);
+            }
 
-        if (commandRadioAlpha > 0.05f) {
-            String radioLabel = radioSpeakerName == null || radioSpeakerName.isBlank()
-                    ? Component.translatable("overlay.pjmbasemod.voice.command_radio").getString()
-                    : Component.translatable("overlay.pjmbasemod.voice.command_radio").getString() + ": " + radioSpeakerName;
-            renderChannel(g, xStart, currentY,
-                    Component.literal(radioLabel),
-                    COMMAND_RADIO_COLOR, commandRadioAlpha, deltaTracker);
+            if (commandRadioAlpha > 0.05f) {
+                String radioLabel = radioSpeakerName == null || radioSpeakerName.isBlank()
+                        ? Component.translatable("overlay.pjmbasemod.voice.command_radio").getString()
+                        : Component.translatable("overlay.pjmbasemod.voice.command_radio").getString() + ": " + radioSpeakerName;
+                renderChannel(g, xStart, currentY,
+                        Component.literal(radioLabel),
+                        COMMAND_RADIO_COLOR, commandRadioAlpha, deltaTracker);
+            }
+        } finally {
+            g.pose().popPose();
         }
     };
 

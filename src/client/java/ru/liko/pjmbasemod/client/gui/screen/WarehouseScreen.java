@@ -584,7 +584,8 @@ public class WarehouseScreen extends PjmBaseScreen {
                 graphics.pose().popPose();
             }
 
-            graphics.drawString(this.font, itemName, contentLeft + 26, y + 4,
+            int nameLimit = Math.max(20, withdrawRect(y).x() - (contentLeft + 26) - 6);
+            graphics.drawString(this.font, ellipsize(itemName, nameLimit), contentLeft + 26, y + 4,
                     locked ? PjmGuiUtils.TEXT_MUTED : PjmGuiUtils.TEXT_PRIMARY, false);
             String cost = Component.translatable("gui.pjmbasemod.warehouse.cost", item.pointCost()).getString();
             if (item.quantity() > 1) {

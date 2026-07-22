@@ -120,7 +120,9 @@ public class TacticalTabOverlay {
 
         // Blur только под областью списка (через scissor), чтобы остальной HUD
         // (hotbar, компас, уведомления) оставался чётким. Поверх — полупрозрачный фон.
-        graphics.pose().pushPose();
+        // Масштаб от разрешения вокруг верх-центра; оба блока (blur и контент) — одинаково.
+        // Scissor наследует pose (transformMaxBounds), поэтому blur совпадёт с плашкой.
+        PjmGuiUtils.pushHudScale(graphics, screenWidth / 2f, top);
         RenderSystem.disableDepthTest();
         graphics.enableScissor(left, top, right, bottom);
         mc.gameRenderer.processBlurEffect(deltaTracker.getGameTimeDeltaPartialTick(false));
@@ -128,7 +130,7 @@ public class TacticalTabOverlay {
         graphics.disableScissor();
         graphics.pose().popPose();
 
-        graphics.pose().pushPose();
+        PjmGuiUtils.pushHudScale(graphics, screenWidth / 2f, top);
         RenderSystem.enableBlend();
 
         // Полупрозрачный фон без рамок и разделителей.

@@ -73,7 +73,8 @@ public final class FactionInviteScreen extends PjmBaseScreen {
 
         // Фракция — крупно, её цветом.
         int teamColor = invite.teamColor() == 0 ? PjmGuiUtils.ACCENT : 0xFF000000 | invite.teamColor();
-        String team = invite.teamName();
+        // Масштаб 1.6 → бюджет ширины в пред-масштабных единицах = GUI_WIDTH/1.6, иначе длинное имя вылезет.
+        String team = PjmGuiUtils.ellipsize(font, invite.teamName(), (int) ((GUI_WIDTH - 16) / 1.6f));
         g.pose().pushPose();
         g.pose().translate(left + GUI_WIDTH / 2f, y, 0);
         g.pose().scale(1.6f, 1.6f, 1f);

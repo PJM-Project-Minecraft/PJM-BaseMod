@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.resources.ResourceLocation;
 import ru.liko.pjmbasemod.Pjmbasemod;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 
 /**
  * Полупрозрачный водяной знак «BETA TEST — Project: Minecraft» в левом верхнем углу.
@@ -41,10 +42,12 @@ public final class BetaWatermarkOverlay {
 
         RenderSystem.enableBlend();
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, ALPHA);
+        PjmGuiUtils.pushHudScale(graphics, 0, 0); // масштаб от разрешения, знак top-left
         try {
             graphics.blit(TEXTURE, MARGIN_X, MARGIN_Y, DRAW_WIDTH, DRAW_HEIGHT,
                     0.0f, 0.0f, TEX_WIDTH, TEX_HEIGHT, TEX_WIDTH, TEX_HEIGHT);
         } finally {
+            graphics.pose().popPose();
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
             RenderSystem.disableBlend();
         }

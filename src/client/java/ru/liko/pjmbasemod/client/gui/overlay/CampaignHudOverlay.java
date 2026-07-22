@@ -45,7 +45,8 @@ public final class CampaignHudOverlay {
         int width = PAD_X + contentW + PAD_X;
         int x = (graphics.guiWidth() - width) / 2;
 
-        graphics.pose().pushPose();
+        // Масштаб от разрешения вокруг верх-центра (плашка top-center).
+        PjmGuiUtils.pushHudScale(graphics, graphics.guiWidth() / 2f, 0);
         RenderSystem.enableBlend();
         try {
             graphics.fill(x, TOP, x + width, TOP + HEIGHT, PjmGuiUtils.SCREEN_HEADER);

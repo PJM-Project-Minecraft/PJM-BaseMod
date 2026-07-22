@@ -65,6 +65,7 @@ public class FactionSelectionScreen extends PjmBaseScreen {
     private float appear;
     private boolean submitted;
     private int roleScroll;
+    private int teamScroll;
 
     // Состояния hover-анимаций (lerp к 0/1)
     private float[] teamAnim = new float[0];
@@ -130,6 +131,19 @@ public class FactionSelectionScreen extends PjmBaseScreen {
         return Math.max(1, (rolesBottom(top) - rolesTop(top)) / ROLE_ROW_HEIGHT);
     }
 
+    // Скролл сайдбара фракций — иначе при большом числе фракций нижние уходят за панель.
+    private int teamsTop(int top) {
+        return top + HEADER_HEIGHT + 22;
+    }
+
+    private int teamsBottom(int top) {
+        return top + GUI_HEIGHT - 10;
+    }
+
+    private int teamsVisible(int top) {
+        return Math.max(1, (teamsBottom(top) - teamsTop(top)) / TEAM_ROW_HEIGHT);
+    }
+
     @Override
     public void tick() {
         super.tick();
@@ -187,7 +201,8 @@ public class FactionSelectionScreen extends PjmBaseScreen {
             teamAnim = new float[snapshot.teams().size()];
         }
 
-        for (int i = 0; i < snapshot.teams().size(); i++) {
+        int teamRows = teamsVisible(top);
+        for (int i = teamScroll; i < snapshot.teams().size() && i < teamScroll + teamRows; i++) {
             FactionSelectionSnapshot.TeamEntry team = snapshot.teams().get(i);
             boolean locked = team.locked();
             boolean selected = i == selectedTeam;
@@ -220,6 +235,9 @@ public class FactionSelectionScreen extends PjmBaseScreen {
             }
             y += TEAM_ROW_HEIGHT;
         }
+
+        PjmGuiUtils.drawScrollbar(graphics, x + rowW + 2, teamsTop(top), teamsBottom(top) - teamsTop(top),
+                snapshot.teams().size(), teamRows, teamScroll);
     }
 
     private void drawRoles(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
@@ -309,7 +327,12 @@ public class FactionSelectionScreen extends PjmBaseScreen {
     @Override
     protected boolean mouseScrolledScaled(int mouseX, int mouseY, double scrollX, double scrollY) {
         if (scrollY != 0) {
-            roleScroll -= (int) Math.signum(scrollY);
+            int step = (int) Math.signum(scrollY);
+            if (mouseX < guiLeft() + SIDEBAR_WIDTH) {
+                teamScroll -= step; // курсор над сайдбаром фракций
+            } else {
+                roleScroll -= step;
+            }
             clampScroll();
             return true;
         }
@@ -325,10 +348,11 @@ public class FactionSelectionScreen extends PjmBaseScreen {
 
         // Фракции
         int teamX = left + 10;
-        int teamY = top + HEADER_HEIGHT + 22;
+        int teamY = teamsTop(top);
         int teamW = SIDEBAR_WIDTH - 20;
-        for (int i = 0; i < snapshot.teams().size(); i++) {
-            int y = teamY + i * TEAM_ROW_HEIGHT;
+        int teamRows = teamsVisible(top);
+        for (int i = teamScroll; i < snapshot.teams().size() && i < teamScroll + teamRows; i++) {
+            int y = teamY + (i - teamScroll) * TEAM_ROW_HEIGHT;
             if (inside((double)mouseX, (double)mouseY, teamX, y, teamW, TEAM_ROW_HEIGHT - 4)) {
                 if (snapshot.teams().get(i).locked()) return true;
                 if (selectedTeam != i) {
@@ -391,6 +415,8 @@ public class FactionSelectionScreen extends PjmBaseScreen {
         int visible = rolesVisible(guiTop());
         int max = Math.max(0, total - visible);
         roleScroll = Mth.clamp(roleScroll, 0, max);
+        int teamMax = Math.max(0, snapshot.teams().size() - teamsVisible(guiTop()));
+        teamScroll = Mth.clamp(teamScroll, 0, teamMax);
     }
 
     private boolean confirmEnabled() {

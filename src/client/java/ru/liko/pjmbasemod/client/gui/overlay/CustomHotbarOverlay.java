@@ -52,7 +52,7 @@ public final class CustomHotbarOverlay {
 
         int sw = mc.getWindow().getGuiScaledWidth();
 
-        g.pose().pushPose();
+        PjmGuiUtils.pushHudScale(g, sw / 2f, 0); // масштаб от разрешения, полоса top-center
         RenderSystem.enableBlend();
         try {
             int numSlots = 9;

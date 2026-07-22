@@ -8,6 +8,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.util.Mth;
 import ru.liko.pjmbasemod.client.capturepoint.ClientCapturePointState;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.common.network.packet.CapturePointHudPacket;
 
 /**
@@ -91,7 +92,9 @@ public final class CapturePointHudOverlay {
         if (a <= 2) return;
         int accent = accentColor(hud);
 
-        g.pose().pushPose();
+        // Масштаб от разрешения вокруг прав-верх угла (плашка прижата к правому краю).
+        // Scissor ниже наследует pose (transformMaxBounds), поэтому blur совпадёт с плашкой.
+        PjmGuiUtils.pushHudScale(g, g.guiWidth(), y);
         try {
             RenderSystem.disableDepthTest();
 

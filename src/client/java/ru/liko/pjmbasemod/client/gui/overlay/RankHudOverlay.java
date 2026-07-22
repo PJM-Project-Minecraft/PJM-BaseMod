@@ -59,7 +59,7 @@ public final class RankHudOverlay {
             return;
         }
 
-        graphics.pose().pushPose();
+        PjmGuiUtils.pushHudScale(graphics, 0, 0); // масштаб от разрешения, плашки top-left
         RenderSystem.enableBlend();
         try {
             // Main badge is now rendered in the inventory screen, so we only render popups here on the HUD.
@@ -88,7 +88,7 @@ public final class RankHudOverlay {
         GuiGraphics graphics = event.getGuiGraphics();
         Minecraft mc = Minecraft.getInstance();
         
-        graphics.pose().pushPose();
+        PjmGuiUtils.pushHudScale(graphics, 0, 0); // масштаб от разрешения, бейдж top-left
         RenderSystem.enableBlend();
         try {
             renderBadge(graphics, mc, state, commander, showRank);

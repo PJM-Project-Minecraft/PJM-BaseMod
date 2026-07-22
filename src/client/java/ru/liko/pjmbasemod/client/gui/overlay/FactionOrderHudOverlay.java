@@ -52,7 +52,8 @@ public final class FactionOrderHudOverlay {
         int height = 30;
         int textX = x + STRIPE_W + PAD_X;
 
-        graphics.pose().pushPose();
+        // Масштаб от разрешения вокруг лев-верх угла (плашка top-left).
+        PjmGuiUtils.pushHudScale(graphics, 0, 0);
         RenderSystem.enableBlend();
         try {
             graphics.fill(x, y, x + width, y + height, PjmGuiUtils.SCREEN_HEADER);
