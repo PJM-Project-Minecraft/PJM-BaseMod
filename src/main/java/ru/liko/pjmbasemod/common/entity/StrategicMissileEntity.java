@@ -47,6 +47,7 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     private static final int[] LOOKAHEAD_TICKS = {10, 20};
     private static final double MAX_CLIMB_PER_TICK = 2.5;
     private static final double MAX_DESCENT_PER_TICK = 1.5;
+    private static final double MAX_VERTICAL_ACCEL = 0.15;
 
     private static final int TICKET_RADIUS = 3;
     private static final int TICKET_LINGER_TICKS = 100;
@@ -74,6 +75,7 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     private boolean destroyBlocks;
     private boolean exploding;
     private double smoothedCruiseY = Double.NaN;
+    private double cruiseClimbRate;
     @Nullable private ChunkPos ticketCenter;
 
     public StrategicMissileEntity(EntityType<?> type, Level level) {
@@ -206,11 +208,14 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         double horizontalRemaining = Math.hypot(targetX - x, targetZ - z);
         double cruiseTarget = Math.min(level.getMaxBuildHeight() - 8.0,
                 lookAheadTerrain(level, x, z, routeLength) + cruiseHeight);
-        // Крейсерская высота — экспоненциальное сглаживание с лимитом скорости:
-        // рельеф меняется ступенькой, а ракета плавно перетекает к новой высоте.
+        // Крейсерская высота — сглаживание второго порядка: плавно меняется не только
+        // высота, но и вертикальная скорость (лимит ускорения), без изломов траектории.
         if (Double.isNaN(smoothedCruiseY)) smoothedCruiseY = Math.max(getY(), cruiseTarget);
-        smoothedCruiseY += Mth.clamp((cruiseTarget - smoothedCruiseY) * 0.12,
+        double desiredRate = Mth.clamp((cruiseTarget - smoothedCruiseY) * 0.12,
                 -MAX_DESCENT_PER_TICK, MAX_CLIMB_PER_TICK);
+        cruiseClimbRate += Mth.clamp(desiredRate - cruiseClimbRate,
+                -MAX_VERTICAL_ACCEL, MAX_VERTICAL_ACCEL);
+        smoothedCruiseY += cruiseClimbRate;
         // Терминальный заход — плавный перелом курса вниз (dive², без прыжка вверх).
         double dive = Mth.clamp(1.0 - horizontalRemaining / Math.max(1.0, terminalDiveDistance), 0.0, 1.0);
         double y = Mth.lerp(dive * dive, smoothedCruiseY, targetY);
