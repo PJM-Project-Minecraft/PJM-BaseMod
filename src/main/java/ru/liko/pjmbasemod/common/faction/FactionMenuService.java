@@ -151,6 +151,7 @@ public final class FactionMenuService {
         }
 
         ensureScoreboardTeam(server, team);
+        ru.liko.pjmbasemod.common.mapmarker.MapMarkerManager.removeByOwner(server, player.getScoreboardName());
         server.getScoreboard().addPlayerToTeam(player.getScoreboardName(), server.getScoreboard().getPlayerTeam(team));
 
         RoleService.AssignmentResult roleResult = RoleService.assignRole(null, player, role, false);
@@ -485,6 +486,7 @@ public final class FactionMenuService {
         Scoreboard scoreboard = server.getScoreboard();
         PlayerTeam pt = scoreboard.getPlayersTeam(targetName);
         if (pt != null) scoreboard.removePlayerFromTeam(targetName, pt);
+        ru.liko.pjmbasemod.common.mapmarker.MapMarkerManager.removeByOwner(server, targetName);
         RoleSavedData.get(server).clearRole(targetId);
         FactionDeputySavedData.get(server).removeDeputy(team, targetId);
         FactionSelectionSavedData.get(server).clear(targetId);
@@ -627,6 +629,7 @@ public final class FactionMenuService {
         Scoreboard scoreboard = server.getScoreboard();
         PlayerTeam previous = scoreboard.getPlayersTeam(name);
         if (previous != null) scoreboard.removePlayerFromTeam(name, previous);
+        ru.liko.pjmbasemod.common.mapmarker.MapMarkerManager.removeByOwner(server, name);
         ensureScoreboardTeam(server, team);
         scoreboard.addPlayerToTeam(name, scoreboard.getPlayerTeam(team));
         invites.consume(team, name);
