@@ -86,6 +86,10 @@ public final class MapContextMenu {
 
     public void render(GuiGraphics gg, Font font, double mx, double my) {
         if (!visible) return;
+        // Z+400 (уровень тултипов): текст подписей маркеров батчится и флашится позже
+        // заливок, без подъёма он «просвечивал» бы сквозь меню.
+        gg.pose().pushPose();
+        gg.pose().translate(0, 0, 400);
         boolean hasBack = !stack.isEmpty();
         int total = current.size() + (hasBack ? 1 : 0);
         int w = width(font);
@@ -108,6 +112,7 @@ public final class MapContextMenu {
             }
             gg.drawString(font, label, x + PAD, ry, PjmGuiUtils.TEXT_PRIMARY);
         }
+        gg.pose().popPose();
     }
 
     private int width(Font font) {

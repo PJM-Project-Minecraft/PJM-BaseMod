@@ -56,9 +56,10 @@ public final class ClientEvents {
         // там кнопка «наблюдать» и своя логика выхода, ради которых не стоит городить ветку.
         if (event.getNewScreen() instanceof DeathScreen) {
             Minecraft mc = Minecraft.getInstance();
-            if (mc.screen instanceof PjmDeathScreen) {
-                // Наш экран уже открыт мгновенно по DeathScreenPacket — не пересоздаём,
-                // иначе сбросились бы состояния кнопок.
+            if (mc.screen instanceof PjmDeathScreen
+                    || mc.screen instanceof ru.liko.pjmbasemod.client.gui.screen.DeploymentMapScreen) {
+                // Наш экран смерти/карта развёртывания уже открыты по DeathScreenPacket —
+                // не пересоздаём, иначе сбросился бы прогресс кинематики/выбора.
                 event.setCanceled(true);
             } else if (mc.level != null && !mc.level.getLevelData().isHardcore()) {
                 event.setNewScreen(new PjmDeathScreen());

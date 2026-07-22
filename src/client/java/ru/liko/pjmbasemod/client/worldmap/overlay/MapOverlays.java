@@ -48,7 +48,7 @@ public final class MapOverlays {
     }
 
     /** Маяк рации (иконки Xaero): циан-кольцо + расходящийся пинг; серый с отсчётом на перезарядке. */
-    private static void drawRadioMarker(GuiGraphics gg, Font font, int sx, int sy, String name, int cooldown) {
+    public static void drawRadioMarker(GuiGraphics gg, Font font, int sx, int sy, String name, int cooldown) {
         int rgb = cooldown > 0 ? 0x9AA0A6 : 0x4CE05A;
         if (cooldown == 0) {
             float t = (Util.getMillis() % 1600L) / 1600f;
