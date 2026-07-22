@@ -5,23 +5,22 @@ import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
-import ru.liko.pjmbasemod.common.entity.StrategicMissileEntity;
 
-/** Зацикленный mono-двигатель, привязанный к движущейся сущности ракеты. */
+/** Зацикленный mono-двигатель, привязанный к виртуальному треку ракеты. */
 final class MissileEngineSoundInstance extends AbstractTickableSoundInstance {
 
-    private final StrategicMissileEntity missile;
+    private final MissileSoundController.RemoteMissile track;
 
-    MissileEngineSoundInstance(StrategicMissileEntity missile, SoundEvent sound) {
+    MissileEngineSoundInstance(MissileSoundController.RemoteMissile track, SoundEvent sound) {
         super(sound, SoundSource.HOSTILE, SoundInstance.createUnseededRandom());
-        this.missile = missile;
+        this.track = track;
         this.looping = true;
         this.delay = 0;
         this.relative = false;
         this.attenuation = Attenuation.NONE;
-        this.pitch = missile.isBallistic() ? 0.92f : 1.0f;
-        updatePosition();
+        this.pitch = track.ballistic ? 0.92f : 1.0f;
         this.volume = 0.0f;
+        updatePosition();
     }
 
     @Override
@@ -31,7 +30,7 @@ final class MissileEngineSoundInstance extends AbstractTickableSoundInstance {
 
     @Override
     public void tick() {
-        if (missile.isRemoved()) {
+        if (track.stopped) {
             stop();
             return;
         }
@@ -41,18 +40,16 @@ final class MissileEngineSoundInstance extends AbstractTickableSoundInstance {
             volume = 0.0f;
             return;
         }
-        double distance = mc.player.distanceTo(missile);
+        double distance = mc.player.getEyePosition().distanceTo(track.position);
         float fade = 1.0f - smoothstep(180.0, 280.0, distance);
         // Тихое ядро двигателя; основную перспективу дают три crossfade-слоя.
-        volume = 0.30f * fade * MissileSoundController.muffle(missile.getUUID());
+        volume = 0.30f * fade * track.muffle;
     }
 
-    void stopSound() { stop(); }
-
     private void updatePosition() {
-        x = missile.getX();
-        y = missile.getY();
-        z = missile.getZ();
+        x = track.position.x;
+        y = track.position.y;
+        z = track.position.z;
     }
 
     private static float smoothstep(double edge0, double edge1, double value) {

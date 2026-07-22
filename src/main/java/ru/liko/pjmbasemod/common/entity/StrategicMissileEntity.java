@@ -25,6 +25,8 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import ru.liko.pjmbasemod.common.compat.SbwMissileCompat;
 import ru.liko.pjmbasemod.common.missile.MissileDefinition;
+import ru.liko.pjmbasemod.common.network.PjmNetworking;
+import ru.liko.pjmbasemod.common.network.packet.MissileAudioSyncPacket;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animation.AnimatableManager;
@@ -65,13 +67,13 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     private int ballisticApex = 160;
     private float weaveAmplitude;
     private float weaveCycles = 1.0f;
-    private float terminalPopUp;
     private float explosionDamage = 120.0f;
     private float explosionRadius = 8.0f;
     private float health = 35.0f;
     private float shotDownPower = 0.35f;
     private boolean destroyBlocks;
     private boolean exploding;
+    private double smoothedCruiseY = Double.NaN;
     @Nullable private ChunkPos ticketCenter;
 
     public StrategicMissileEntity(EntityType<?> type, Level level) {
@@ -98,7 +100,6 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         this.ballisticApex = definition.ballisticApex();
         this.weaveAmplitude = definition.weaveAmplitude();
         this.weaveCycles = definition.weaveCycles();
-        this.terminalPopUp = definition.terminalPopUp();
         this.explosionDamage = definition.damage();
         this.explosionRadius = definition.radius();
         this.health = definition.hitPoints();
@@ -158,6 +159,7 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         updateRotation(movement);
         setPos(next);
         spawnTrail(serverLevel, next, movement);
+        if (tickCount % 2 == 0) sendAudioSync(serverLevel, true);
         if (t >= 1.0 || next.distanceToSqr(targetX, targetY, targetZ) <= 1.0) {
             detonate(false, new Vec3(targetX, targetY, targetZ));
         }
@@ -202,16 +204,16 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
             z += routeX / routeLength * offset;
         }
         double horizontalRemaining = Math.hypot(targetX - x, targetZ - z);
-        double cruiseY = Math.min(level.getMaxBuildHeight() - 8.0,
+        double cruiseTarget = Math.min(level.getMaxBuildHeight() - 8.0,
                 lookAheadTerrain(level, x, z, routeLength) + cruiseHeight);
+        // Крейсерская высота — экспоненциальное сглаживание с лимитом скорости:
+        // рельеф меняется ступенькой, а ракета плавно перетекает к новой высоте.
+        if (Double.isNaN(smoothedCruiseY)) smoothedCruiseY = Math.max(getY(), cruiseTarget);
+        smoothedCruiseY += Mth.clamp((cruiseTarget - smoothedCruiseY) * 0.12,
+                -MAX_DESCENT_PER_TICK, MAX_CLIMB_PER_TICK);
+        // Терминальный заход — плавный перелом курса вниз (dive², без прыжка вверх).
         double dive = Mth.clamp(1.0 - horizontalRemaining / Math.max(1.0, terminalDiveDistance), 0.0, 1.0);
-        double y = Mth.lerp(dive * dive, cruiseY, targetY)
-                + terminalPopUp * Math.sin(Math.PI * dive);
-        if (dive <= 0.0) {
-            // Вне терминального пике вертикаль сглаживаем: без телепорт-скачков на обрывах.
-            double previousY = getY();
-            y = Mth.clamp(y, previousY - MAX_DESCENT_PER_TICK, previousY + MAX_CLIMB_PER_TICK);
-        }
+        double y = Mth.lerp(dive * dive, smoothedCruiseY, targetY);
         return new Vec3(x, y, z);
     }
 
@@ -272,6 +274,19 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         discard();
     }
 
+    private static final double AUDIO_RANGE_SQ = 750.0 * 750.0;
+
+    /** Звуковой синк идёт мимо entity-трекинга: ракету слышно и там, где сущность не прогружена. */
+    private void sendAudioSync(ServerLevel level, boolean active) {
+        MissileAudioSyncPacket packet = new MissileAudioSyncPacket(
+                getUUID(), isBallistic(), active, getX(), getY(), getZ());
+        for (ServerPlayer viewer : level.players()) {
+            if (viewer.distanceToSqr(getX(), getY(), getZ()) <= AUDIO_RANGE_SQ) {
+                PjmNetworking.sendToPlayer(viewer, packet);
+            }
+        }
+    }
+
     private void refreshChunkTicket(ServerLevel level) {
         ChunkPos current = chunkPosition();
         if (ticketCenter != null && ticketCenter.equals(current) && tickCount % 40 != 0) return;
@@ -288,6 +303,9 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
 
     @Override
     public void remove(RemovalReason reason) {
+        if (!level().isClientSide() && level() instanceof ServerLevel serverLevel) {
+            sendAudioSync(serverLevel, false);
+        }
         removeChunkTicket();
         super.remove(reason);
     }
@@ -318,7 +336,6 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         ballisticApex = tag.getInt("BallisticApex");
         weaveAmplitude = tag.getFloat("WeaveAmplitude");
         weaveCycles = tag.contains("WeaveCycles") ? tag.getFloat("WeaveCycles") : 1.0f;
-        terminalPopUp = tag.getFloat("TerminalPopUp");
         explosionDamage = tag.getFloat("ExplosionDamage");
         explosionRadius = tag.getFloat("ExplosionRadius");
         health = tag.getFloat("Health");
@@ -346,7 +363,6 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         tag.putInt("BallisticApex", ballisticApex);
         tag.putFloat("WeaveAmplitude", weaveAmplitude);
         tag.putFloat("WeaveCycles", weaveCycles);
-        tag.putFloat("TerminalPopUp", terminalPopUp);
         tag.putFloat("ExplosionDamage", explosionDamage);
         tag.putFloat("ExplosionRadius", explosionRadius);
         tag.putFloat("Health", health);

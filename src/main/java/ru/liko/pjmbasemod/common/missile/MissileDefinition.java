@@ -26,7 +26,6 @@ public final class MissileDefinition {
     int ballisticApex = 160;
     float weaveAmplitude = 0.0f;
     float weaveCycles = 1.0f;
-    float terminalPopUp = 0.0f;
     float damage = 120.0f;
     float radius = 8.0f;
     float hitPoints = 35.0f;
@@ -79,7 +78,6 @@ public final class MissileDefinition {
         ballisticApex = clamp(ballisticApex, 32, 800);
         weaveAmplitude = clamp(weaveAmplitude, 0.0f, 32.0f);
         weaveCycles = clamp(weaveCycles, 0.25f, 6.0f);
-        terminalPopUp = clamp(terminalPopUp, 0.0f, 64.0f);
         damage = clamp(damage, 1.0f, 10_000.0f);
         radius = clamp(radius, 1.0f, 40.0f);
         hitPoints = clamp(hitPoints, 1.0f, 10_000.0f);
@@ -126,12 +124,10 @@ public final class MissileDefinition {
 
     public float weaveAmplitude() { return weaveAmplitude; }
     public float weaveCycles() { return weaveCycles; }
-    public float terminalPopUp() { return terminalPopUp; }
 
-    MissileDefinition withApproach(float amplitude, float cycles, float popUp) {
+    MissileDefinition withApproach(float amplitude, float cycles) {
         this.weaveAmplitude = amplitude;
         this.weaveCycles = cycles;
-        this.terminalPopUp = popUp;
         normalize();
         return this;
     }
