@@ -243,5 +243,16 @@
       { "name": "pjmbasemod:missile/close", "stream": true }
     ],
     "subtitle": "subtitles.pjmbasemod.missile"
+  },
+  "missile.flyby": {
+    "sounds": [
+      "pjmbasemod:missile/woosh_01",
+      "pjmbasemod:missile/woosh_02",
+      "pjmbasemod:missile/woosh_03",
+      "pjmbasemod:missile/woosh_04",
+      "pjmbasemod:missile/woosh_05",
+      "pjmbasemod:missile/woosh_06"
+    ],
+    "subtitle": "subtitles.pjmbasemod.missile"
   }
 }

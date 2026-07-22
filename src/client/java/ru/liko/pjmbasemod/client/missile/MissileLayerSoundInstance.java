@@ -46,13 +46,14 @@ final class MissileLayerSoundInstance extends AbstractTickableSoundInstance {
             return;
         }
         double distance = mc.player.distanceTo(missile);
-        volume = switch (band) {
+        float base = switch (band) {
             case CLOSE -> 0.95f * (1.0f - smoothstep(36.0, 82.0, distance));
             case MEDIUM -> 0.82f * smoothstep(28.0, 62.0, distance)
                     * (1.0f - smoothstep(125.0, 185.0, distance));
             case FAR -> 0.68f * smoothstep(90.0, 145.0, distance)
                     * (1.0f - smoothstep(250.0, 340.0, distance));
         };
+        volume = base * MissileSoundController.muffle(missile.getUUID());
     }
 
     void stopSound() { stop(); }

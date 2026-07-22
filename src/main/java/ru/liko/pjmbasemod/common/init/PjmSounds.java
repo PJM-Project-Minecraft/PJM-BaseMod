@@ -31,6 +31,7 @@ public final class PjmSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> MISSILE_FAR            = reg("missile.far");
     public static final DeferredHolder<SoundEvent, SoundEvent> MISSILE_MEDIUM         = reg("missile.medium");
     public static final DeferredHolder<SoundEvent, SoundEvent> MISSILE_CLOSE          = reg("missile.close");
+    public static final DeferredHolder<SoundEvent, SoundEvent> MISSILE_FLYBY          = reg("missile.flyby");
 
     private PjmSounds() {}
 

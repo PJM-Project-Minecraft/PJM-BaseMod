@@ -1,6 +1,7 @@
 package ru.liko.pjmbasemod.common.entity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -12,11 +13,13 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
@@ -38,6 +41,10 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
             StrategicMissileEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Boolean> BALLISTIC = SynchedEntityData.defineId(
             StrategicMissileEntity.class, EntityDataSerializers.BOOLEAN);
+
+    private static final int[] LOOKAHEAD_TICKS = {10, 20};
+    private static final double MAX_CLIMB_PER_TICK = 2.5;
+    private static final double MAX_DESCENT_PER_TICK = 1.5;
 
     private static final int TICKET_RADIUS = 3;
     private static final int TICKET_LINGER_TICKS = 100;
@@ -99,6 +106,9 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         this.destroyBlocks = definition.destroyBlocks();
         this.configured = true;
         setPos(start);
+        // Ticket сразу при конфигурации: чанк спавна за тысячи блоков не entity-ticking,
+        // и без него первый tick() никогда не случится — ракета зависнет навечно.
+        if (level() instanceof ServerLevel serverLevel) refreshChunkTicket(serverLevel);
     }
 
     public String getMissileId() { return entityData.get(MISSILE_ID); }
@@ -126,11 +136,20 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         double t = Mth.clamp(elapsedTicks / (double) flightTicks, 0.0, 1.0);
         Vec3 next = isBallistic() ? ballisticPosition(t) : cruisePosition(serverLevel, t);
         Vec3 previous = position();
-        BlockHitResult hit = serverLevel.clip(new ClipContext(
+        BlockHitResult blockHit = serverLevel.clip(new ClipContext(
                 previous, next, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
-        if (hit.getType() != HitResult.Type.MISS) {
-            setPos(hit.getLocation());
-            detonate(false, hit.getLocation());
+        Vec3 end = blockHit.getType() != HitResult.Type.MISS ? blockHit.getLocation() : next;
+        EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(serverLevel, this, previous, end,
+                getBoundingBox().expandTowards(end.subtract(previous)).inflate(1.0),
+                other -> other != this && other.isAlive() && other.isPickable() && !other.isSpectator());
+        if (entityHit != null) {
+            setPos(entityHit.getLocation());
+            detonate(false, entityHit.getLocation());
+            return;
+        }
+        if (blockHit.getType() != HitResult.Type.MISS) {
+            setPos(end);
+            detonate(false, end);
             return;
         }
 
@@ -138,8 +157,26 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         setDeltaMovement(movement);
         updateRotation(movement);
         setPos(next);
+        spawnTrail(serverLevel, next, movement);
         if (t >= 1.0 || next.distanceToSqr(targetX, targetY, targetZ) <= 1.0) {
             detonate(false, new Vec3(targetX, targetY, targetZ));
+        }
+    }
+
+    private static final double TRAIL_VIEW_DISTANCE_SQ = 400.0 * 400.0;
+
+    /** Реактивный след из сопла: по нему ракету видно и можно сбить. Force-рассылка — обычный лимит частиц 32 блока. */
+    private void spawnTrail(ServerLevel level, Vec3 position, Vec3 movement) {
+        if (movement.lengthSqr() < 1.0E-6) return;
+        Vec3 tail = position.subtract(movement.normalize().scale(2.0));
+        for (ServerPlayer viewer : level.players()) {
+            if (viewer.distanceToSqr(tail.x, tail.y, tail.z) > TRAIL_VIEW_DISTANCE_SQ) continue;
+            level.sendParticles(viewer, ParticleTypes.FLAME, true, tail.x, tail.y, tail.z, 2, 0.1, 0.1, 0.1, 0.01);
+            level.sendParticles(viewer, ParticleTypes.LARGE_SMOKE, true, tail.x, tail.y, tail.z, 3, 0.3, 0.3, 0.3, 0.02);
+            if (tickCount % 2 == 0) {
+                level.sendParticles(viewer, ParticleTypes.CAMPFIRE_COSY_SMOKE, true,
+                        tail.x, tail.y, tail.z, 1, 0.2, 0.2, 0.2, 0.005);
+            }
         }
     }
 
@@ -165,13 +202,37 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
             z += routeX / routeLength * offset;
         }
         double horizontalRemaining = Math.hypot(targetX - x, targetZ - z);
-        int terrain = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                Mth.floor(x), Mth.floor(z));
-        double cruiseY = Math.min(level.getMaxBuildHeight() - 8.0, terrain + cruiseHeight);
+        double cruiseY = Math.min(level.getMaxBuildHeight() - 8.0,
+                lookAheadTerrain(level, x, z, routeLength) + cruiseHeight);
         double dive = Mth.clamp(1.0 - horizontalRemaining / Math.max(1.0, terminalDiveDistance), 0.0, 1.0);
         double y = Mth.lerp(dive * dive, cruiseY, targetY)
                 + terminalPopUp * Math.sin(Math.PI * dive);
+        if (dive <= 0.0) {
+            // Вне терминального пике вертикаль сглаживаем: без телепорт-скачков на обрывах.
+            double previousY = getY();
+            y = Mth.clamp(y, previousY - MAX_DESCENT_PER_TICK, previousY + MAX_CLIMB_PER_TICK);
+        }
         return new Vec3(x, y, z);
+    }
+
+    /**
+     * Максимальный рельеф в текущей точке и с упреждением по курсу (10 и 20 тиков пути):
+     * ракета начинает набор высоты до склона, а не утыкается в него.
+     */
+    private int lookAheadTerrain(ServerLevel level, double x, double z, double routeLength) {
+        int terrain = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(x), Mth.floor(z));
+        double dx = targetX - x;
+        double dz = targetZ - z;
+        double remaining = Math.hypot(dx, dz);
+        if (remaining < 1.0E-3) return terrain;
+        double speedPerTick = routeLength / Math.max(1, flightTicks);
+        for (int ticksAhead : LOOKAHEAD_TICKS) {
+            double distance = Math.min(remaining, speedPerTick * ticksAhead);
+            int ahead = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    Mth.floor(x + dx / remaining * distance), Mth.floor(z + dz / remaining * distance));
+            terrain = Math.max(terrain, ahead);
+        }
+        return terrain;
     }
 
     private void updateRotation(Vec3 movement) {

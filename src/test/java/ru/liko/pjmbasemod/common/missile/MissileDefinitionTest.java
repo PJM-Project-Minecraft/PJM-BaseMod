@@ -32,10 +32,10 @@ class MissileDefinitionTest {
         assertEquals(0, definition.supplyCost());
         assertEquals(0, definition.cooldownSeconds());
         assertEquals(2, definition.flightSeconds());
-        assertEquals(160, definition.spawnDistance());
+        assertEquals(4096, definition.spawnDistance());
         assertEquals(4, definition.cruiseHeight());
         assertEquals(8, definition.terminalDiveDistance());
-        assertEquals(320, definition.ballisticApex());
+        assertEquals(800, definition.ballisticApex());
         assertEquals(1.0f, definition.damage());
         assertEquals(40.0f, definition.radius());
         assertEquals(1.0f, definition.hitPoints());

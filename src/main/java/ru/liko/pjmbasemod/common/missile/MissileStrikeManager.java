@@ -185,7 +185,8 @@ public final class MissileStrikeManager {
                 (int) Math.floor(x), (int) Math.floor(z));
         double y;
         if (definition.trajectoryType() == MissileDefinition.Trajectory.BALLISTIC) {
-            y = Math.min(level.getMaxBuildHeight() - 16.0, target.y + 40.0);
+            // Старт не ниже рельефа точки спавна, иначе ракета рождается в горе и детонирует на первом тике.
+            y = Math.min(level.getMaxBuildHeight() - 16.0, Math.max(surface + 8.0, target.y + 40.0));
         } else {
             y = Math.min(level.getMaxBuildHeight() - 8.0, surface + definition.cruiseHeight());
         }

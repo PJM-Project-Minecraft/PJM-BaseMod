@@ -72,11 +72,11 @@ public final class MissileDefinition {
         supplyCost = clamp(supplyCost, 0, 1_000_000);
         cooldownSeconds = clamp(cooldownSeconds, 0, 86_400);
         flightSeconds = clamp(flightSeconds, 2, 120);
-        // Не выпускаем сущность дальше типичного радиуса тикающихся чанков вокруг цели.
-        spawnDistance = clamp(spawnDistance, 32, 160);
+        // Дальний спавн допустим: сущность сама держит runtime-ticket и подгружает чанки по пути.
+        spawnDistance = clamp(spawnDistance, 32, 4096);
         cruiseHeight = clamp(cruiseHeight, 4, 160);
-        terminalDiveDistance = clamp(terminalDiveDistance, 8, 160);
-        ballisticApex = clamp(ballisticApex, 32, 320);
+        terminalDiveDistance = clamp(terminalDiveDistance, 8, 320);
+        ballisticApex = clamp(ballisticApex, 32, 800);
         weaveAmplitude = clamp(weaveAmplitude, 0.0f, 32.0f);
         weaveCycles = clamp(weaveCycles, 0.25f, 6.0f);
         terminalPopUp = clamp(terminalPopUp, 0.0f, 64.0f);

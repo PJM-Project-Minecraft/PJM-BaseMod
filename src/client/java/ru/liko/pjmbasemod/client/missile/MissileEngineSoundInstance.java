@@ -44,7 +44,7 @@ final class MissileEngineSoundInstance extends AbstractTickableSoundInstance {
         double distance = mc.player.distanceTo(missile);
         float fade = 1.0f - smoothstep(180.0, 280.0, distance);
         // Тихое ядро двигателя; основную перспективу дают три crossfade-слоя.
-        volume = 0.30f * fade;
+        volume = 0.30f * fade * MissileSoundController.muffle(missile.getUUID());
     }
 
     void stopSound() { stop(); }

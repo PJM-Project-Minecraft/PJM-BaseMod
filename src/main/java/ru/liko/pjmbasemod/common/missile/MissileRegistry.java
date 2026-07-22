@@ -94,20 +94,21 @@ public final class MissileRegistry {
 
     private static List<MissileDefinition> defaultDefinitions() {
         List<MissileDefinition> result = new ArrayList<>();
+        // Скорость = spawnDistance / (flightSeconds * 20); при спавне за 2500 держим ~4-6 блоков/тик.
         result.add(MissileDefinition.create("iskander_k", "Искандер-К", MissileDefinition.Trajectory.CRUISE,
-                25, 480, 8, 120, 24, 32, 140, 120, 8, 40, 0.30f, false)
-                .withApproach(2.0f, 1.0f, 0.0f));
+                25, 480, 25, 2500, 24, 48, 140, 120, 8, 40, 0.30f, false)
+                .withApproach(4.0f, 1.0f, 0.0f));
         result.add(MissileDefinition.create("storm_shadow", "Storm Shadow", MissileDefinition.Trajectory.CRUISE,
-                35, 600, 10, 136, 20, 40, 150, 145, 9, 48, 0.30f, false)
-                .withApproach(5.0f, 1.5f, 8.0f));
+                35, 600, 28, 2500, 20, 56, 150, 145, 9, 48, 0.30f, false)
+                .withApproach(8.0f, 1.5f, 8.0f));
         result.add(MissileDefinition.create("kh_101", "Х-101", MissileDefinition.Trajectory.CRUISE,
-                50, 780, 14, 152, 32, 48, 170, 175, 11, 60, 0.35f, false)
-                .withApproach(9.0f, 2.0f, 4.0f));
+                50, 780, 31, 2500, 32, 64, 170, 175, 11, 60, 0.35f, false)
+                .withApproach(14.0f, 2.0f, 4.0f));
         result.add(MissileDefinition.create("iskander_m", "Искандер-М", MissileDefinition.Trajectory.BALLISTIC,
-                70, 1080, 7, 96, 24, 32, 220, 230, 14, 85, 0.25f, false));
+                70, 1080, 20, 2500, 24, 32, 500, 230, 14, 85, 0.25f, false));
         result.add(MissileDefinition.create("flamingo", "Flamingo", MissileDefinition.Trajectory.CRUISE,
-                95, 1500, 16, 160, 38, 56, 190, 280, 17, 95, 0.40f, false)
-                .withApproach(1.0f, 0.5f, 0.0f));
+                95, 1500, 30, 2500, 38, 72, 190, 280, 17, 95, 0.40f, false)
+                .withApproach(2.0f, 0.5f, 0.0f));
         return result;
     }
 
