@@ -6,6 +6,7 @@ import java.util.List;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 
 /**
  * Лёгкое контекст-меню для карты (ПКМ по точке захвата в режиме редактора). Поддерживает
@@ -26,9 +27,10 @@ public final class MapContextMenu {
     private static final String BACK_LABEL = "‹ Назад";
     private static final int PAD = 4;
     private static final int ROW_H = 12;
-    private static final int BG = 0xF01A1A1E;
-    private static final int BORDER = 0xFF3A3A42;
-    private static final int HOVER = 0x50FFFFFF;
+    // Amber-Tactical (PjmGuiUtils): стеклянная тёмная панель + приглушённое золото
+    private static final int BG = 0xF00E1319;
+    private static final int BORDER = 0x80B98A46;
+    private static final int HOVER = PjmGuiUtils.SCREEN_SELECT;
 
     private boolean visible;
     private int x, y;
@@ -104,7 +106,7 @@ public final class MapContextMenu {
                 Entry e = current.get(hasBack ? i - 1 : i);
                 label = e.submenu() != null ? e.label() + "  ▸" : e.label();
             }
-            gg.drawString(font, label, x + PAD, ry, 0xFFE0E0E0);
+            gg.drawString(font, label, x + PAD, ry, PjmGuiUtils.TEXT_PRIMARY);
         }
     }
 

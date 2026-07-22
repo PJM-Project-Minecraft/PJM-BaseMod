@@ -1,5 +1,6 @@
 package ru.liko.pjmbasemod.common.network;
 
+import ru.liko.pjmbasemod.common.network.packet.MapMarkerSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
 import ru.liko.pjmbasemod.common.network.packet.FactionManagementSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.FactionOrderSyncPacket;
@@ -79,4 +80,5 @@ public interface ClientPacketProxy {
     default void openWelcomeGuide(OpenWelcomeGuidePacket payload) {}
     default void deathScreen(DeathScreenPacket payload) {}
     default void radioSpawnList(RadioSpawnListPacket payload) {}
+    default void mapMarkerSync(MapMarkerSyncPacket payload) {}
 }

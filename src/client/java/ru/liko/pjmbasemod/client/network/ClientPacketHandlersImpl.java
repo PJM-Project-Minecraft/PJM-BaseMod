@@ -261,6 +261,11 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     }
 
     @Override
+    public void mapMarkerSync(ru.liko.pjmbasemod.common.network.packet.MapMarkerSyncPacket payload) {
+        ru.liko.pjmbasemod.client.mapmarker.ClientMapMarkerState.update(payload);
+    }
+
+    @Override
     public void signalHuntHud(ru.liko.pjmbasemod.common.network.packet.SignalHuntHudPacket payload) {
         ru.liko.pjmbasemod.client.serverevent.ClientSignalHuntState.update(payload);
     }

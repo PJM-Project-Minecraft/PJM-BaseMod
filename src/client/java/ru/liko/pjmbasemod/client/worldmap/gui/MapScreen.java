@@ -19,6 +19,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.scores.Team;
 import org.lwjgl.glfw.GLFW;
 import ru.liko.pjmbasemod.client.basezone.ClientBaseZoneState;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
+import ru.liko.pjmbasemod.client.mapmarker.ClientMapMarkerState;
 import ru.liko.pjmbasemod.client.radiospawn.ClientRadioCarrierState;
 import ru.liko.pjmbasemod.client.worldmap.WorldMapEngine;
 import ru.liko.pjmbasemod.client.worldmap.data.MapConstants;
@@ -28,6 +30,8 @@ import ru.liko.pjmbasemod.client.worldmap.overlay.MapOverlays;
 import ru.liko.pjmbasemod.common.basezone.BaseZoneView;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.DeployToRadioPacket;
+import ru.liko.pjmbasemod.common.network.packet.MapMarkerActionPacket;
+import ru.liko.pjmbasemod.common.network.packet.MapMarkerSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioSpawnListPacket;
 
 /**
@@ -66,6 +70,9 @@ public final class MapScreen extends Screen {
 
     private final MapContextMenu contextMenu = new MapContextMenu();
 
+    /** Якорь стрелки (Squad-style): не null — идёт установка, стрелка тянется за мышью. */
+    private BlockPos arrowStart;
+
     public MapScreen() {
         super(Component.translatable("gui.pjmbasemod.map"));
     }
@@ -81,6 +88,7 @@ public final class MapScreen extends Screen {
         attached = true;
         gliding = false;
         scale = destScale;
+        PjmNetworking.sendToServer(MapMarkerActionPacket.request()); // актуальные метки команды
     }
 
     @Override
@@ -183,6 +191,13 @@ public final class MapScreen extends Screen {
             String skip = editorOn() ? CapturePointEditor.get().selectedId() : null;
             MapOverlays.render(gg, font, cameraX, cameraZ, scale, width, height, dimStr(), skip);
             MapOverlays.drawRadioCarriers(gg, font, cameraX, cameraZ, scale, width, height);
+            MapOverlays.drawTacticalMarkers(gg, font, cameraX, cameraZ, scale, width, height, dimStr());
+        }
+        if (arrowStart != null) { // превью стрелки: от якоря к курсору
+            double ax = MapRenderer.worldToScreenX(arrowStart.getX() + 0.5, cameraX, scale, width);
+            double ay = MapRenderer.worldToScreenY(arrowStart.getZ() + 0.5, cameraZ, scale, height);
+            float pulse = 0.65f + 0.25f * (float) Math.sin(Util.getMillis() / 200.0);
+            MapOverlays.drawArrowShape(gg, ax, ay, mouseX, mouseY, scale, PjmGuiUtils.ACCENT & 0xFFFFFF, pulse);
         }
         if (editorOn()) {
             CapturePointEditor.get().render(gg, font, cameraX, cameraZ, scale, width, height);
@@ -219,15 +234,19 @@ public final class MapScreen extends Screen {
     private void drawHud(GuiGraphics gg, int mouseX, int mouseY) {
         int wx = Mth.floor(MapRenderer.screenToWorldX(mouseX, cameraX, scale, width));
         int wz = Mth.floor(MapRenderer.screenToWorldZ(mouseY, cameraZ, scale, height));
-        drawPill(gg, width / 2, 6, "X " + wx + "    Z " + wz, 0xFFFFFFFF);
-        drawPill(gg, width / 2, height - 20, String.format(Locale.ROOT, "%.2fx", scale), 0xFFB9C4D0);
+        drawPill(gg, width / 2, 6, "X " + wx + "    Z " + wz, PjmGuiUtils.TEXT_PRIMARY);
+        drawPill(gg, width / 2, height - 20, String.format(Locale.ROOT, "%.2fx", scale), PjmGuiUtils.TEXT_DIM);
+        if (arrowStart != null) {
+            drawPill(gg, width / 2, height - 38, "ЛКМ — поставить стрелку   ·   ПКМ / Esc — отмена", PjmGuiUtils.ACCENT);
+        }
 
         if (isOp()) {
             boolean on = CapturePointEditor.get().enabled();
-            gg.fill(TOGGLE_X, TOGGLE_Y, TOGGLE_X + TOGGLE_W, TOGGLE_Y + TOGGLE_H, on ? 0xCC1E4D22 : 0xCC0A0A12);
-            gg.fill(TOGGLE_X, TOGGLE_Y, TOGGLE_X + TOGGLE_W, TOGGLE_Y + 1, 0x30FFFFFF);
+            gg.fill(TOGGLE_X, TOGGLE_Y, TOGGLE_X + TOGGLE_W, TOGGLE_Y + TOGGLE_H,
+                    on ? 0xCC4A3A16 : PjmGuiUtils.SCREEN_HEADER);
+            gg.fill(TOGGLE_X, TOGGLE_Y, TOGGLE_X + TOGGLE_W, TOGGLE_Y + 1, PjmGuiUtils.ACCENT_DIM);
             gg.drawString(font, "✎ Правка точек: " + (on ? "ВКЛ" : "выкл"),
-                    TOGGLE_X + 6, TOGGLE_Y + 3, on ? 0xFF9BE59B : 0xFFC0C0C0);
+                    TOGGLE_X + 6, TOGGLE_Y + 3, on ? PjmGuiUtils.ACCENT : PjmGuiUtils.TEXT_MUTED);
         }
     }
 
@@ -235,8 +254,8 @@ public final class MapScreen extends Screen {
         int w = font.width(text);
         int x0 = cx - w / 2 - 6;
         int x1 = cx + w / 2 + 6;
-        gg.fill(x0, topY, x1, topY + 14, 0xCC0A0A12);
-        gg.fill(x0, topY, x1, topY + 1, 0x30FFFFFF);
+        gg.fill(x0, topY, x1, topY + 14, PjmGuiUtils.SCREEN_HEADER);
+        gg.fill(x0, topY, x1, topY + 1, PjmGuiUtils.ACCENT_DIM);
         gg.fill(x0, topY + 13, x1, topY + 14, 0x40000000);
         gg.drawCenteredString(font, text, cx, topY + 3, textColor);
     }
@@ -261,6 +280,15 @@ public final class MapScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (closing) return true; // во время анимации закрытия ввод игнорируем
+        if (arrowStart != null) { // режим установки стрелки: ЛКМ — подтвердить, любая другая — отмена
+            if (button == 0) {
+                BlockPos end = worldBlockAt(mouseX, mouseY);
+                PjmNetworking.sendToServer(MapMarkerActionPacket.placeArrow(
+                        arrowStart.getX(), arrowStart.getZ(), end.getX(), end.getZ()));
+            }
+            arrowStart = null;
+            return true;
+        }
         if (contextMenu.visible()) {
             contextMenu.mouseClicked(mouseX, mouseY, font);
             return true;
@@ -278,6 +306,18 @@ public final class MapScreen extends Screen {
             if (carrier != null && inOwnBaseZone()) {
                 UUID cid = carrier.id();
                 items.add(MapContextMenu.Entry.leaf("Десант к " + carrier.owner(), () -> deployTo(cid)));
+            }
+            MapMarkerSyncPacket.Entry marker = markerAt(wb, maxDist);
+            if (marker != null && canRemoveMarker(marker)) {
+                items.add(MapContextMenu.Entry.leaf("✕ Убрать метку", () -> PjmNetworking.sendToServer(
+                        MapMarkerActionPacket.remove(marker.id()))));
+            }
+            if (minecraft != null && minecraft.player != null && minecraft.player.getTeam() != null) {
+                items.add(MapContextMenu.Entry.sub("Поставить метку", List.of(
+                        MapContextMenu.Entry.leaf("Стрелка (атака)", () -> arrowStart = wb),
+                        MapContextMenu.Entry.leaf("Пехота противника", () -> placeMarker("infantry", wb)),
+                        MapContextMenu.Entry.leaf("Техника противника", () -> placeMarker("vehicle", wb)),
+                        MapContextMenu.Entry.leaf("Опасность", () -> placeMarker("danger", wb)))));
             }
             if (editorOn()) items.addAll(CapturePointEditor.get().contextEntries(wb, dimStr()));
             if (isOp()) items.add(MapContextMenu.Entry.leaf("Телепорт сюда", () -> teleportTo(wb.getX(), wb.getZ())));
@@ -333,6 +373,10 @@ public final class MapScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE && arrowStart != null) {
+            arrowStart = null;
+            return true;
+        }
         if (keyCode == GLFW.GLFW_KEY_ESCAPE && contextMenu.visible()) {
             contextMenu.close();
             return true;
@@ -354,6 +398,41 @@ public final class MapScreen extends Screen {
         else y += 1;
         mc.getConnection().sendCommand("tp @s " + x + " " + y + " " + z);
         startClosing();
+    }
+
+    // ─── тактические метки ───
+
+    private void placeMarker(String type, BlockPos wb) {
+        PjmNetworking.sendToServer(MapMarkerActionPacket.place(type, wb.getX(), wb.getZ()));
+    }
+
+    /** Убрать можно свою метку; командир фракции и OP — любую. Сервер проверяет авторитетно. */
+    private boolean canRemoveMarker(MapMarkerSyncPacket.Entry marker) {
+        if (isOp() || ru.liko.pjmbasemod.client.faction.ClientFactionCommanderState.state().active()) return true;
+        return minecraft != null && minecraft.player != null
+                && marker.owner().equals(minecraft.player.getGameProfile().getName());
+    }
+
+    private MapMarkerSyncPacket.Entry markerAt(BlockPos wb, double maxDist) {
+        String dim = dimStr();
+        double bestSq = maxDist * maxDist;
+        MapMarkerSyncPacket.Entry best = null;
+        for (MapMarkerSyncPacket.Entry m : ClientMapMarkerState.markers()) {
+            if (!m.dimension().equals(dim)) continue;
+            // у стрелки кликабельны оба конца
+            double d = Math.min(distSq(m.x(), m.z(), wb), distSq(m.x2(), m.z2(), wb));
+            if (d <= bestSq) {
+                bestSq = d;
+                best = m;
+            }
+        }
+        return best;
+    }
+
+    private static double distSq(int x, int z, BlockPos wb) {
+        double dx = x - wb.getX();
+        double dz = z - wb.getZ();
+        return dx * dx + dz * dz;
     }
 
     private RadioSpawnListPacket.Entry carrierAt(BlockPos wb, double maxDist) {

@@ -1,6 +1,7 @@
 package ru.liko.pjmbasemod.client.worldmap.overlay;
 
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.Util;
 import net.minecraft.client.gui.Font;
@@ -8,10 +9,13 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import ru.liko.pjmbasemod.client.basezone.ClientBaseZoneState;
 import ru.liko.pjmbasemod.client.capturepoint.ClientCapturePointState;
+import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
+import ru.liko.pjmbasemod.client.mapmarker.ClientMapMarkerState;
 import ru.liko.pjmbasemod.client.radiospawn.ClientRadioCarrierState;
 import ru.liko.pjmbasemod.client.worldmap.gui.MapRenderer;
 import ru.liko.pjmbasemod.common.basezone.BaseZoneView;
 import ru.liko.pjmbasemod.common.capturepoint.CapturePoint;
+import ru.liko.pjmbasemod.common.network.packet.MapMarkerSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioSpawnListPacket;
 
 /**
@@ -55,9 +59,99 @@ public final class MapOverlays {
         if (cooldown > 0) {
             String cd = cooldown + "s";
             int cw = font.width(cd);
-            gg.fill(sx - cw / 2 - 2, sy - 20, sx + cw / 2 + 2, sy - 9, 0xC00A0A12);
+            gg.fill(sx - cw / 2 - 2, sy - 20, sx + cw / 2 + 2, sy - 9, PjmGuiUtils.SCREEN_HEADER);
             gg.drawCenteredString(font, cd, sx, sy - 18, 0xFFFF7777);
         }
+    }
+
+    // ── тактические метки команды (иконки NATO-стиля, видны только своей команде) ──
+
+    private static final int MARKER_SIZE = 18, MARKER_TEX = 64;
+    private static final Map<String, ResourceLocation> MARKER_ICONS = Map.of(
+            "arrow", markerRl("marker_arrow"),
+            "infantry", markerRl("marker_infantry"),
+            "vehicle", markerRl("marker_vehicle"),
+            "danger", markerRl("marker_danger"));
+    private static final ResourceLocation ARROWHEAD = markerRl("marker_arrowhead");
+    private static final int ARROW_RGB = PjmGuiUtils.ACCENT & 0xFFFFFF;
+
+    private static ResourceLocation markerRl(String name) {
+        return ResourceLocation.fromNamespaceAndPath("pjmbasemod", "textures/gui/map/" + name + ".png");
+    }
+
+    /** Метки своей команды: фиксированный экранный размер, ник автора — пилюлей под меткой при зуме.
+     *  Стрелки — Squad-style (линия от якоря до конца + наконечник). Командирские метки подсвечены. */
+    public static void drawTacticalMarkers(GuiGraphics gg, Font font, double camX, double camZ,
+                                           double scale, int width, int height, String dim) {
+        int half = MARKER_SIZE / 2;
+        for (MapMarkerSyncPacket.Entry m : ClientMapMarkerState.markers()) {
+            if (!m.dimension().equals(dim)) continue;
+            int sx = (int) MapRenderer.worldToScreenX(m.x() + 0.5, camX, scale, width);
+            int sy = (int) MapRenderer.worldToScreenY(m.z() + 0.5, camZ, scale, height);
+
+            if ("arrow".equals(m.type()) && m.directional()) {
+                int ex = (int) MapRenderer.worldToScreenX(m.x2() + 0.5, camX, scale, width);
+                int ey = (int) MapRenderer.worldToScreenY(m.z2() + 0.5, camZ, scale, height);
+                int pad = 40;
+                if ((sx < -pad || sx > width + pad || sy < -pad || sy > height + pad)
+                        && (ex < -pad || ex > width + pad || ey < -pad || ey > height + pad)) continue;
+                if (m.commander()) drawCommanderRing(gg, sx, sy);
+                drawArrowShape(gg, sx, sy, ex, ey, scale, ARROW_RGB, 1f);
+                if (scale >= 2.0) {
+                    drawLabelPill(gg, font, sx, sy + 6, ownerLabel(m), ARROW_RGB);
+                }
+                continue;
+            }
+
+            ResourceLocation icon = MARKER_ICONS.get(m.type());
+            if (icon == null) continue;
+            if (sx < -MARKER_SIZE || sx > width + MARKER_SIZE
+                    || sy < -MARKER_SIZE || sy > height + MARKER_SIZE) continue;
+            if (m.commander()) drawCommanderRing(gg, sx, sy);
+            gg.blit(icon, sx - half, sy - half, MARKER_SIZE, MARKER_SIZE,
+                    0f, 0f, MARKER_TEX, MARKER_TEX, MARKER_TEX, MARKER_TEX);
+            if (scale >= 2.0) {
+                drawLabelPill(gg, font, sx, sy + half + 2, ownerLabel(m), ARROW_RGB);
+            }
+        }
+    }
+
+    private static String ownerLabel(MapMarkerSyncPacket.Entry m) {
+        return m.commander() ? "★ " + m.owner() : m.owner();
+    }
+
+    /** Подсветка командирской метки: пульсирующее янтарное кольцо под иконкой. */
+    private static void drawCommanderRing(GuiGraphics gg, int sx, int sy) {
+        float pulse = 0.75f + 0.25f * (float) Math.sin(Util.getMillis() / 300.0);
+        blitSprite(gg, PING, sx, sy, 26, PING_TW, PING_TH, ARROW_RGB, pulse);
+    }
+
+    /**
+     * Squad-style стрелка в экранных координатах: тёмная подложка + янтарная линия,
+     * наконечник повёрнут по направлению. Используется и для превью при установке.
+     */
+    public static void drawArrowShape(GuiGraphics gg, double x0, double y0, double x1, double y1,
+                                      double scale, int rgb, float alpha) {
+        float th = (float) Math.min(9.0, Math.max(3.0, scale * 1.2));
+        int headSize = (int) Math.min(36.0, Math.max(16.0, scale * 5.0));
+        // укорачиваем линию, чтобы она не торчала из наконечника
+        double dx = x1 - x0, dy = y1 - y0;
+        double len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 1) return;
+        double tx = x1 - dx / len * headSize * 0.35;
+        double ty = y1 - dy / len * headSize * 0.35;
+        int a = Math.round(alpha * 255);
+        MapRenderer.line(gg, x0, y0, tx, ty, th + 3f, ((a * 230 / 255) << 24) | 0x0A0A12);
+        MapRenderer.line(gg, x0, y0, tx, ty, th, (a << 24) | (rgb & 0xFFFFFF));
+        float angle = (float) Math.toDegrees(Math.atan2(dy, dx)) + 90f; // текстура смотрит вверх
+        gg.pose().pushPose();
+        gg.pose().translate(x1, y1, 0);
+        gg.pose().mulPose(com.mojang.math.Axis.ZP.rotationDegrees(angle));
+        gg.setColor(1f, 1f, 1f, alpha);
+        gg.blit(ARROWHEAD, -headSize / 2, -headSize / 2, headSize, headSize,
+                0f, 0f, MARKER_TEX, MARKER_TEX, MARKER_TEX, MARKER_TEX);
+        gg.setColor(1f, 1f, 1f, 1f);
+        gg.pose().popPose();
     }
 
     private static void drawBaseZones(GuiGraphics gg, Font font, double camX, double camZ,
@@ -163,9 +257,9 @@ public final class MapOverlays {
         int tw = font.width(text);
         int x0 = cx - tw / 2 - 4;
         int x1 = cx + tw / 2 + 4;
-        gg.fill(x0, topY, x1, topY + 11, 0xC00A0A12);
+        gg.fill(x0, topY, x1, topY + 11, PjmGuiUtils.SCREEN_HEADER);
         gg.fill(x0, topY, x1, topY + 1, 0xFF000000 | (rgb & 0xFFFFFF));
-        gg.drawCenteredString(font, text, cx, topY + 2, 0xFFFFFFFF);
+        gg.drawCenteredString(font, text, cx, topY + 2, PjmGuiUtils.TEXT_PRIMARY);
     }
 
     private static void drawProgressBar(GuiGraphics gg, int cx, int y, int pct, int rgb) {
