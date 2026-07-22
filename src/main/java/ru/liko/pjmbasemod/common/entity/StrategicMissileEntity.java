@@ -78,6 +78,13 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     private double cruiseClimbRate;
     @Nullable private ChunkPos ticketCenter;
 
+    // Клиентская интерполяция сетевых позиций: у базового Entity её нет (lerpTo = телепорт),
+    // из-за чего быстрая ракета визуально дёргается при любой неравномерности пакетов.
+    private static final int LERP_STEPS = 3;
+    private double lerpX, lerpY, lerpZ;
+    private float lerpYRot, lerpXRot;
+    private int lerpSteps;
+
     public StrategicMissileEntity(EntityType<?> type, Level level) {
         super(type, level);
         this.noPhysics = true;
@@ -125,9 +132,35 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     }
 
     @Override
+    public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps) {
+        this.lerpX = x;
+        this.lerpY = y;
+        this.lerpZ = z;
+        this.lerpYRot = yRot;
+        this.lerpXRot = xRot;
+        this.lerpSteps = LERP_STEPS;
+    }
+
+    private void tickLerp() {
+        if (lerpSteps <= 0) return;
+        double nx = getX() + (lerpX - getX()) / lerpSteps;
+        double ny = getY() + (lerpY - getY()) / lerpSteps;
+        double nz = getZ() + (lerpZ - getZ()) / lerpSteps;
+        float yaw = Mth.rotLerp(1.0f / lerpSteps, getYRot(), lerpYRot);
+        float pitch = Mth.lerp(1.0f / lerpSteps, getXRot(), lerpXRot);
+        lerpSteps--;
+        setPos(nx, ny, nz);
+        setRot(yaw, pitch);
+    }
+
+    @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide() || !configured || exploding) return;
+        if (level().isClientSide()) {
+            tickLerp();
+            return;
+        }
+        if (!configured || exploding) return;
         if (!(level() instanceof ServerLevel serverLevel)) return;
 
         refreshChunkTicket(serverLevel);
