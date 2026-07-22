@@ -62,6 +62,7 @@ public final class WipeService {
         FactionOrderSavedData.get(server).clearAll();
         RoleSavedData.get(server).clearAll();
         ru.liko.pjmbasemod.common.mapmarker.MapMarkerManager.clearAll(server);
+        ru.liko.pjmbasemod.common.missile.MissileStrikeManager.clearAll(server);
         resyncAll(server);
     }
 

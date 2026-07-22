@@ -90,6 +90,8 @@ public final class ClientEvents {
         ru.liko.pjmbasemod.client.worldmap.edit.CapturePointEditor.get().onLogout();
         ru.liko.pjmbasemod.client.radiospawn.ClientRadioCarrierState.reset();
         ru.liko.pjmbasemod.client.mapmarker.ClientMapMarkerState.reset();
+        ru.liko.pjmbasemod.client.missile.ClientMissileState.reset();
+        ru.liko.pjmbasemod.client.missile.MissileSoundController.reset();
     }
 
     @SubscribeEvent
@@ -101,6 +103,7 @@ public final class ClientEvents {
         }
 
         RadioManager.get().tick();
+        ru.liko.pjmbasemod.client.missile.MissileSoundController.tick(mc);
         VoiceChatActionBarHud.tick(mc);
         ru.liko.pjmbasemod.client.serverevent.SignalHuntActionBarHud.tick(mc);
 

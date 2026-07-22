@@ -454,6 +454,7 @@ public final class PjmServerEvents {
         RankService.onServerStarted(event.getServer());
         DroneRaidRegistry.get().reload();
         SignalHuntRegistry.get().reload();
+        ru.liko.pjmbasemod.common.missile.MissileRegistry.get().reload();
         ServerEventManager.onServerStarted(event.getServer());
 
         List<? extends String> commands = Config.getStartupCommands();

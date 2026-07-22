@@ -38,6 +38,7 @@ import ru.liko.pjmbasemod.common.network.packet.RoleSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.SpawnPointOptionsPacket;
 import ru.liko.pjmbasemod.common.network.packet.StoreOptionsPacket;
 import ru.liko.pjmbasemod.common.network.packet.SyncPjmDataPacket;
+import ru.liko.pjmbasemod.common.network.packet.MissileCatalogSyncPacket;
 
 public interface ClientPacketProxy {
 
@@ -81,4 +82,5 @@ public interface ClientPacketProxy {
     default void deathScreen(DeathScreenPacket payload) {}
     default void radioSpawnList(RadioSpawnListPacket payload) {}
     default void mapMarkerSync(MapMarkerSyncPacket payload) {}
+    default void missileCatalogSync(MissileCatalogSyncPacket payload) {}
 }

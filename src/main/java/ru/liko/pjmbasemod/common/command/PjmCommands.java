@@ -299,7 +299,7 @@ public final class PjmCommands {
     // ---------------------------------------------------------------- config (централизованная перезагрузка)
 
     /** Секции, которые умеет перезагружать {@code /pjm config reload <section>}. */
-    private static final String[] CONFIG_SECTIONS = {"all", "general", "vehicles", "warehouse", "ranks", "roles", "inventory", "skins", "events"};
+    private static final String[] CONFIG_SECTIONS = {"all", "general", "vehicles", "warehouse", "ranks", "roles", "inventory", "skins", "events", "missiles"};
 
     private static LiteralArgumentBuilder<CommandSourceStack> configCommand() {
         return Commands.literal("config")
@@ -374,10 +374,15 @@ public final class PjmCommands {
                     .append(", зон радиоразведки ").append(zones).append("; ");
             sections++;
         }
+        if (all || section.equalsIgnoreCase("missiles")) {
+            int count = ru.liko.pjmbasemod.common.missile.MissileRegistry.get().reload();
+            report.append("ракеты: профилей ").append(count).append("; ");
+            sections++;
+        }
 
         if (sections == 0) {
             source.sendFailure(Component.literal("Неизвестная секция '" + section
-                    + "'. Используй all, general, vehicles, warehouse, ranks, roles, inventory, skins или events."));
+                    + "'. Используй all, general, vehicles, warehouse, ranks, roles, inventory, skins, events или missiles."));
             return 0;
         }
 

@@ -173,6 +173,22 @@ public final class BaseZoneManager {
         return BaseZoneSavedData.get(server).findZoneAt(dimension, victim.blockPosition()) != null;
     }
 
+    /**
+     * Серверный гейт для стратегического удара: круг поражения в XZ не должен пересекать
+     * ни одну завершённую базовую зону. Y намеренно игнорируется — цель выбирается на 2D-карте.
+     */
+    public static boolean intersectsProtectedStrikeArea(MinecraftServer server, String dimension,
+                                                        double x, double z, double radius) {
+        if (server == null || dimension == null) return false;
+        double safeRadius = Math.max(0.0, radius);
+        for (BaseZone zone : BaseZoneSavedData.get(server).zones()) {
+            if (!zone.isComplete() || !zone.dimension().equals(dimension)) continue;
+            if (ru.liko.pjmbasemod.common.missile.MissileTargetPolicy.circleIntersectsRectangle(
+                    x, z, safeRadius, zone.minX(), zone.minZ(), zone.maxX(), zone.maxZ())) return true;
+        }
+        return false;
+    }
+
     private static boolean isExplosiveSource(DamageSource source) {
         if (source.is(DamageTypeTags.IS_EXPLOSION)) return true;
 

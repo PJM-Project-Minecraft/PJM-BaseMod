@@ -10,6 +10,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import ru.liko.pjmbasemod.Pjmbasemod;
 import ru.liko.pjmbasemod.common.entity.NotebookEntity;
 import ru.liko.pjmbasemod.common.entity.QuartermasterEntity;
+import ru.liko.pjmbasemod.common.entity.StrategicMissileEntity;
 
 public final class PjmEntities {
 
@@ -29,6 +30,14 @@ public final class PjmEntities {
                     .clientTrackingRange(10)
                     .updateInterval(20)
                     .build("quartermaster"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<StrategicMissileEntity>> STRATEGIC_MISSILE =
+            ENTITIES.register("strategic_missile", () -> EntityType.Builder
+                    .<StrategicMissileEntity>of(StrategicMissileEntity::new, MobCategory.MISC)
+                    .sized(2.5F, 0.8F)
+                    .clientTrackingRange(32)
+                    .updateInterval(1)
+                    .build("strategic_missile"));
 
     private PjmEntities() {}
 

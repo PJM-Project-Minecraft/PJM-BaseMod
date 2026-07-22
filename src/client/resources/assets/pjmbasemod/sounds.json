@@ -215,5 +215,33 @@
       }
     ],
     "subtitle": "subtitles.pjmbasemod.remka_deploy"
+  },
+  "missile.engine_cruise": {
+    "sounds": [
+      { "name": "pjmbasemod:missile/engine_cruise", "stream": true }
+    ]
+  },
+  "missile.engine_ballistic": {
+    "sounds": [
+      { "name": "pjmbasemod:missile/engine_ballistic", "stream": true }
+    ]
+  },
+  "missile.far": {
+    "sounds": [
+      { "name": "pjmbasemod:missile/far", "stream": true }
+    ],
+    "subtitle": "subtitles.pjmbasemod.missile"
+  },
+  "missile.medium": {
+    "sounds": [
+      { "name": "pjmbasemod:missile/medium", "stream": true }
+    ],
+    "subtitle": "subtitles.pjmbasemod.missile"
+  },
+  "missile.close": {
+    "sounds": [
+      { "name": "pjmbasemod:missile/close", "stream": true }
+    ],
+    "subtitle": "subtitles.pjmbasemod.missile"
   }
 }

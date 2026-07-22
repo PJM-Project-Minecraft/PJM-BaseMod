@@ -33,6 +33,8 @@ import ru.liko.pjmbasemod.common.network.packet.DeployToRadioPacket;
 import ru.liko.pjmbasemod.common.network.packet.MapMarkerActionPacket;
 import ru.liko.pjmbasemod.common.network.packet.MapMarkerSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.RadioSpawnListPacket;
+import ru.liko.pjmbasemod.common.network.packet.MissileCatalogSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.MissileStrikeActionPacket;
 
 /**
  * Полноэкранная карта в стиле JourneyMap/Xaero. Камера в мировых координатах, drag-пан,
@@ -89,6 +91,7 @@ public final class MapScreen extends Screen {
         gliding = false;
         scale = destScale;
         PjmNetworking.sendToServer(MapMarkerActionPacket.request()); // актуальные метки команды
+        PjmNetworking.sendToServer(MissileStrikeActionPacket.request()); // каталог и доступность ракет
     }
 
     @Override
@@ -319,6 +322,7 @@ public final class MapScreen extends Screen {
                         MapContextMenu.Entry.leaf("Техника противника", () -> placeMarker("vehicle", wb)),
                         MapContextMenu.Entry.leaf("Опасность", () -> placeMarker("danger", wb)))));
             }
+            addMissileStrikeEntries(items, wb);
             if (editorOn()) items.addAll(CapturePointEditor.get().contextEntries(wb, dimStr()));
             if (isOp()) items.add(MapContextMenu.Entry.leaf("Телепорт сюда", () -> teleportTo(wb.getX(), wb.getZ())));
             if (!items.isEmpty()) {
@@ -404,6 +408,43 @@ public final class MapScreen extends Screen {
 
     private void placeMarker(String type, BlockPos wb) {
         PjmNetworking.sendToServer(MapMarkerActionPacket.place(type, wb.getX(), wb.getZ()));
+    }
+
+    /** Командирский пункт карты; сервер всё равно повторно проверяет права, цену и цель. */
+    private void addMissileStrikeEntries(List<MapContextMenu.Entry> items, BlockPos target) {
+        MissileCatalogSyncPacket state = ru.liko.pjmbasemod.client.missile.ClientMissileState.state();
+        if (!state.authorized()) return;
+        String title = Component.translatable("gui.pjmbasemod.missile.menu").getString();
+        if (!state.sbwAvailable()) {
+            items.add(MapContextMenu.Entry.leaf(Component.translatable(
+                    "gui.pjmbasemod.missile.menu.sbw_unavailable", title).getString(), () -> {}));
+            return;
+        }
+        if (state.activeStrike()) {
+            items.add(MapContextMenu.Entry.leaf(Component.translatable(
+                    "gui.pjmbasemod.missile.menu.active", title).getString(), () -> {}));
+            return;
+        }
+        if (state.cooldownSeconds() > 0) {
+            items.add(MapContextMenu.Entry.leaf(Component.translatable(
+                    "gui.pjmbasemod.missile.menu.cooldown", title, state.cooldownSeconds()).getString(), () -> {}));
+            return;
+        }
+
+        List<MapContextMenu.Entry> missiles = new ArrayList<>();
+        for (MissileCatalogSyncPacket.Entry entry : state.entries()) {
+            String name = entry.translationKey().isBlank()
+                    ? entry.displayName()
+                    : Component.translatableWithFallback(entry.translationKey(), entry.displayName()).getString();
+            String label = Component.translatable("gui.pjmbasemod.missile.menu.entry",
+                    name, entry.supplyCost(), (int) entry.radius()).getString();
+            String confirm = Component.translatable("gui.pjmbasemod.missile.confirm",
+                    target.getX(), target.getZ()).getString();
+            missiles.add(MapContextMenu.Entry.sub(label, List.of(
+                    MapContextMenu.Entry.leaf(confirm, () -> PjmNetworking.sendToServer(
+                            MissileStrikeActionPacket.launch(entry.id(), target.getX(), target.getZ()))))));
+        }
+        if (!missiles.isEmpty()) items.add(MapContextMenu.Entry.sub(title, missiles));
     }
 
     /** Убрать можно свою метку; командир фракции и OP — любую. Сервер проверяет авторитетно. */

@@ -26,6 +26,11 @@ public final class PjmSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> RADIO_BACKGROUND      = reg("radio.background");
     public static final DeferredHolder<SoundEvent, SoundEvent> REMKA_REPAIR          = reg("remka.repair");
     public static final DeferredHolder<SoundEvent, SoundEvent> REMKA_DEPLOY          = reg("remka.deploy");
+    public static final DeferredHolder<SoundEvent, SoundEvent> MISSILE_ENGINE_CRUISE = reg("missile.engine_cruise");
+    public static final DeferredHolder<SoundEvent, SoundEvent> MISSILE_ENGINE_BALLISTIC = reg("missile.engine_ballistic");
+    public static final DeferredHolder<SoundEvent, SoundEvent> MISSILE_FAR            = reg("missile.far");
+    public static final DeferredHolder<SoundEvent, SoundEvent> MISSILE_MEDIUM         = reg("missile.medium");
+    public static final DeferredHolder<SoundEvent, SoundEvent> MISSILE_CLOSE          = reg("missile.close");
 
     private PjmSounds() {}
 

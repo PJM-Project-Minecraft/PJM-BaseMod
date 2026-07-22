@@ -16,7 +16,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "51";
+    public static final String VERSION = "53";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -62,6 +62,7 @@ public final class PjmNetworking {
         r.playToServer(ReportActionPacket.TYPE,        ReportActionPacket.STREAM_CODEC,        (p, ctx) -> ctx.enqueueWork(() -> ReportManager.handleAction((ServerPlayer) ctx.player(), p.id(), p.action(), p.text())));
         r.playToServer(RequestMyReportPacket.TYPE,     RequestMyReportPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> ReportManager.openMyReport((ServerPlayer) ctx.player())));
         r.playToServer(MapMarkerActionPacket.TYPE,     MapMarkerActionPacket.STREAM_CODEC,     (p, ctx) -> ctx.enqueueWork(() -> ru.liko.pjmbasemod.common.mapmarker.MapMarkerManager.handleAction((ServerPlayer) ctx.player(), p)));
+        r.playToServer(MissileStrikeActionPacket.TYPE, MissileStrikeActionPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ru.liko.pjmbasemod.common.missile.MissileStrikeManager.handleAction((ServerPlayer) ctx.player(), p)));
 
         // ===== Server → Client =====
         r.playToClient(SyncPjmDataPacket.TYPE,  SyncPjmDataPacket.STREAM_CODEC,  (p, ctx) -> ctx.enqueueWork(() -> CLIENT.syncPlayerData(p)));
@@ -102,9 +103,10 @@ public final class PjmNetworking {
         r.playToClient(DeathScreenPacket.TYPE, DeathScreenPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.deathScreen(p)));
         r.playToClient(RadioSpawnListPacket.TYPE, RadioSpawnListPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.radioSpawnList(p)));
         r.playToClient(MapMarkerSyncPacket.TYPE, MapMarkerSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.mapMarkerSync(p)));
+        r.playToClient(MissileCatalogSyncPacket.TYPE, MissileCatalogSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.missileCatalogSync(p)));
         r.playToServer(RadioSpawnSelectPacket.TYPE, RadioSpawnSelectPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ru.liko.pjmbasemod.common.radiospawn.RadioSpawnManager.selectSpawn((ServerPlayer) ctx.player(), p.radioId())));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 58);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 71);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {
