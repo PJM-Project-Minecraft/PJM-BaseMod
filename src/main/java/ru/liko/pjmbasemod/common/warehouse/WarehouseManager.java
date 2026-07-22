@@ -197,6 +197,11 @@ public final class WarehouseManager {
             player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.category_blocked"), true);
             return;
         }
+        // Запись другой фракции скрыта в GUI, но пакет можно отправить вручную.
+        if (!teamAllows(player, def)) {
+            player.displayClientMessage(Component.translatable("gui.pjmbasemod.warehouse.team_restricted"), true);
+            return;
+        }
         if (def.createStack(1).isEmpty()) {
             resync(player);
             return;
@@ -206,7 +211,6 @@ public final class WarehouseManager {
         // Иначе одиночный клик (count=1) при quantity>1, например у патронов, давал бы 1/quantity = 0 пачек.
         int wantBatches = Math.max(1, count);
         int quantity = Math.max(1, def.quantity());
-        int batchRefund = def.refundValue();    // возврат очков за одну выдачу (пачку из quantity штук)
 
         // Сколько годных к сдаче штук есть в инвентаре (убитые «в ноль» не считаем — они дают 0 очков).
         int available = 0;
@@ -244,8 +248,10 @@ public final class WarehouseManager {
             }
         }
 
-        // Возврат: пропорционально числу пачек и средней прочности, округление вниз (без переплат).
-        int pointsGained = (int) Math.floor(batchRefund * weightSum / quantity);
+        // Возврат ограничен самой дешёвой ценой покупки эквивалентного ItemStack для этой
+        // команды. Так разные записи (например, 2 ракеты за 30 и 1 за 35) не дают арбитраж.
+        int pointsGained = WarehouseTradePolicy.safeRefund(def.refundValue(), quantity, weightSum,
+                equivalentPurchaseOffers(player, def));
 
         WarehouseSavedData stock = WarehouseSavedData.get(player.server);
         stock.createWarehouse(session.warehouseId());
@@ -442,7 +448,7 @@ public final class WarehouseManager {
             boolean donateAllowed = WarehouseDonorPermissions.canAccess(player, def) && accessAllows(player, def);
             items.add(new WarehouseSnapshot.ItemEntry(def.id(), def.rawDisplayName(), def.iconId(),
                     def.displayCategory(), def.pool(), def.pointCost(), def.maxPerWithdraw(), def.quantity(),
-                    def.refundValue(), inInventory, available, affordable,
+                    safeBatchRefund(player, def), inInventory, available, affordable,
                     roleAllowed, def.allowedRoles(), rankAllowed, requiredRankName, donateAllowed));
         }
 
@@ -496,6 +502,38 @@ public final class WarehouseManager {
     private static boolean accessAllows(ServerPlayer player, WarehouseItemDefinition def) {
         if (!def.accessRestricted()) return true;
         return AccessPermissions.has(player, def.access());
+    }
+
+    /** Фактический возврат за целую пачку, который показывается игроку в GUI. */
+    private static int safeBatchRefund(ServerPlayer player, WarehouseItemDefinition def) {
+        return WarehouseTradePolicy.safeRefund(def.refundValue(), def.quantity(), def.quantity(),
+                equivalentPurchaseOffers(player, def));
+    }
+
+    /**
+     * Цены всех записей того же пула, выдающих точно такой же ItemStack и доступных фракции.
+     * Роль, ранг и донат не фильтруются: игроки одной команды могут передать предмет друг другу.
+     */
+    private static List<WarehouseTradePolicy.PurchaseOffer> equivalentPurchaseOffers(
+            ServerPlayer player, WarehouseItemDefinition depositDef) {
+        var lookup = player.registryAccess();
+        ItemStack depositTemplate = depositDef.createStack(1, lookup);
+        List<WarehouseTradePolicy.PurchaseOffer> offers = new ArrayList<>();
+
+        // Собственная цена всегда ограничивает refundValue, даже если шаблон предмета не создался.
+        offers.add(new WarehouseTradePolicy.PurchaseOffer(depositDef.pointCost(), depositDef.quantity()));
+        if (depositTemplate.isEmpty()) return offers;
+
+        for (WarehouseItemDefinition candidate : WarehouseItemRegistry.get().all()) {
+            if (candidate == depositDef || candidate.pool() != depositDef.pool() || !teamAllows(player, candidate)) {
+                continue;
+            }
+            ItemStack candidateTemplate = candidate.createStack(1, lookup);
+            if (!candidateTemplate.isEmpty() && ItemStack.isSameItemSameComponents(depositTemplate, candidateTemplate)) {
+                offers.add(new WarehouseTradePolicy.PurchaseOffer(candidate.pointCost(), candidate.quantity()));
+            }
+        }
+        return offers;
     }
 
     private static void giveItem(ServerPlayer player, WarehouseItemDefinition def, int amount) {

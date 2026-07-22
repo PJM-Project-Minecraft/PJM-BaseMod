@@ -7,7 +7,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import ru.liko.pjmbasemod.Pjmbasemod;
 
-/** Клиент → сервер: сдать на склад {@code count} предметов по id определения, получив очки. */
+/** Клиент → сервер: сдать на склад {@code count} целых пачек по id определения, получив очки. */
 public record DepositItemPacket(String defId, int count) implements CustomPacketPayload {
 
     public static final Type<DepositItemPacket> TYPE = new Type<>(
