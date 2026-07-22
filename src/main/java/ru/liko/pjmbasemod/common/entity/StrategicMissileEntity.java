@@ -78,12 +78,8 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     private double cruiseClimbRate;
     @Nullable private ChunkPos ticketCenter;
 
-    // Клиентская интерполяция сетевых позиций: у базового Entity её нет (lerpTo = телепорт),
-    // из-за чего быстрая ракета визуально дёргается при любой неравномерности пакетов.
-    private static final int LERP_STEPS = 3;
-    private double lerpX, lerpY, lerpZ;
-    private float lerpYRot, lerpXRot;
-    private int lerpSteps;
+    private static final double LERP_SNAP_DISTANCE_SQ = 16.0 * 16.0;
+    private static final float LERP_FACTOR = 0.6f;
 
     public StrategicMissileEntity(EntityType<?> type, Level level) {
         super(type, level);
@@ -131,36 +127,30 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         builder.define(BALLISTIC, false);
     }
 
+    /**
+     * Сглаживание применяется прямо при приёме пакета, а не в tick(): клиентский тик
+     * сущности могут пропускать оптимизаторы (EntityCulling), и лерп, живущий в tick(),
+     * замораживает позицию — модель «исчезает». Фильтр 0.6 на пакет гасит рывки от
+     * неравномерного прихода пакетов, телепорт дальше 16 блоков применяется мгновенно.
+     */
     @Override
     public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps) {
-        this.lerpX = x;
-        this.lerpY = y;
-        this.lerpZ = z;
-        this.lerpYRot = yRot;
-        this.lerpXRot = xRot;
-        this.lerpSteps = LERP_STEPS;
-    }
-
-    private void tickLerp() {
-        if (lerpSteps <= 0) return;
-        double nx = getX() + (lerpX - getX()) / lerpSteps;
-        double ny = getY() + (lerpY - getY()) / lerpSteps;
-        double nz = getZ() + (lerpZ - getZ()) / lerpSteps;
-        float yaw = Mth.rotLerp(1.0f / lerpSteps, getYRot(), lerpYRot);
-        float pitch = Mth.lerp(1.0f / lerpSteps, getXRot(), lerpXRot);
-        lerpSteps--;
-        setPos(nx, ny, nz);
-        setRot(yaw, pitch);
+        if (position().distanceToSqr(x, y, z) > LERP_SNAP_DISTANCE_SQ) {
+            setPos(x, y, z);
+            setRot(yRot, xRot);
+            return;
+        }
+        setPos(Mth.lerp(LERP_FACTOR, getX(), x),
+                Mth.lerp(LERP_FACTOR, getY(), y),
+                Mth.lerp(LERP_FACTOR, getZ(), z));
+        setRot(Mth.rotLerp(LERP_FACTOR, getYRot(), yRot),
+                Mth.lerp(LERP_FACTOR, getXRot(), xRot));
     }
 
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide()) {
-            tickLerp();
-            return;
-        }
-        if (!configured || exploding) return;
+        if (level().isClientSide() || !configured || exploding) return;
         if (!(level() instanceof ServerLevel serverLevel)) return;
 
         refreshChunkTicket(serverLevel);
