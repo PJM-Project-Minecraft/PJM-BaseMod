@@ -511,7 +511,8 @@ public final class WarehouseManager {
     }
 
     /**
-     * Цены всех записей того же пула, выдающих точно такой же ItemStack и доступных фракции.
+     * Цены всех записей, чью выдачу фактически примет выбранная запись сдачи.
+     * Пул не фильтруется, потому что личная квота общая для SUPPLY и RAW.
      * Роль, ранг и донат не фильтруются: игроки одной команды могут передать предмет друг другу.
      */
     private static List<WarehouseTradePolicy.PurchaseOffer> equivalentPurchaseOffers(
@@ -525,11 +526,11 @@ public final class WarehouseManager {
         if (depositTemplate.isEmpty()) return offers;
 
         for (WarehouseItemDefinition candidate : WarehouseItemRegistry.get().all()) {
-            if (candidate == depositDef || candidate.pool() != depositDef.pool() || !teamAllows(player, candidate)) {
-                continue;
-            }
+            if (candidate == depositDef || !teamAllows(player, candidate)) continue;
             ItemStack candidateTemplate = candidate.createStack(1, lookup);
-            if (!candidateTemplate.isEmpty() && ItemStack.isSameItemSameComponents(depositTemplate, candidateTemplate)) {
+            // Используем ту же проверку, что и handleDeposit: если дешёвый стек можно
+            // сдать по этой записи, его цена обязана ограничить возврат.
+            if (!candidateTemplate.isEmpty() && depositDef.matchesStack(candidateTemplate, lookup)) {
                 offers.add(new WarehouseTradePolicy.PurchaseOffer(candidate.pointCost(), candidate.quantity()));
             }
         }

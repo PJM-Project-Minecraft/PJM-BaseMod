@@ -45,4 +45,14 @@ class WarehouseTradePolicyTest {
 
         assertEquals(7, refund);
     }
+
+    @Test
+    void cheapestAcceptedOfferMustCapRefundRegardlessOfCatalogGroup() {
+        // Политика не разделяет пулы: личная квота у них общая.
+        int refund = WarehouseTradePolicy.safeRefund(40, 1, 1.0, List.of(
+                new WarehouseTradePolicy.PurchaseOffer(40, 1),
+                new WarehouseTradePolicy.PurchaseOffer(12, 3)));
+
+        assertEquals(4, refund);
+    }
 }

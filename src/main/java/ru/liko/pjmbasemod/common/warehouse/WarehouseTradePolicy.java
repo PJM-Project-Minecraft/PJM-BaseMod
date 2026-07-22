@@ -5,8 +5,9 @@ import java.util.Collection;
 /**
  * Чистые правила экономики склада.
  *
- * <p>Возврат за штуку не может быть выше самой дешёвой цены покупки того же
- * ItemStack. Иначе две записи каталога с разными {@code quantity} создают арбитраж:
+ * <p>Возврат за штуку не может быть выше самой дешёвой цены покупки предмета,
+ * который примет выбранная запись сдачи. Иначе две записи каталога с разными {@code quantity}
+ * создают арбитраж:
  * например, купить 2 ракеты за 30 и сдать их по одной через запись с возвратом 35.</p>
  */
 final class WarehouseTradePolicy {
@@ -27,7 +28,7 @@ final class WarehouseTradePolicy {
      * @param configuredBatchRefund возврат из конфига за пачку
      * @param configuredQuantity    размер пачки записи, по которой идёт сдача
      * @param itemWeightSum         сумма долей прочности сдаваемых штук
-     * @param equivalentOffers      цены покупки эквивалентного ItemStack для этой команды
+     * @param equivalentOffers      цены всех выдач, которые можно сдать по этой записи
      */
     static int safeRefund(int configuredBatchRefund, int configuredQuantity, double itemWeightSum,
                           Collection<PurchaseOffer> equivalentOffers) {
