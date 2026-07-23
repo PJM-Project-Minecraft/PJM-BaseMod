@@ -110,7 +110,7 @@ public final class PjmNetworking {
         r.playToClient(MissileTrackPacket.TYPE, MissileTrackPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.missileTrack(p)));
         r.playToServer(RadioSpawnSelectPacket.TYPE, RadioSpawnSelectPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ru.liko.pjmbasemod.common.radiospawn.RadioSpawnManager.selectSpawn((ServerPlayer) ctx.player(), p.radioId())));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 74);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 75);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {
