@@ -64,9 +64,14 @@ public final class WorldMapEngine {
             };
 
     private final BlockPos.MutableBlockPos scanPos = new BlockPos.MutableBlockPos();
+    /** Регионы, которых нет на диске — чтобы не пытаться читать их каждый кадр. */
+    private final java.util.Set<RegionKey> missingOnDisk = new java.util.HashSet<>();
     private String dimKey;
     private long tickCounter;
     private int rescanCursor;
+
+    /** Лимит подгрузок с диска за один кадр карты (регион ~1.5 МБ, читается быстро). */
+    private static final int DISK_LOADS_PER_VIEW = 4;
 
     private WorldMapEngine() {}
 
@@ -101,9 +106,24 @@ public final class WorldMapEngine {
         int rMaxX = Mth.floor(camX + halfW / scale) >> MapConstants.REGION_SHIFT;
         int rMinZ = Mth.floor(camZ - halfH / scale) >> MapConstants.REGION_SHIFT;
         int rMaxZ = Mth.floor(camZ + halfH / scale) >> MapConstants.REGION_SHIFT;
+        if (missingOnDisk.size() > 8192) missingOnDisk.clear(); // страховка от бесконечного роста
+        int diskLoads = 0;
         for (int rz = rMinZ; rz <= rMaxZ; rz++) {
             for (int rx = rMinX; rx <= rMaxX; rx++) {
-                Region r = regions.get(new RegionKey(dimKey, rx, rz)); // прогрев LRU
+                RegionKey key = new RegionKey(dimKey, rx, rz);
+                Region r = regions.get(key); // прогрев LRU
+                // Исследованное в прошлых сессиях лениво поднимается с диска: после релога
+                // в памяти пусто, а скан прогревает только регионы вокруг игрока.
+                if (r == null && diskLoads < DISK_LOADS_PER_VIEW && !missingOnDisk.contains(key)) {
+                    r = store.load(key);
+                    if (r == null) {
+                        missingOnDisk.add(key);
+                    } else {
+                        r.gpuDirty = true; // построить текстуру из загруженных данных
+                        regions.put(key, r);
+                        diskLoads++;
+                    }
+                }
                 if (r != null && r.gpu != null) out.add(r);
             }
         }
@@ -126,6 +146,7 @@ public final class WorldMapEngine {
             if (region.gpu != null) region.gpu.free();
         }
         regions.clear();
+        missingOnDisk.clear();
         dimKey = null;
     }
 
