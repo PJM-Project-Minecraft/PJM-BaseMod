@@ -405,6 +405,7 @@ public final class PjmServerEvents {
         ru.liko.pjmbasemod.common.campaign.CampaignManager.onServerTick(event.getServer());
         ru.liko.pjmbasemod.common.alliance.Alliances.onServerTick(event.getServer());
         ru.liko.pjmbasemod.common.garage.GarageManager.onServerTick(event.getServer());
+        ru.liko.pjmbasemod.common.missile.MissileStrikeManager.onServerTick(event.getServer());
         tickDayCycle(event.getServer());
 
         if (++warehouseScanCounter >= 20) {

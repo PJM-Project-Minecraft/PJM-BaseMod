@@ -84,6 +84,7 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     private double smoothedCruiseY = Double.NaN;
     private double cruiseClimbRate;
     @Nullable private ChunkPos ticketCenter;
+    private long lastTicketRefresh = Long.MIN_VALUE;
 
     // Клиентская интерполяция: плавный 3-шаговый лерп в tick(); если тик сущности
     // заморожен (EntityCulling скипает невидимых), пакет применяет позицию мгновенно.
@@ -410,9 +411,16 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         }
     }
 
-    private void refreshChunkTicket(ServerLevel level) {
+    /**
+     * Вызывается и из tick(), и извне ({@link ru.liko.pjmbasemod.common.missile.MissileStrikeManager}
+     * раз в секунду): влетев в непрогруженный чанк, сущность замирает и сама продлить
+     * тикет не может — без внешнего продления тикет истечёт и ракета зависнет навечно.
+     */
+    public void refreshChunkTicket(ServerLevel level) {
         ChunkPos current = chunkPosition();
-        if (ticketCenter != null && ticketCenter.equals(current) && tickCount % 20 != 0) return;
+        if (ticketCenter != null && ticketCenter.equals(current)
+                && level.getGameTime() - lastTicketRefresh < 20) return;
+        lastTicketRefresh = level.getGameTime();
         level.getChunkSource().addRegionTicket(FLIGHT_TICKET, current, TICKET_RADIUS, getUUID());
         // Упреждающий ticket по курсу (~15 тиков пути): на высокой скорости чанки и heightmap
         // для террейн-фоллоу успевают грузиться асинхронно, без sync-load лагов.

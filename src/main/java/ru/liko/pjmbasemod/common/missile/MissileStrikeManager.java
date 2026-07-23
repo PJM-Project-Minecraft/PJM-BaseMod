@@ -38,6 +38,25 @@ public final class MissileStrikeManager {
 
     private MissileStrikeManager() {}
 
+    private static int ticketRefreshCounter;
+
+    /**
+     * Раз в секунду продлевает chunk-тикеты всех живых ракет. Ракета в непрогруженном
+     * чанке не тикает и не может продлить тикет сама (тикет живёт 100 тиков) — на
+     * сервере с холодными чанками по маршруту это оставляло её висеть навечно.
+     */
+    public static void onServerTick(MinecraftServer server) {
+        if (++ticketRefreshCounter < 20) return;
+        ticketRefreshCounter = 0;
+        for (ServerLevel level : server.getAllLevels()) {
+            for (Entity entity : level.getAllEntities()) {
+                if (entity instanceof StrategicMissileEntity missile && !missile.isRemoved()) {
+                    missile.refreshChunkTicket(level);
+                }
+            }
+        }
+    }
+
     public static void handleAction(ServerPlayer player, MissileStrikeActionPacket packet) {
         if (player == null || packet == null) return;
         if (packet.action() == MissileStrikeActionPacket.Action.REQUEST) {
