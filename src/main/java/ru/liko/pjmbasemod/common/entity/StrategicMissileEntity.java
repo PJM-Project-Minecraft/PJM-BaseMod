@@ -214,7 +214,10 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     /** Реактивный след из сопла: по нему ракету видно и можно сбить. Force-рассылка — обычный лимит частиц 32 блока. */
     private void spawnTrail(ServerLevel level, Vec3 position, Vec3 movement) {
         if (movement.lengthSqr() < 1.0E-6) return;
-        Vec3 tail = position.subtract(movement.normalize().scale(2.0));
+        // Клиентская модель отстаёт от серверной позиции на ~2.5 тика (3-шаговый лерп),
+        // поэтому сопло считаем не от серверного носа, а с поправкой на это отставание —
+        // иначе дым летит ПЕРЕД ракетой.
+        Vec3 tail = position.subtract(movement.normalize().scale(2.0 + movement.length() * 2.5));
         for (ServerPlayer viewer : level.players()) {
             if (viewer.distanceToSqr(tail.x, tail.y, tail.z) > TRAIL_VIEW_DISTANCE_SQ) continue;
             level.sendParticles(viewer, ParticleTypes.FLAME, true, tail.x, tail.y, tail.z, 2, 0.1, 0.1, 0.1, 0.01);
