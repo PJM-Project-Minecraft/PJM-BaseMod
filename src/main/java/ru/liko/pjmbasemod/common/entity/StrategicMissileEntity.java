@@ -265,12 +265,12 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     }
 
     private Vec3 ballisticPosition(double t) {
-        double x = Mth.lerp(t, startX, targetX);
-        double z = Mth.lerp(t, startZ, targetZ);
         double horizontalDistance = Math.hypot(targetX - startX, targetZ - startZ);
-        double y = BallisticTrajectory.altitudeAt(
+        BallisticTrajectory.Sample sample = BallisticTrajectory.sample(
                 t, startY, targetY, horizontalDistance, ballisticApex);
-        return new Vec3(x, y, z);
+        double x = Mth.lerp(sample.horizontalFraction(), startX, targetX);
+        double z = Mth.lerp(sample.horizontalFraction(), startZ, targetZ);
+        return new Vec3(x, sample.altitude(), z);
     }
 
     private Vec3 cruisePosition(ServerLevel level, double t) {
