@@ -97,20 +97,20 @@ public final class MissileRegistry {
         // Скорость = spawnDistance / (flightSeconds * 20); при спавне за 2500 держим ~4-6 блоков/тик.
         // Урон/радиус пропорциональны реальным БЧ (радиус ~ кубический корень массы БЧ):
         // Искандер-К ~480 кг, Storm Shadow ~450 кг, Х-101 ~450 кг, Искандер-М ~700 кг + кинетика,
-        // Flamingo ~1150 кг — заметно мощнее всех.
+        // Flamingo ~1150 кг — заметно мощнее всех. Минимальный радиус — 25 блоков.
         result.add(MissileDefinition.create("iskander_k", "Искандер-К", MissileDefinition.Trajectory.CRUISE,
-                25, 480, 25, 2500, 24, 48, 140, 200, 16, 40, 0.30f, false)
+                25, 480, 25, 2500, 24, 48, 140, 200, 25, 40, 0.30f, false)
                 .withApproach(4.0f, 1.0f));
         result.add(MissileDefinition.create("storm_shadow", "Storm Shadow", MissileDefinition.Trajectory.CRUISE,
-                35, 600, 28, 2500, 20, 56, 150, 190, 15, 48, 0.30f, false)
+                35, 600, 28, 2500, 20, 56, 150, 190, 25, 48, 0.30f, false)
                 .withApproach(8.0f, 1.5f));
         result.add(MissileDefinition.create("kh_101", "Х-101", MissileDefinition.Trajectory.CRUISE,
-                50, 780, 31, 2500, 32, 64, 170, 195, 16, 60, 0.35f, false)
+                50, 780, 31, 2500, 32, 64, 170, 195, 26, 60, 0.35f, false)
                 .withApproach(14.0f, 2.0f));
         result.add(MissileDefinition.create("iskander_m", "Искандер-М", MissileDefinition.Trajectory.BALLISTIC,
-                70, 1080, 20, 2500, 24, 32, 500, 260, 19, 85, 0.25f, false));
+                70, 1080, 20, 2500, 24, 32, 500, 260, 30, 85, 0.25f, false));
         result.add(MissileDefinition.create("flamingo", "Flamingo", MissileDefinition.Trajectory.CRUISE,
-                95, 1500, 30, 2500, 38, 72, 190, 320, 24, 95, 0.40f, false)
+                95, 1500, 30, 2500, 38, 72, 190, 320, 38, 95, 0.40f, false)
                 .withApproach(2.0f, 0.5f));
         return result;
     }
