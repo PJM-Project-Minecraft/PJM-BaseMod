@@ -12,7 +12,7 @@ import java.util.List;
 public final class ClientMissileState {
 
     /** Сколько отметка поражения живёт на карте. */
-    public static final long IMPACT_TTL_MS = 15 * 60_000L;
+    public static final long IMPACT_TTL_MS = 45_000L;
     /** Сколько висит зона предупреждения о летящей ракете. */
     public static final long ALERT_TTL_MS = 25_000L;
     private static final int MAX_IMPACTS = 64;
