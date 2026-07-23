@@ -25,6 +25,8 @@ public final class MapConstants {
     // --- Троттлинг скана (Фаза 1: синхронно на клиентском тике) ---
     public static final int SCAN_RADIUS_CHUNKS = 12;
     public static final int SCAN_PER_TICK = 8;
+    /** Фоновый ресканинг уже отсканированных чанков (обновление карты при изменениях мира). */
+    public static final int RESCAN_PER_TICK = 4;
     public static final int UPLOADS_PER_TICK = 2;
 
     /** Лимит регионов в памяти (LRU). ponytail: фикс; вынести в конфиг, если OOM на большой дальности. */

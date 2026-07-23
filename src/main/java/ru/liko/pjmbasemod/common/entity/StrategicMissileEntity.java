@@ -27,6 +27,7 @@ import ru.liko.pjmbasemod.common.compat.SbwMissileCompat;
 import ru.liko.pjmbasemod.common.missile.MissileDefinition;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import ru.liko.pjmbasemod.common.network.packet.MissileAudioSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.MissileImpactPacket;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animation.AnimatableManager;
@@ -316,10 +317,19 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
                 ServerPlayer commander = serverLevel.getServer().getPlayerList().getPlayer(commanderId);
                 attacker = commander;
             }
+            float radius = explosionRadius * (float) Math.sqrt(power);
             SbwMissileCompat.detonate(this, attacker, impact,
-                    explosionDamage * power,
-                    explosionRadius * (float) Math.sqrt(power),
+                    explosionDamage * power, radius,
                     destroyBlocks && !shotDown);
+            if (level() instanceof ServerLevel serverLevel) {
+                // Отметка поражения на карте — всем игрокам измерения.
+                MissileImpactPacket packet = new MissileImpactPacket(
+                        serverLevel.dimension().location().toString(),
+                        impact.x, impact.z, radius, shotDown);
+                for (ServerPlayer viewer : serverLevel.players()) {
+                    PjmNetworking.sendToPlayer(viewer, packet);
+                }
+            }
         }
         discard();
     }

@@ -66,6 +66,7 @@ public final class WorldMapEngine {
     private final BlockPos.MutableBlockPos scanPos = new BlockPos.MutableBlockPos();
     private String dimKey;
     private long tickCounter;
+    private int rescanCursor;
 
     private WorldMapEngine() {}
 
@@ -79,6 +80,7 @@ public final class WorldMapEngine {
             store.setBaseDir(WorldId.resolveDir(mc, dk));  // папка нового измерения
         }
         scanAround(mc);
+        rescanAround(mc);
         refreshDirty();
         if (++tickCounter % MapConstants.AUTOSAVE_INTERVAL_TICKS == 0) {
             autosave();
@@ -179,6 +181,39 @@ public final class WorldMapEngine {
         }
     }
 
+    /**
+     * Фоновое обновление уже отсканированных чанков: карта отражает изменения мира
+     * (постройки, взрывы). Round-robin по квадрату скана, {@code RESCAN_PER_TICK} чанков за
+     * тик — полный круг при радиусе 12 занимает ~8 секунд. Регион дёргается только при
+     * реальном изменении данных, поэтому GPU/диск не гоняются впустую.
+     */
+    private void rescanAround(Minecraft mc) {
+        Level level = mc.level;
+        BlockPos pp = mc.player.blockPosition();
+        int pcx = pp.getX() >> 4;
+        int pcz = pp.getZ() >> 4;
+        int r = Math.min(MapConstants.SCAN_RADIUS_CHUNKS, mc.options.getEffectiveRenderDistance());
+        int side = r * 2 + 1;
+        int total = side * side;
+        for (int i = 0; i < MapConstants.RESCAN_PER_TICK; i++) {
+            rescanCursor = (rescanCursor + 1) % total;
+            int cx = pcx + rescanCursor % side - r;
+            int cz = pcz + rescanCursor / side - r;
+            Region region = regions.get(RegionKey.ofChunk(dimKey, cx, cz));
+            if (region == null) continue; // первичный скан ещё не добрался
+            int lcx = cx - (region.key.rx() << MapConstants.CHUNKS_PER_REGION_SHIFT);
+            int lcz = cz - (region.key.rz() << MapConstants.CHUNKS_PER_REGION_SHIFT);
+            if (!region.isChunkScanned(lcx, lcz)) continue;
+            LevelChunk chunk = level.getChunk(cx, cz);
+            if (chunk instanceof EmptyLevelChunk) continue;
+            if (scanChunk(level, region, chunk, cx, cz)) {
+                region.gpuDirty = true;
+                region.diskDirty = true;
+                markAdjacentDirty(region.key, lcx, lcz);
+            }
+        }
+    }
+
     private Region regionForChunk(int chunkX, int chunkZ) {
         RegionKey key = RegionKey.ofChunk(dimKey, chunkX, chunkZ);
         Region r = regions.get(key);
@@ -207,7 +242,9 @@ public final class WorldMapEngine {
         if (r != null) r.gpuDirty = true;
     }
 
-    private void scanChunk(Level level, Region region, LevelChunk chunk, int chunkX, int chunkZ) {
+    /** Сканирует чанк в регион. Возвращает {@code true}, если данные реально изменились. */
+    private boolean scanChunk(Level level, Region region, LevelChunk chunk, int chunkX, int chunkZ) {
+        boolean changed = false;
         int baseWX = chunkX << 4;
         int baseWZ = chunkZ << 4;
         int minY = level.getMinBuildHeight();
@@ -250,10 +287,14 @@ public final class WorldMapEngine {
                 int lx = wx - regMinX;
                 int lz = wz - regMinZ;
                 int idx = lz * MapConstants.REGION_BLOCKS + lx;
-                region.baseColor[idx] = base;
-                region.height[idx] = (short) surfY;
+                if (region.baseColor[idx] != base || region.height[idx] != (short) surfY) {
+                    region.baseColor[idx] = base;
+                    region.height[idx] = (short) surfY;
+                    changed = true;
+                }
             }
         }
+        return changed;
     }
 
     private void refreshDirty() {

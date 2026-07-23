@@ -7,7 +7,9 @@ import net.minecraft.Util;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import ru.liko.pjmbasemod.client.basezone.ClientBaseZoneState;
+import ru.liko.pjmbasemod.client.missile.ClientMissileState;
 import ru.liko.pjmbasemod.client.capturepoint.ClientCapturePointState;
 import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.mapmarker.ClientMapMarkerState;
@@ -33,8 +35,65 @@ public final class MapOverlays {
     public static void render(GuiGraphics gg, Font font, double camX, double camZ,
                               double scale, int width, int height, String dim, String skipCaptureId) {
         drawBaseZones(gg, font, camX, camZ, scale, width, height, dim);
+        drawMissileImpacts(gg, camX, camZ, scale, width, height, dim);
         drawCapturePoints(gg, font, camX, camZ, scale, width, height, dim, skipCaptureId);
     }
+
+    // ── поражения ракет ──
+
+    private static final int IMPACT_COLOR = 0xE04A3D;
+    private static final int IMPACT_SHOT_DOWN_COLOR = 0x9AA0A6;
+    private static final int IMPACT_SEGMENTS = 32;
+    private static final long IMPACT_FRESH_MS = 60_000L;
+
+    /**
+     * Отметки поражения ракет: круг реальной досягаемости урона (у SBW ~2× радиуса взрыва)
+     * с крестом в эпицентре; свежий удар (первая минута) пульсирует пингом, отметка плавно
+     * гаснет к концу {@link ClientMissileState#IMPACT_TTL_MS}. Сбитые ракеты — серым.
+     */
+    private static void drawMissileImpacts(GuiGraphics gg, double camX, double camZ,
+                                           double scale, int width, int height, String dim) {
+        long now = Util.getMillis();
+        for (ClientMissileState.Impact impact : ClientMissileState.impacts()) {
+            if (!impact.dimension().equals(dim)) continue;
+            int sx = (int) MapRenderer.worldToScreenX(impact.x(), camX, scale, width);
+            int sy = (int) MapRenderer.worldToScreenY(impact.z(), camZ, scale, height);
+            double rPx = impact.radius() * 2.0 * scale;
+            if (sx + rPx < 0 || sx - rPx > width || sy + rPx < 0 || sy - rPx > height) continue;
+
+            long age = now - impact.timeMs();
+            float fade = 1f - Mth.clamp((float) age / ClientMissileState.IMPACT_TTL_MS, 0f, 1f);
+            float alpha = 0.35f + 0.65f * fade;
+            int rgb = (impact.shotDown() ? IMPACT_SHOT_DOWN_COLOR : IMPACT_COLOR) & 0xFFFFFF;
+
+            double[] xs = new double[IMPACT_SEGMENTS];
+            double[] ys = new double[IMPACT_SEGMENTS];
+            for (int i = 0; i < IMPACT_SEGMENTS; i++) {
+                double a = Math.PI * 2.0 * i / IMPACT_SEGMENTS;
+                xs[i] = sx + Math.cos(a) * rPx;
+                ys[i] = sy + Math.sin(a) * rPx;
+            }
+            int fillA = (int) (0x38 * alpha);
+            MapRenderer.fillPolygon(gg, xs, ys, IMPACT_SEGMENTS, (fillA << 24) | rgb, width, height);
+            int lineA = (int) (0xE0 * alpha);
+            int outline = (lineA << 24) | rgb;
+            for (int i = 0; i < IMPACT_SEGMENTS; i++) {
+                MapRenderer.line(gg, xs[i], ys[i],
+                        xs[(i + 1) % IMPACT_SEGMENTS], ys[(i + 1) % IMPACT_SEGMENTS], 1.6f, outline);
+            }
+
+            // Крест эпицентра фиксированного экранного размера.
+            int cross = 5;
+            MapRenderer.line(gg, sx - cross, sy - cross, sx + cross, sy + cross, 2f, outline);
+            MapRenderer.line(gg, sx - cross, sy + cross, sx + cross, sy - cross, 2f, outline);
+
+            if (!impact.shotDown() && age < IMPACT_FRESH_MS) {
+                float t = (now % 1400L) / 1400f;
+                blitSprite(gg, PING, sx, sy, 14 + t * 22, PING_TW, PING_TH, rgb, (1f - t) * 0.8f);
+            }
+        }
+    }
+
 
     /** Носители рации своей команды (точки десанта). Данные уже отфильтрованы сервером по измерению. */
     public static void drawRadioCarriers(GuiGraphics gg, Font font, double camX, double camZ,

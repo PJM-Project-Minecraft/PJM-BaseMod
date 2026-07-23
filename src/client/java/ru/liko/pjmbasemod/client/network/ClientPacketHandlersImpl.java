@@ -276,6 +276,11 @@ public final class ClientPacketHandlersImpl implements ClientPacketProxy {
     }
 
     @Override
+    public void missileImpact(ru.liko.pjmbasemod.common.network.packet.MissileImpactPacket payload) {
+        ru.liko.pjmbasemod.client.missile.ClientMissileState.addImpact(payload);
+    }
+
+    @Override
     public void signalHuntHud(ru.liko.pjmbasemod.common.network.packet.SignalHuntHudPacket payload) {
         ru.liko.pjmbasemod.client.serverevent.ClientSignalHuntState.update(payload);
     }

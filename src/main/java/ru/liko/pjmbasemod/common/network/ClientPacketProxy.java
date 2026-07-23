@@ -40,6 +40,7 @@ import ru.liko.pjmbasemod.common.network.packet.StoreOptionsPacket;
 import ru.liko.pjmbasemod.common.network.packet.SyncPjmDataPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileAudioSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileCatalogSyncPacket;
+import ru.liko.pjmbasemod.common.network.packet.MissileImpactPacket;
 
 public interface ClientPacketProxy {
 
@@ -86,4 +87,6 @@ public interface ClientPacketProxy {
     default void missileCatalogSync(MissileCatalogSyncPacket payload) {}
 
     default void missileAudioSync(MissileAudioSyncPacket payload) {}
+
+    default void missileImpact(MissileImpactPacket payload) {}
 }
