@@ -24,6 +24,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import ru.liko.pjmbasemod.common.compat.SbwMissileCompat;
+import ru.liko.pjmbasemod.common.missile.BallisticTrajectory;
 import ru.liko.pjmbasemod.common.missile.MissileDefinition;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import net.minecraft.network.chat.Component;
@@ -265,8 +266,9 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     private Vec3 ballisticPosition(double t) {
         double x = Mth.lerp(t, startX, targetX);
         double z = Mth.lerp(t, startZ, targetZ);
-        double baseline = Mth.lerp(t, startY, targetY);
-        double y = baseline + 4.0 * ballisticApex * t * (1.0 - t);
+        double horizontalDistance = Math.hypot(targetX - startX, targetZ - startZ);
+        double y = BallisticTrajectory.altitudeAt(
+                t, startY, targetY, horizontalDistance, ballisticApex);
         return new Vec3(x, y, z);
     }
 
