@@ -4,9 +4,14 @@ import net.minecraft.Util;
 import ru.liko.pjmbasemod.common.network.packet.MissileAlertPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileCatalogSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileImpactPacket;
+import ru.liko.pjmbasemod.common.network.packet.MissileTrackPacket;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /** Последний серверный каталог, доступность ракетного удара и история поражений для карты. */
 public final class ClientMissileState {
@@ -22,6 +27,13 @@ public final class ClientMissileState {
 
     public record StrikeAlert(String dimension, double x, double z, float radius,
                               String missileName, boolean ownTeam, long timeMs) {}
+
+    /** Позиция и курс живой ракеты своей команды. */
+    public record Track(String dimension, double x, double z, float yaw, long timeMs) {}
+
+    /** Сколько трек живёт без апдейтов (потеря пакета/дисконнект) — потом стрелка гаснет. */
+    private static final long TRACK_TTL_MS = 3_000L;
+    private static final Map<UUID, Track> TRACKS = new HashMap<>();
 
     private static MissileCatalogSyncPacket state = empty();
     private static final List<Impact> IMPACTS = new ArrayList<>();
@@ -62,10 +74,28 @@ public final class ClientMissileState {
         return IMPACTS;
     }
 
+    public static void updateTrack(MissileTrackPacket packet) {
+        if (packet == null) return;
+        if (!packet.active()) {
+            TRACKS.remove(packet.id());
+            return;
+        }
+        TRACKS.put(packet.id(), new Track(packet.dimension(), packet.x(), packet.z(),
+                packet.yaw(), Util.getMillis()));
+    }
+
+    /** Живые треки (протухшие отсеиваются на месте). */
+    public static Collection<Track> tracks() {
+        long now = Util.getMillis();
+        TRACKS.values().removeIf(track -> now - track.timeMs() > TRACK_TTL_MS);
+        return TRACKS.values();
+    }
+
     public static void reset() {
         state = empty();
         IMPACTS.clear();
         ALERTS.clear();
+        TRACKS.clear();
     }
 
     private static MissileCatalogSyncPacket empty() {

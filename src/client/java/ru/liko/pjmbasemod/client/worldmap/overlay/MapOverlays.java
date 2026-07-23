@@ -36,8 +36,37 @@ public final class MapOverlays {
                               double scale, int width, int height, String dim, String skipCaptureId) {
         drawBaseZones(gg, font, camX, camZ, scale, width, height, dim);
         drawMissileImpacts(gg, camX, camZ, scale, width, height, dim);
+        drawMissileTracks(gg, camX, camZ, scale, width, height, dim);
         drawMissileAlerts(gg, font, camX, camZ, scale, width, height, dim);
         drawCapturePoints(gg, font, camX, camZ, scale, width, height, dim, skipCaptureId);
+    }
+
+    private static final int TRACK_COLOR = 0xE6A640;
+
+    /**
+     * Стрелки живых ракет своей команды: позиция и курс, апдейт с сервера раз в 10 тиков.
+     * Приватность гарантирует сервер — чужим командам трек просто не приходит.
+     */
+    private static void drawMissileTracks(GuiGraphics gg, double camX, double camZ,
+                                          double scale, int width, int height, String dim) {
+        for (ClientMissileState.Track track : ClientMissileState.tracks()) {
+            if (!track.dimension().equals(dim)) continue;
+            double sx = MapRenderer.worldToScreenX(track.x(), camX, scale, width);
+            double sy = MapRenderer.worldToScreenY(track.z(), camZ, scale, height);
+            if (sx < -24 || sx > width + 24 || sy < -24 || sy > height + 24) continue;
+
+            // Курс из yaw сущности: направление полёта в мировых (x, z) = (-sin, cos).
+            double a = Math.toRadians(track.yaw());
+            double dx = -Math.sin(a), dz = Math.cos(a);
+            double px = -dz, pz = dx;
+            double[] xs = {sx + dx * 10, sx - dx * 6 + px * 5, sx - dx * 3, sx - dx * 6 - px * 5};
+            double[] ys = {sy + dz * 10, sy - dz * 6 + pz * 5, sy - dz * 3, sy - dz * 6 - pz * 5};
+            MapRenderer.fillPolygon(gg, xs, ys, 4, 0xCC000000 | TRACK_COLOR, width, height);
+            for (int i = 0; i < 4; i++) {
+                MapRenderer.line(gg, xs[i], ys[i], xs[(i + 1) % 4], ys[(i + 1) % 4],
+                        1.5f, 0xFF000000 | TRACK_COLOR);
+            }
+        }
     }
 
     /**
