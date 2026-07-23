@@ -168,6 +168,7 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         super.tick();
         if (level().isClientSide()) {
             tickLerp();
+            spawnClientTrail();
             return;
         }
         if (!configured || exploding) return;
@@ -211,22 +212,44 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     }
 
     private static final double TRAIL_VIEW_DISTANCE_SQ = 400.0 * 400.0;
+    /** Ближе этого след рисует сам клиент от отрисованной модели (совпадает идеально). */
+    private static final double TRAIL_CLIENT_HANDLED_SQ = 192.0 * 192.0;
 
-    /** Реактивный след из сопла: по нему ракету видно и можно сбить. Force-рассылка — обычный лимит частиц 32 блока. */
+    /**
+     * Дальний след для тех, кто вне зоны трекинга сущности (модель им всё равно не видна):
+     * по нему ракету можно заметить издалека. Ближним след рисует клиент в {@link #spawnClientTrail}.
+     */
     private void spawnTrail(ServerLevel level, Vec3 position, Vec3 movement) {
         if (movement.lengthSqr() < 1.0E-6) return;
-        // Клиентская модель отстаёт от серверной позиции на ~2.5 тика (3-шаговый лерп),
-        // поэтому сопло считаем не от серверного носа, а с поправкой на это отставание —
-        // иначе дым летит ПЕРЕД ракетой.
-        Vec3 tail = position.subtract(movement.normalize().scale(2.0 + movement.length() * 2.5));
+        Vec3 tail = position.subtract(movement.normalize().scale(2.0));
         for (ServerPlayer viewer : level.players()) {
-            if (viewer.distanceToSqr(tail.x, tail.y, tail.z) > TRAIL_VIEW_DISTANCE_SQ) continue;
+            double distSq = viewer.distanceToSqr(tail.x, tail.y, tail.z);
+            if (distSq > TRAIL_VIEW_DISTANCE_SQ || distSq < TRAIL_CLIENT_HANDLED_SQ) continue;
             level.sendParticles(viewer, ParticleTypes.FLAME, true, tail.x, tail.y, tail.z, 2, 0.1, 0.1, 0.1, 0.01);
             level.sendParticles(viewer, ParticleTypes.LARGE_SMOKE, true, tail.x, tail.y, tail.z, 3, 0.3, 0.3, 0.3, 0.02);
             if (tickCount % 2 == 0) {
                 level.sendParticles(viewer, ParticleTypes.CAMPFIRE_COSY_SMOKE, true,
                         tail.x, tail.y, tail.z, 1, 0.2, 0.2, 0.2, 0.005);
             }
+        }
+    }
+
+    /** Клиентский след от отрисованной позиции модели — партиклы идеально совпадают с ракетой. */
+    private void spawnClientTrail() {
+        Vec3 dir = Vec3.directionFromRotation(getXRot(), getYRot());
+        Vec3 tail = position().subtract(dir.scale(2.5));
+        var random = level().random;
+        for (int i = 0; i < 2; i++) {
+            level().addParticle(ParticleTypes.FLAME,
+                    tail.x + random.nextGaussian() * 0.1, tail.y + random.nextGaussian() * 0.1,
+                    tail.z + random.nextGaussian() * 0.1, 0.0, 0.0, 0.0);
+            level().addParticle(ParticleTypes.LARGE_SMOKE,
+                    tail.x + random.nextGaussian() * 0.25, tail.y + random.nextGaussian() * 0.25,
+                    tail.z + random.nextGaussian() * 0.25, 0.0, 0.0, 0.0);
+        }
+        if (tickCount % 2 == 0) {
+            level().addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                    tail.x, tail.y, tail.z, 0.0, 0.0, 0.0);
         }
     }
 
@@ -256,11 +279,14 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
                 lookAheadTerrain(level, x, z, routeLength) + cruiseHeight);
         // Крейсерская высота — сглаживание второго порядка: плавно меняется не только
         // высота, но и вертикальная скорость (лимит ускорения), без изломов траектории.
+        // Лимиты масштабируются от скорости: угол набора ~26°/снижения ~19° постоянен.
+        double speed = routeLength / Math.max(1, flightTicks);
+        double maxClimb = Math.max(MAX_CLIMB_PER_TICK, speed * 0.5);
+        double maxDescent = Math.max(MAX_DESCENT_PER_TICK, speed * 0.35);
+        double maxAccel = Math.max(MAX_VERTICAL_ACCEL, speed * 0.06);
         if (Double.isNaN(smoothedCruiseY)) smoothedCruiseY = Math.max(getY(), cruiseTarget);
-        double desiredRate = Mth.clamp((cruiseTarget - smoothedCruiseY) * 0.12,
-                -MAX_DESCENT_PER_TICK, MAX_CLIMB_PER_TICK);
-        cruiseClimbRate += Mth.clamp(desiredRate - cruiseClimbRate,
-                -MAX_VERTICAL_ACCEL, MAX_VERTICAL_ACCEL);
+        double desiredRate = Mth.clamp((cruiseTarget - smoothedCruiseY) * 0.12, -maxDescent, maxClimb);
+        cruiseClimbRate += Mth.clamp(desiredRate - cruiseClimbRate, -maxAccel, maxAccel);
         smoothedCruiseY += cruiseClimbRate;
         // Терминальный заход — плавный перелом курса вниз (dive², без прыжка вверх).
         double dive = Mth.clamp(1.0 - horizontalRemaining / Math.max(1.0, terminalDiveDistance), 0.0, 1.0);
@@ -349,8 +375,17 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
 
     private void refreshChunkTicket(ServerLevel level) {
         ChunkPos current = chunkPosition();
-        if (ticketCenter != null && ticketCenter.equals(current) && tickCount % 40 != 0) return;
+        if (ticketCenter != null && ticketCenter.equals(current) && tickCount % 20 != 0) return;
         level.getChunkSource().addRegionTicket(FLIGHT_TICKET, current, TICKET_RADIUS, getUUID());
+        // Упреждающий ticket по курсу (~15 тиков пути): на высокой скорости чанки и heightmap
+        // для террейн-фоллоу успевают грузиться асинхронно, без sync-load лагов.
+        Vec3 velocity = getDeltaMovement();
+        if (velocity.horizontalDistanceSqr() > 1.0) {
+            ChunkPos ahead = new ChunkPos(BlockPos.containing(position().add(velocity.scale(15.0))));
+            if (!ahead.equals(current)) {
+                level.getChunkSource().addRegionTicket(FLIGHT_TICKET, ahead, TICKET_RADIUS, getUUID());
+            }
+        }
         ticketCenter = current;
     }
 
