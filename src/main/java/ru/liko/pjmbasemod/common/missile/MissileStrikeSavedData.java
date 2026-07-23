@@ -8,7 +8,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Персистентные кулдауны ракетных ударов по scoreboard-командам. */
+/** Персистентные кулдауны ракетных ударов: ключ — {@code команда|id_ракеты}. */
 public final class MissileStrikeSavedData extends SavedData {
 
     private static final String DATA_NAME = "pjmbasemod_missile_strikes";
@@ -39,13 +39,17 @@ public final class MissileStrikeSavedData extends SavedData {
         return tag;
     }
 
-    public long remainingSeconds(String teamId, long nowMs) {
-        long remaining = cooldownUntilMs.getOrDefault(teamId, 0L) - nowMs;
+    private static String key(String teamId, String missileId) {
+        return teamId + "|" + missileId;
+    }
+
+    public long remainingSeconds(String teamId, String missileId, long nowMs) {
+        long remaining = cooldownUntilMs.getOrDefault(key(teamId, missileId), 0L) - nowMs;
         return remaining <= 0 ? 0 : (remaining + 999L) / 1000L;
     }
 
-    public void startCooldown(String teamId, int seconds, long nowMs) {
-        cooldownUntilMs.put(teamId, nowMs + Math.max(0L, seconds) * 1000L);
+    public void startCooldown(String teamId, String missileId, int seconds, long nowMs) {
+        cooldownUntilMs.put(key(teamId, missileId), nowMs + Math.max(0L, seconds) * 1000L);
         setDirty();
     }
 

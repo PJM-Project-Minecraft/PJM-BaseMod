@@ -14,15 +14,15 @@ public record MissileCatalogSyncPacket(
         boolean authorized,
         boolean sbwAvailable,
         boolean activeStrike,
-        long cooldownSeconds,
         String warehouseId,
         int supplyPoints,
         List<Entry> entries
 ) implements CustomPacketPayload {
 
+    /** {@code remainingCooldown} — остаток перезарядки ИМЕННО этой ракеты для команды игрока, сек. */
     public record Entry(String id, String displayName, String translationKey,
-                        int supplyCost, int cooldownSeconds, int flightSeconds, float radius,
-                        boolean ballistic) {}
+                        int supplyCost, int cooldownSeconds, long remainingCooldown,
+                        int flightSeconds, float radius, boolean ballistic) {}
 
     public static final Type<MissileCatalogSyncPacket> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "missile_catalog_sync"));
@@ -34,7 +34,6 @@ public record MissileCatalogSyncPacket(
         buf.writeBoolean(packet.authorized);
         buf.writeBoolean(packet.sbwAvailable);
         buf.writeBoolean(packet.activeStrike);
-        buf.writeVarLong(packet.cooldownSeconds);
         buf.writeUtf(packet.warehouseId, 128);
         buf.writeVarInt(Math.max(0, packet.supplyPoints));
         buf.writeVarInt(packet.entries.size());
@@ -44,6 +43,7 @@ public record MissileCatalogSyncPacket(
             buf.writeUtf(entry.translationKey, 160);
             buf.writeVarInt(entry.supplyCost);
             buf.writeVarInt(entry.cooldownSeconds);
+            buf.writeVarLong(entry.remainingCooldown);
             buf.writeVarInt(entry.flightSeconds);
             buf.writeFloat(entry.radius);
             buf.writeBoolean(entry.ballistic);
@@ -54,7 +54,6 @@ public record MissileCatalogSyncPacket(
         boolean authorized = buf.readBoolean();
         boolean sbw = buf.readBoolean();
         boolean active = buf.readBoolean();
-        long cooldown = buf.readVarLong();
         String warehouse = buf.readUtf(128);
         int supply = buf.readVarInt();
         int count = buf.readVarInt();
@@ -62,9 +61,10 @@ public record MissileCatalogSyncPacket(
         List<Entry> entries = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             entries.add(new Entry(buf.readUtf(64), buf.readUtf(128), buf.readUtf(160),
-                    buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readFloat(), buf.readBoolean()));
+                    buf.readVarInt(), buf.readVarInt(), buf.readVarLong(),
+                    buf.readVarInt(), buf.readFloat(), buf.readBoolean()));
         }
-        return new MissileCatalogSyncPacket(authorized, sbw, active, cooldown,
+        return new MissileCatalogSyncPacket(authorized, sbw, active,
                 warehouse, supply, List.copyOf(entries));
     }
 

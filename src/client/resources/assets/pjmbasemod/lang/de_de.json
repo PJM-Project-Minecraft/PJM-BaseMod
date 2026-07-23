@@ -543,6 +543,6 @@
   "gui.pjmbasemod.missile.launch.title": "RAKETENANGRIFF BESTÄTIGT",
   "gui.pjmbasemod.missile.launch.subtitle": "%s → X %s, Z %s · Ankunft %s Sek.",
   "gui.pjmbasemod.missile.warning.title": "WARNUNG: ANFLIEGENDE RAKETE",
-  "gui.pjmbasemod.missile.warning.subtitle": "In deinem Gebiet wird ein Raketenangriff erwartet.",
+  "gui.pjmbasemod.missile.warning.subtitle": "In deinem Gebiet wird ein Raketenangriff erwartet — sofort evakuieren!",
   "subtitles.pjmbasemod.missile": "Rakete nähert sich"
 }

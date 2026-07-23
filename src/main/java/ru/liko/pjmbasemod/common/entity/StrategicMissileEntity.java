@@ -26,8 +26,12 @@ import org.jetbrains.annotations.NotNull;
 import ru.liko.pjmbasemod.common.compat.SbwMissileCompat;
 import ru.liko.pjmbasemod.common.missile.MissileDefinition;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
+import net.minecraft.network.chat.Component;
+import ru.liko.pjmbasemod.common.network.packet.MissileAlertPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileAudioSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileImpactPacket;
+import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
+import ru.liko.pjmbasemod.common.teams.Teams;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.animation.AnimatableManager;
@@ -75,6 +79,7 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     private float shotDownPower = 0.35f;
     private boolean destroyBlocks;
     private boolean exploding;
+    private boolean enemyAlertSent;
     private double smoothedCruiseY = Double.NaN;
     private double cruiseClimbRate;
     @Nullable private ChunkPos ticketCenter;
@@ -206,6 +211,10 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         setPos(next);
         spawnTrail(serverLevel, next, movement);
         if (tickCount % 2 == 0) sendAudioSync(serverLevel, true);
+        if (!enemyAlertSent && elapsedTicks >= ENEMY_ALERT_DELAY_TICKS) {
+            enemyAlertSent = true;
+            sendEnemyAlert(serverLevel);
+        }
         if (t >= 1.0 || next.distanceToSqr(targetX, targetY, targetZ) <= 1.0) {
             detonate(false, new Vec3(targetX, targetY, targetZ));
         }
@@ -360,6 +369,32 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         discard();
     }
 
+    /** Задержка алерта чужим командам после пуска (~8.5 с). */
+    private static final int ENEMY_ALERT_DELAY_TICKS = 170;
+    private static final double ENEMY_WARNING_DISTANCE_SQ = 256.0 * 256.0;
+
+    /**
+     * Отложенное предупреждение всем НЕ-сокомандникам: зона поражения на карте (без названия
+     * ракеты) + эвакуационное уведомление тем, кто рядом с целью. Своя команда получила
+     * алерт мгновенно при пуске из MissileStrikeManager.
+     */
+    private void sendEnemyAlert(ServerLevel level) {
+        MissileAlertPacket alert = new MissileAlertPacket(
+                level.dimension().location().toString(), targetX, targetZ,
+                explosionRadius, "", false);
+        for (ServerPlayer viewer : level.getServer().getPlayerList().getPlayers()) {
+            if (teamId.equals(Teams.resolvePlayerTeamId(viewer))) continue;
+            PjmNetworking.sendToPlayer(viewer, alert);
+            if (viewer.serverLevel() == level
+                    && viewer.distanceToSqr(targetX, targetY, targetZ) <= ENEMY_WARNING_DISTANCE_SQ) {
+                PjmNetworking.sendToPlayer(viewer, new NotificationPacket(
+                        Component.translatable("gui.pjmbasemod.missile.warning.title"),
+                        Component.translatable("gui.pjmbasemod.missile.warning.subtitle"),
+                        0xD6453D, 6000L));
+            }
+        }
+    }
+
     private static final double AUDIO_RANGE_SQ = 750.0 * 750.0;
 
     /** Звуковой синк идёт мимо entity-трекинга: ракету слышно и там, где сущность не прогружена. */
@@ -436,6 +471,7 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         health = tag.getFloat("Health");
         shotDownPower = tag.getFloat("ShotDownPower");
         destroyBlocks = tag.getBoolean("DestroyBlocks");
+        enemyAlertSent = tag.getBoolean("EnemyAlertSent");
     }
 
     @Override
@@ -463,6 +499,7 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         tag.putFloat("Health", health);
         tag.putFloat("ShotDownPower", shotDownPower);
         tag.putBoolean("DestroyBlocks", destroyBlocks);
+        tag.putBoolean("EnemyAlertSent", enemyAlertSent);
     }
 
     @Override

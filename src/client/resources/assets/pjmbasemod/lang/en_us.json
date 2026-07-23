@@ -543,6 +543,6 @@
   "gui.pjmbasemod.missile.launch.title": "MISSILE STRIKE CONFIRMED",
   "gui.pjmbasemod.missile.launch.subtitle": "%s → X %s, Z %s · arrival %s sec.",
   "gui.pjmbasemod.missile.warning.title": "WARNING: INCOMING MISSILE",
-  "gui.pjmbasemod.missile.warning.subtitle": "A missile strike is expected in your area.",
+  "gui.pjmbasemod.missile.warning.subtitle": "A missile strike is expected in your area — evacuate immediately!",
   "subtitles.pjmbasemod.missile": "Missile approaching"
 }

@@ -425,17 +425,16 @@ public final class MapScreen extends Screen {
                     "gui.pjmbasemod.missile.menu.active", title).getString(), () -> {}));
             return;
         }
-        if (state.cooldownSeconds() > 0) {
-            items.add(MapContextMenu.Entry.leaf(Component.translatable(
-                    "gui.pjmbasemod.missile.menu.cooldown", title, state.cooldownSeconds()).getString(), () -> {}));
-            return;
-        }
-
         List<MapContextMenu.Entry> missiles = new ArrayList<>();
         for (MissileCatalogSyncPacket.Entry entry : state.entries()) {
             String name = entry.translationKey().isBlank()
                     ? entry.displayName()
                     : Component.translatableWithFallback(entry.translationKey(), entry.displayName()).getString();
+            if (entry.remainingCooldown() > 0) {
+                missiles.add(MapContextMenu.Entry.leaf(Component.translatable(
+                        "gui.pjmbasemod.missile.menu.cooldown", name, entry.remainingCooldown()).getString(), () -> {}));
+                continue;
+            }
             String label = Component.translatable("gui.pjmbasemod.missile.menu.entry",
                     name, entry.supplyCost(), (int) entry.radius()).getString();
             String confirm = Component.translatable("gui.pjmbasemod.missile.confirm",

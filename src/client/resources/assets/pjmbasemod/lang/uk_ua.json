@@ -543,6 +543,6 @@
   "gui.pjmbasemod.missile.launch.title": "РАКЕТНИЙ УДАР ПІДТВЕРДЖЕНО",
   "gui.pjmbasemod.missile.launch.subtitle": "%s → X %s, Z %s · підліт %s с.",
   "gui.pjmbasemod.missile.warning.title": "УВАГА: РАКЕТА",
-  "gui.pjmbasemod.missile.warning.subtitle": "У вашому районі очікується ракетний удар.",
+  "gui.pjmbasemod.missile.warning.subtitle": "У вашому районі очікується ракетний удар — негайно евакуюйтеся!",
   "subtitles.pjmbasemod.missile": "Наближається ракета"
 }

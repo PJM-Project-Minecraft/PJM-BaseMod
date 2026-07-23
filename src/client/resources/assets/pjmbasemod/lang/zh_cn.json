@@ -543,6 +543,6 @@
   "gui.pjmbasemod.missile.launch.title": "导弹打击已确认",
   "gui.pjmbasemod.missile.launch.subtitle": "%s → X %s, Z %s · %s 秒后抵达。",
   "gui.pjmbasemod.missile.warning.title": "警告：导弹来袭",
-  "gui.pjmbasemod.missile.warning.subtitle": "你所在区域即将遭受导弹打击。",
+  "gui.pjmbasemod.missile.warning.subtitle": "你所在区域即将遭受导弹打击——请立即撤离！",
   "subtitles.pjmbasemod.missile": "导弹正在接近"
 }

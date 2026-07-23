@@ -41,6 +41,8 @@ public record CapturePointMapSyncPacket(List<CapturePoint> points, boolean seque
             buf.writeVarInt(cp.progressPercent());
             buf.writeBoolean(cp.contested());
             buf.writeVarInt(cp.order());
+            buf.writeVarInt(cp.links().size());
+            for (String link : cp.links()) buf.writeUtf(link);
         }
     }
 
@@ -63,8 +65,11 @@ public record CapturePointMapSyncPacket(List<CapturePoint> points, boolean seque
             int progress = buf.readVarInt();
             boolean contested = buf.readBoolean();
             int order = buf.readVarInt();
+            int lcount = buf.readVarInt();
+            List<String> links = new ArrayList<>(lcount);
+            for (int j = 0; j < lcount; j++) links.add(buf.readUtf());
             points.add(new CapturePoint(id, displayName, dimension, List.copyOf(vertices),
-                    owner, ownerColor, capture, progress, contested, order));
+                    owner, ownerColor, capture, progress, contested, order, List.copyOf(links)));
         }
         return new CapturePointMapSyncPacket(List.copyOf(points), sequential);
     }

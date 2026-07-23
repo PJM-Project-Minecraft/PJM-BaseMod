@@ -17,6 +17,7 @@ import ru.liko.pjmbasemod.common.init.PjmEntities;
 import ru.liko.pjmbasemod.common.logging.LogCategory;
 import ru.liko.pjmbasemod.common.logging.PjmActionLogger;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
+import ru.liko.pjmbasemod.common.network.packet.MissileAlertPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileCatalogSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileStrikeActionPacket;
 import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
@@ -33,7 +34,6 @@ import java.util.Locale;
 public final class MissileStrikeManager {
 
     private static final double REQUIRED_OBSERVER_DISTANCE = 192.0;
-    private static final double ENEMY_WARNING_DISTANCE = 256.0;
     private static final double BASE_SAFETY_BUFFER = 6.0;
 
     private MissileStrikeManager() {}
@@ -57,21 +57,25 @@ public final class MissileStrikeManager {
         WarehouseSavedData stock = WarehouseSavedData.get(server);
         int supply = !warehouseId.isBlank() && stock.exists(warehouseId)
                 ? stock.getPoints(warehouseId, WarehousePoolCategory.SUPPLY) : 0;
-        long cooldown = authorized && !admin
-                ? MissileStrikeSavedData.get(server).remainingSeconds(teamId, System.currentTimeMillis()) : 0L;
         boolean active = authorized && hasActiveStrike(server, teamId);
+        MissileStrikeSavedData cooldowns = MissileStrikeSavedData.get(server);
+        long now = System.currentTimeMillis();
 
         List<MissileCatalogSyncPacket.Entry> entries = new ArrayList<>();
         for (MissileDefinition definition : MissileRegistry.get().all()) {
             if (!definition.enabled()) continue;
+            // Сортировка по командам: чужие ракеты не видны (OP видит все).
+            if (!admin && !definition.availableFor(teamId)) continue;
+            long remaining = authorized && !admin
+                    ? cooldowns.remainingSeconds(teamId, definition.id(), now) : 0L;
             entries.add(new MissileCatalogSyncPacket.Entry(
                     definition.id(), definition.displayName(), definition.translationKey(),
-                    definition.supplyCost(), definition.cooldownSeconds(), definition.flightSeconds(),
-                    definition.radius(),
+                    definition.supplyCost(), definition.cooldownSeconds(), remaining,
+                    definition.flightSeconds(), definition.radius(),
                     definition.trajectoryType() == MissileDefinition.Trajectory.BALLISTIC));
         }
         PjmNetworking.sendToPlayer(player, new MissileCatalogSyncPacket(
-                authorized, SbwMissileCompat.available(), active, cooldown,
+                authorized, SbwMissileCompat.available(), active,
                 warehouseId, supply, List.copyOf(entries)));
     }
 
@@ -93,14 +97,18 @@ public final class MissileStrikeManager {
             reject(player, "gui.pjmbasemod.missile.error.unknown");
             return;
         }
+        boolean admin = player.hasPermissions(2);
+        if (!admin && !definition.availableFor(teamId)) {
+            reject(player, "gui.pjmbasemod.missile.error.unknown");
+            return;
+        }
         if (hasActiveStrike(server, teamId)) {
             reject(player, "gui.pjmbasemod.missile.error.active");
             return;
         }
 
-        boolean admin = player.hasPermissions(2);
         long remaining = MissileStrikeSavedData.get(server)
-                .remainingSeconds(teamId, System.currentTimeMillis());
+                .remainingSeconds(teamId, definition.id(), System.currentTimeMillis());
         if (!admin && remaining > 0) {
             player.displayClientMessage(Component.translatable(
                     "gui.pjmbasemod.missile.error.cooldown", remaining), true);
@@ -169,7 +177,7 @@ public final class MissileStrikeManager {
         }
 
         MissileStrikeSavedData.get(server).startCooldown(
-                teamId, definition.cooldownSeconds(), System.currentTimeMillis());
+                teamId, definition.id(), definition.cooldownSeconds(), System.currentTimeMillis());
         notifyLaunch(server, level, player, teamId, definition, target);
         PjmActionLogger.instance().logSubsystem(LogCategory.FACTION,
                 "Ракетный удар: " + player.getScoreboardName() + " [" + teamId + "] запустил "
@@ -195,23 +203,17 @@ public final class MissileStrikeManager {
 
     private static void notifyLaunch(MinecraftServer server, ServerLevel level, ServerPlayer commander,
                                      String teamId, MissileDefinition definition, Vec3 target) {
+        // Своей команде — мгновенно: уведомление с названием ракеты + зона поражения на карте.
+        // Остальным алерт уйдёт с задержкой из StrategicMissileEntity#sendEnemyAlert.
         Component missileName = displayName(definition);
         PjmNetworking.sendToTeam(server, teamId, new NotificationPacket(
                 Component.translatable("gui.pjmbasemod.missile.launch.title"),
                 Component.translatable("gui.pjmbasemod.missile.launch.subtitle", missileName,
                         (int) target.x, (int) target.z, definition.flightSeconds()),
                 0xE6A640, 5000L));
-
-        double warningSq = ENEMY_WARNING_DISTANCE * ENEMY_WARNING_DISTANCE;
-        for (ServerPlayer other : server.getPlayerList().getPlayers()) {
-            if (other == commander || other.serverLevel() != level) continue;
-            if (teamId.equals(Teams.resolvePlayerTeamId(other))) continue;
-            if (other.distanceToSqr(target) > warningSq) continue;
-            PjmNetworking.sendToPlayer(other, new NotificationPacket(
-                    Component.translatable("gui.pjmbasemod.missile.warning.title"),
-                    Component.translatable("gui.pjmbasemod.missile.warning.subtitle"),
-                    0xD6453D, 5000L));
-        }
+        PjmNetworking.sendToTeam(server, teamId, new MissileAlertPacket(
+                level.dimension().location().toString(), target.x, target.z,
+                definition.radius(), missileName.getString(), true));
     }
 
     private static Component displayName(MissileDefinition definition) {

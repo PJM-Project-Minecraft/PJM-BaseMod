@@ -36,8 +36,53 @@ public final class MapOverlays {
                               double scale, int width, int height, String dim, String skipCaptureId) {
         drawBaseZones(gg, font, camX, camZ, scale, width, height, dim);
         drawMissileImpacts(gg, camX, camZ, scale, width, height, dim);
+        drawMissileAlerts(gg, font, camX, camZ, scale, width, height, dim);
         drawCapturePoints(gg, font, camX, camZ, scale, width, height, dim, skipCaptureId);
     }
+
+    /**
+     * Зоны предупреждения о летящих ракетах: пульсирующий круг зоны поражения.
+     * Своей команде — янтарный с названием ракеты (появляется мгновенно при пуске),
+     * остальным — красный без названия (сервер шлёт с задержкой ~8.5 с).
+     */
+    private static void drawMissileAlerts(GuiGraphics gg, Font font, double camX, double camZ,
+                                          double scale, int width, int height, String dim) {
+        long now = Util.getMillis();
+        float pulse = 0.6f + 0.4f * (float) Math.sin(now / 220.0);
+        for (ClientMissileState.StrikeAlert alert : ClientMissileState.alerts()) {
+            if (!alert.dimension().equals(dim)) continue;
+            int sx = (int) MapRenderer.worldToScreenX(alert.x(), camX, scale, width);
+            int sy = (int) MapRenderer.worldToScreenY(alert.z(), camZ, scale, height);
+            double rPx = alert.radius() * 2.0 * scale;
+            if (sx + rPx < 0 || sx - rPx > width || sy + rPx < 0 || sy - rPx > height) continue;
+
+            int rgb = (alert.ownTeam() ? CONTESTED_COLOR : 0xE04A3D) & 0xFFFFFF;
+            double[] xs = new double[IMPACT_SEGMENTS];
+            double[] ys = new double[IMPACT_SEGMENTS];
+            for (int i = 0; i < IMPACT_SEGMENTS; i++) {
+                double a = Math.PI * 2.0 * i / IMPACT_SEGMENTS;
+                xs[i] = sx + Math.cos(a) * rPx;
+                ys[i] = sy + Math.sin(a) * rPx;
+            }
+            int fillA = (int) (0x28 + 0x20 * pulse);
+            MapRenderer.fillPolygon(gg, xs, ys, IMPACT_SEGMENTS, (fillA << 24) | rgb, width, height);
+            int outline = 0xFF000000 | rgb;
+            for (int i = 0; i < IMPACT_SEGMENTS; i++) {
+                MapRenderer.line(gg, xs[i], ys[i],
+                        xs[(i + 1) % IMPACT_SEGMENTS], ys[(i + 1) % IMPACT_SEGMENTS],
+                        1.5f + pulse * 1.5f, outline);
+            }
+            float t = (now % 1400L) / 1400f;
+            blitSprite(gg, PING, sx, sy, 16 + t * 26, PING_TW, PING_TH, rgb, (1f - t) * 0.85f);
+
+            String label = alert.ownTeam() && !alert.missileName().isBlank()
+                    ? alert.missileName()
+                    : net.minecraft.network.chat.Component.translatable(
+                            "gui.pjmbasemod.missile.warning.title").getString();
+            drawLabelPill(gg, font, sx, sy - 18, label, rgb);
+        }
+    }
+
 
     // ── поражения ракет ──
 

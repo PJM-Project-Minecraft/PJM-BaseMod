@@ -18,10 +18,11 @@ public record CapturePointEditorActionPacket(
         String dimension,
         String ownerTeamId,
         List<CapturePoint.Vertex> vertices,
-        int order
+        int order,
+        String linkTargetId
 ) implements CustomPacketPayload {
 
-    public enum Action { ADD, REMOVE, UPDATE_VERTICES, UPDATE_DISPLAY_NAME, SET_OWNER, SET_ORDER }
+    public enum Action { ADD, REMOVE, UPDATE_VERTICES, UPDATE_DISPLAY_NAME, SET_OWNER, SET_ORDER, TOGGLE_LINK }
 
     public static final Type<CapturePointEditorActionPacket> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "capturepoint_editor_action"));
@@ -41,6 +42,7 @@ public record CapturePointEditorActionPacket(
             buf.writeVarInt(v.z());
         }
         buf.writeVarInt(p.order);
+        buf.writeUtf(p.linkTargetId);
     }
 
     private static CapturePointEditorActionPacket read(RegistryFriendlyByteBuf buf) {
@@ -55,8 +57,9 @@ public record CapturePointEditorActionPacket(
             vertices.add(new CapturePoint.Vertex(buf.readVarInt(), buf.readVarInt()));
         }
         int order = buf.readVarInt();
+        String linkTargetId = buf.readUtf();
         return new CapturePointEditorActionPacket(action, pointId, displayName, dimension,
-                ownerTeamId, List.copyOf(vertices), order);
+                ownerTeamId, List.copyOf(vertices), order, linkTargetId);
     }
 
     @Override public Type<? extends CustomPacketPayload> type() { return TYPE; }

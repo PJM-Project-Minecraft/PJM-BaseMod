@@ -1,5 +1,6 @@
 package ru.liko.pjmbasemod.common.missile;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -31,6 +32,8 @@ public final class MissileDefinition {
     float hitPoints = 35.0f;
     float shotDownPower = 0.35f;
     boolean destroyBlocks = false;
+    /** Каким scoreboard-командам доступна ракета; пустой список — всем. */
+    List<String> teams = List.of();
 
     public MissileDefinition() {}
 
@@ -82,6 +85,10 @@ public final class MissileDefinition {
         radius = clamp(radius, 1.0f, 40.0f);
         hitPoints = clamp(hitPoints, 1.0f, 10_000.0f);
         shotDownPower = clamp(shotDownPower, 0.0f, 1.0f);
+        teams = teams == null ? List.of() : teams.stream()
+                .filter(t -> t != null && !t.isBlank())
+                .map(t -> t.trim().toLowerCase(Locale.ROOT))
+                .toList();
     }
 
     public boolean isValid() {
@@ -124,6 +131,13 @@ public final class MissileDefinition {
 
     public float weaveAmplitude() { return weaveAmplitude; }
     public float weaveCycles() { return weaveCycles; }
+    public List<String> teams() { return teams; }
+
+    /** Доступна ли ракета этой команде (пустой список teams = всем). */
+    public boolean availableFor(String teamId) {
+        if (teams.isEmpty()) return true;
+        return teamId != null && teams.contains(teamId.toLowerCase(Locale.ROOT));
+    }
 
     MissileDefinition withApproach(float amplitude, float cycles) {
         this.weaveAmplitude = amplitude;

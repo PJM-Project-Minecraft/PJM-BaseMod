@@ -16,7 +16,7 @@ import ru.liko.pjmbasemod.common.warehouse.WarehouseManager;
 
 public final class PjmNetworking {
 
-    public static final String VERSION = "55";
+    public static final String VERSION = "56";
 
     private static ClientPacketProxy CLIENT = ClientPacketProxy.NOOP;
 
@@ -106,9 +106,10 @@ public final class PjmNetworking {
         r.playToClient(MissileCatalogSyncPacket.TYPE, MissileCatalogSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.missileCatalogSync(p)));
         r.playToClient(MissileAudioSyncPacket.TYPE, MissileAudioSyncPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.missileAudioSync(p)));
         r.playToClient(MissileImpactPacket.TYPE, MissileImpactPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.missileImpact(p)));
+        r.playToClient(MissileAlertPacket.TYPE, MissileAlertPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> CLIENT.missileAlert(p)));
         r.playToServer(RadioSpawnSelectPacket.TYPE, RadioSpawnSelectPacket.STREAM_CODEC, (p, ctx) -> ctx.enqueueWork(() -> ru.liko.pjmbasemod.common.radiospawn.RadioSpawnManager.selectSpawn((ServerPlayer) ctx.player(), p.radioId())));
 
-        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 73);
+        Pjmbasemod.LOGGER.info("PJM-BaseMod: registered {} network payloads.", 74);
     }
 
     public static void sendToServer(CustomPacketPayload payload) {
