@@ -31,10 +31,12 @@
 
 - `trajectory`: `cruise` или `ballistic`;
 - `supplyCost`, `cooldownSeconds`, `flightSeconds`;
-- `spawnDistance`, `cruiseHeight`, `terminalDiveDistance`, `ballisticApex`;
+- `spawnDistance`, `cruiseHeight`, `terminalDiveDistance`, `ballisticApex`, `popupDistance`, `popupHeight`;
 - `weaveAmplitude`, `weaveCycles` — змейка захода; терминальный заход — плавный перелом курса вниз;
 - `damage`, `radius`, `hitPoints`, `shotDownPower`;
 - `destroyBlocks`: по умолчанию `false` для сохранности карты;
+- `popupDistance`: 120 — За сколько блоков до цели крылатая ракета делает горку (pop-up). `0` — летит без горки, старое поведение.
+- `popupHeight`: 60 — Высота горки над целью: из её вершины ракета круто пикирует в цель.
 - `teams`: список id scoreboard-команд, которым доступна ракета (пустой — всем);
 - кулдаун (`cooldownSeconds`) считается отдельно на каждую пару команда+ракета.
 

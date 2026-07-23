@@ -72,6 +72,8 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     private int cruiseHeight = 24;
     private int terminalDiveDistance = 36;
     private int ballisticApex = 160;
+    private int popupDistance;
+    private int popupHeight = 60;
     private float weaveAmplitude;
     private float weaveCycles = 1.0f;
     private float explosionDamage = 120.0f;
@@ -116,6 +118,8 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         this.cruiseHeight = definition.cruiseHeight();
         this.terminalDiveDistance = definition.terminalDiveDistance();
         this.ballisticApex = definition.ballisticApex();
+        this.popupDistance = definition.popupDistance();
+        this.popupHeight = definition.popupHeight();
         this.weaveAmplitude = definition.weaveAmplitude();
         this.weaveCycles = definition.weaveCycles();
         this.explosionDamage = definition.damage();
@@ -289,6 +293,12 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         double horizontalRemaining = Math.hypot(targetX - x, targetZ - z);
         double cruiseTarget = Math.min(level.getMaxBuildHeight() - 8.0,
                 lookAheadTerrain(level, x, z, routeLength) + cruiseHeight);
+        // Pop-up у цели (профиль ПКР): горка перед терминальным пикированием — существующее
+        // сглаживание вертикальной скорости само отработает набор, dive² спикирует из вершины.
+        if (popupDistance > 0 && horizontalRemaining < popupDistance) {
+            cruiseTarget = Math.max(cruiseTarget,
+                    Math.min(level.getMaxBuildHeight() - 8.0, targetY + popupHeight));
+        }
         // Крейсерская высота — сглаживание второго порядка: плавно меняется не только
         // высота, но и вертикальная скорость (лимит ускорения), без изломов траектории.
         // Лимиты масштабируются от скорости: угол набора ~26°/снижения ~19° постоянен.
@@ -474,6 +484,8 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         cruiseHeight = tag.getInt("CruiseHeight");
         terminalDiveDistance = tag.getInt("TerminalDiveDistance");
         ballisticApex = tag.getInt("BallisticApex");
+        popupDistance = tag.getInt("PopupDistance");
+        popupHeight = tag.getInt("PopupHeight");
         weaveAmplitude = tag.getFloat("WeaveAmplitude");
         weaveCycles = tag.contains("WeaveCycles") ? tag.getFloat("WeaveCycles") : 1.0f;
         explosionDamage = tag.getFloat("ExplosionDamage");
@@ -502,6 +514,8 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         tag.putInt("CruiseHeight", cruiseHeight);
         tag.putInt("TerminalDiveDistance", terminalDiveDistance);
         tag.putInt("BallisticApex", ballisticApex);
+        tag.putInt("PopupDistance", popupDistance);
+        tag.putInt("PopupHeight", popupHeight);
         tag.putFloat("WeaveAmplitude", weaveAmplitude);
         tag.putFloat("WeaveCycles", weaveCycles);
         tag.putFloat("ExplosionDamage", explosionDamage);

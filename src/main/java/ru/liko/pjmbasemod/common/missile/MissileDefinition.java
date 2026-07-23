@@ -25,6 +25,10 @@ public final class MissileDefinition {
     int cruiseHeight = 28;
     int terminalDiveDistance = 36;
     int ballisticApex = 160;
+    /** За сколько блоков до цели крылатая ракета делает горку (0 — без горки). */
+    int popupDistance = 120;
+    /** Высота горки над целью перед пикированием. */
+    int popupHeight = 60;
     float weaveAmplitude = 0.0f;
     float weaveCycles = 1.0f;
     float damage = 120.0f;
@@ -79,6 +83,8 @@ public final class MissileDefinition {
         cruiseHeight = clamp(cruiseHeight, 4, 160);
         terminalDiveDistance = clamp(terminalDiveDistance, 8, 320);
         ballisticApex = clamp(ballisticApex, 32, 800);
+        popupDistance = clamp(popupDistance, 0, 600);
+        popupHeight = clamp(popupHeight, 8, 200);
         weaveAmplitude = clamp(weaveAmplitude, 0.0f, 32.0f);
         weaveCycles = clamp(weaveCycles, 0.25f, 6.0f);
         damage = clamp(damage, 1.0f, 10_000.0f);
@@ -123,6 +129,8 @@ public final class MissileDefinition {
     public int cruiseHeight() { return cruiseHeight; }
     public int terminalDiveDistance() { return terminalDiveDistance; }
     public int ballisticApex() { return ballisticApex; }
+    public int popupDistance() { return popupDistance; }
+    public int popupHeight() { return popupHeight; }
     public float damage() { return damage; }
     public float radius() { return radius; }
     public float hitPoints() { return hitPoints; }
