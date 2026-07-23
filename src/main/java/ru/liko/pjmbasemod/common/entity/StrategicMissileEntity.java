@@ -31,6 +31,7 @@ import net.minecraft.network.chat.Component;
 import ru.liko.pjmbasemod.common.network.packet.MissileAlertPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileAudioSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileImpactPacket;
+import ru.liko.pjmbasemod.common.network.packet.MissileTrackPacket;
 import ru.liko.pjmbasemod.common.network.packet.NotificationPacket;
 import ru.liko.pjmbasemod.common.teams.Teams;
 import software.bernie.geckolib.animatable.GeoEntity;
@@ -217,6 +218,7 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         setPos(next);
         spawnTrail(serverLevel, next, movement);
         if (tickCount % 2 == 0) sendAudioSync(serverLevel, true);
+        if (tickCount % 10 == 0) sendTrack(serverLevel, true);
         if (!enemyAlertSent && elapsedTicks >= ENEMY_ALERT_DELAY_TICKS) {
             enemyAlertSent = true;
             sendEnemyAlert(serverLevel);
@@ -421,6 +423,14 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         }
     }
 
+    /** Трек для карты — только своей команде, мимо entity-трекинга и без лимита дистанции. */
+    private void sendTrack(ServerLevel level, boolean active) {
+        if (teamId.isBlank()) return;
+        PjmNetworking.sendToTeam(level.getServer(), teamId, new MissileTrackPacket(
+                getUUID(), level.dimension().location().toString(),
+                getX(), getZ(), getYRot(), active));
+    }
+
     /**
      * Вызывается и из tick(), и извне ({@link ru.liko.pjmbasemod.common.missile.MissileStrikeManager}
      * раз в секунду): влетев в непрогруженный чанк, сущность замирает и сама продлить
@@ -455,6 +465,7 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     public void remove(RemovalReason reason) {
         if (!level().isClientSide() && level() instanceof ServerLevel serverLevel) {
             sendAudioSync(serverLevel, false);
+            sendTrack(serverLevel, false);
         }
         removeChunkTicket();
         super.remove(reason);

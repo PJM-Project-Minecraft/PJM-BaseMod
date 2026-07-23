@@ -42,6 +42,7 @@ import ru.liko.pjmbasemod.common.network.packet.MissileAlertPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileAudioSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileCatalogSyncPacket;
 import ru.liko.pjmbasemod.common.network.packet.MissileImpactPacket;
+import ru.liko.pjmbasemod.common.network.packet.MissileTrackPacket;
 
 public interface ClientPacketProxy {
 
@@ -92,4 +93,7 @@ public interface ClientPacketProxy {
     default void missileImpact(MissileImpactPacket payload) {}
 
     default void missileAlert(MissileAlertPacket payload) {}
+
+    /** Живой трек ракеты для карты (только своей команде). */
+    default void missileTrack(MissileTrackPacket payload) {}
 }
