@@ -18,7 +18,9 @@ import java.util.List;
  * @param progressPercent 0–100: при NEUTRALIZING — остаток контроля владельца,
  *                        при CAPTURING — прогресс захвата
  * @param contested       true, если внутри точки игроки 2+ команд одновременно
- * @param order           порядок на линии фронта (последовательный захват); соседи по order — цепочка
+ * @param order           порядок на линии фронта (устаревшая линейная цепочка; fallback, когда нет links)
+ * @param links           id связанных точек (граф цепного захвата, рёбра симметричны) —
+ *                        работает при любом числе фракций (Y-топология для трёх)
  */
 public record CapturePoint(
         String id,
@@ -30,7 +32,8 @@ public record CapturePoint(
         String captureTeamId,
         int progressPercent,
         boolean contested,
-        int order
+        int order,
+        List<String> links
 ) {
 
     /** Вершина полигона в блочных координатах (X/Z, Y игнорируется). */

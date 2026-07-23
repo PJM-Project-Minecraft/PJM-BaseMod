@@ -104,7 +104,9 @@ public final class RankHudOverlay {
         int x = 12;
         int y = 12;
         int width = commander.active() ? 184 : 160;
-        int height = commander.active() ? 42 : 28;
+        boolean hasNext = showRank && state.nextMinXp() > state.minXp();
+        int nextLine = hasNext ? 11 : 0; // строка «до следующего звания»
+        int height = (commander.active() ? 42 : 28) + nextLine;
         int baseAccent = showRank ? state.accentColor() : commander.teamColor();
         int accent = withAlpha(baseAccent, 0xFF);
 
@@ -149,11 +151,18 @@ public final class RankHudOverlay {
             graphics.fill(barX - 1, barY, barX, barY + barH, 0x33FFFFFF);
             graphics.fill(barX + barW, barY, barX + barW + 1, barY + barH, 0x33FFFFFF);
 
-            if (state.nextMinXp() > state.minXp()) {
+            if (hasNext) {
                 int span = Math.max(1, state.nextMinXp() - state.minXp());
                 int progress = Mth.clamp(state.xp() - state.minXp(), 0, span);
                 int fill = Math.max(1, barW * progress / span);
                 graphics.fill(barX, barY, barX + fill, barY + barH, withAlpha(accent, 0xEE));
+
+                int remaining = Math.max(0, state.nextMinXp() - state.xp());
+                String next = state.nextDisplayName() == null ? "" : state.nextDisplayName().toUpperCase(Locale.ROOT);
+                String line = net.minecraft.network.chat.Component
+                        .translatable("gui.pjmbasemod.rank.to_next", remaining, next).getString();
+                graphics.drawString(font, font.plainSubstrByWidth(line, width - 34), barX, barY + barH + 4,
+                        PjmGuiUtils.TEXT_DIM, false);
             }
         } else {
             String title = commander.roleShortName().toUpperCase(Locale.ROOT) + " "
@@ -167,7 +176,7 @@ public final class RankHudOverlay {
                     .translatable("gui.pjmbasemod.faction.commander.badge").getString();
             int roleColor = withAlpha(commander.teamColor(), 0xFF);
             graphics.drawString(font, font.plainSubstrByWidth(roleText, width - 34),
-                    x + 28, y + 28, roleColor, false);
+                    x + 28, y + 28 + nextLine, roleColor, false);
         }
     }
 

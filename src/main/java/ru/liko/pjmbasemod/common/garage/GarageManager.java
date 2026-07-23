@@ -879,7 +879,11 @@ public final class GarageManager {
             return false;
         }
         int minOnline = def.minPlayersOnline();
-        int online = player.server.getPlayerList().getPlayerCount();
+        // Онлайн считается по фракции игрока, а не по серверу; вне фракции — по наименьшей боевой.
+        String teamId = Teams.resolvePlayerTeamId(player);
+        int online = teamId != null
+                ? Teams.onlineCount(player.server, teamId)
+                : Teams.minCombatOnline(player.server);
         if (minOnline > 0 && online < minOnline) {
             player.sendSystemMessage(Component.translatable("gui.pjmbasemod.garage.min_players", minOnline, online));
             return false;

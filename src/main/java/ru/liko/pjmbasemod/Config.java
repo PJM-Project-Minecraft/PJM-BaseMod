@@ -111,9 +111,6 @@ public final class Config {
     public static int getFleetMaxActivePerPlayer()         { return data().fleet.maxActivePerPlayer; }
     public static int getFleetAviationMaxActivePerTeam()   { return data().fleet.aviationMaxActivePerTeam; }
     public static int getFleetAviationMaxActivePerPlayer() { return data().fleet.aviationMaxActivePerPlayer; }
-    public static int getFleetHeliMaxActiveOnMap()         { return data().fleet.heliMaxActiveOnMap; }
-    public static int getFleetTankMaxActiveOnMap()         { return data().fleet.tankMaxActiveOnMap; }
-    public static int getFleetIfvMaxActiveOnMap()          { return data().fleet.ifvMaxActiveOnMap; }
     public static int getFleetSpawnCooldownSeconds()       { return data().fleet.spawnCooldownSeconds; }
     public static int getFleetAbandonTimeoutSeconds()      { return data().fleet.abandonTimeoutSeconds; }
     public static int getFleetAbandonWarningSeconds()      { return data().fleet.abandonWarningSeconds; }
@@ -451,9 +448,6 @@ public final class Config {
             fleet.maxActivePerPlayer = fleet.maxActivePerPlayer < 0 ? -1 : clamp(fleet.maxActivePerPlayer, 0, 4096);
             fleet.aviationMaxActivePerTeam = fleet.aviationMaxActivePerTeam < 0 ? -1 : clamp(fleet.aviationMaxActivePerTeam, 0, 4096);
             fleet.aviationMaxActivePerPlayer = fleet.aviationMaxActivePerPlayer < 0 ? -1 : clamp(fleet.aviationMaxActivePerPlayer, 0, 4096);
-            fleet.heliMaxActiveOnMap = fleet.heliMaxActiveOnMap < 0 ? -1 : clamp(fleet.heliMaxActiveOnMap, 0, 4096);
-            fleet.tankMaxActiveOnMap = fleet.tankMaxActiveOnMap < 0 ? -1 : clamp(fleet.tankMaxActiveOnMap, 0, 4096);
-            fleet.ifvMaxActiveOnMap  = fleet.ifvMaxActiveOnMap  < 0 ? -1 : clamp(fleet.ifvMaxActiveOnMap,  0, 4096);
             fleet.spawnCooldownSeconds = clamp(fleet.spawnCooldownSeconds, 0, 86_400);
             fleet.abandonTimeoutSeconds = clamp(fleet.abandonTimeoutSeconds, 5, 86_400);
             fleet.abandonWarningSeconds = clamp(fleet.abandonWarningSeconds, 0, 3_600);
@@ -585,10 +579,6 @@ public final class Config {
         int abandonWarningSeconds = 30;
         int aviationMaxActivePerTeam = 3;
         int aviationMaxActivePerPlayer = 1;
-        /** Максимум одновременно активной техники данной категории на всей карте (глобально). -1 — без лимита. */
-        int heliMaxActiveOnMap = 1;
-        int tankMaxActiveOnMap = 2;
-        int ifvMaxActiveOnMap = 2;
     }
 
     static final class Faction {

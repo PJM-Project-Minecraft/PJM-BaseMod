@@ -137,6 +137,7 @@ public final class CapturePointEditor {
             if (selectedVertex >= 0) items.add(leaf("menu.remove_selected_vertex", this::removeSelectedVertex));
             addOwnerEntries(items);
             addOrderEntries(items);
+            addLinkEntries(items);
             items.add(leaf("menu.rename", this::openRename));
             items.add(leaf("menu.done", this::stopEditing));
             return items;
@@ -146,6 +147,7 @@ public final class CapturePointEditor {
             items.add(leaf("menu.edit", this::startEditing));
             addOwnerEntries(items);
             addOrderEntries(items);
+            addLinkEntries(items);
             items.add(leaf("menu.rename", this::openRename));
             items.add(leaf("menu.delete", this::deleteSelected));
         }
@@ -181,6 +183,26 @@ public final class CapturePointEditor {
         }
         sub.add(MapContextMenu.Entry.leaf(I18n.get(L + "menu.order.none"), () -> setOrder(0)));
         items.add(MapContextMenu.Entry.sub(I18n.get(L + "menu.order", selectedMeta.order()), sub));
+    }
+
+    /**
+     * Связи графа цепного захвата (для 3 фракций — Y-топология): тумблер симметричного
+     * ребра к любой другой точке измерения. Связи читаем свежие из клиентского state —
+     * после каждого toggle сервер сразу пушит map sync.
+     */
+    private void addLinkEntries(List<MapContextMenu.Entry> items) {
+        if (selectedId == null || selectedMeta == null) return;
+        CapturePoint self = findPoint(selectedId);
+        List<String> links = self != null ? self.links() : List.of();
+        List<MapContextMenu.Entry> sub = new ArrayList<>();
+        for (CapturePoint cp : ClientCapturePointState.points()) {
+            if (cp.id().equals(selectedId) || !cp.dimension().equals(selectedMeta.dimension())) continue;
+            String label = links.contains(cp.id()) ? "✔ " + cp.displayName() : cp.displayName();
+            String otherId = cp.id();
+            sub.add(MapContextMenu.Entry.leaf(label, () -> toggleLink(otherId)));
+        }
+        if (sub.isEmpty()) return;
+        items.add(MapContextMenu.Entry.sub(I18n.get(L + "menu.links", links.size()), sub));
     }
 
     // ─── действия ───
@@ -247,7 +269,7 @@ public final class CapturePointEditor {
         send(Action.UPDATE_VERTICES, id, id, dim, "", square);
 
         selectedId = id;
-        selectedMeta = new CapturePoint(id, id, dim, square, "", NEUTRAL_COLOR, "", 0, false, 0);
+        selectedMeta = new CapturePoint(id, id, dim, square, "", NEUTRAL_COLOR, "", 0, false, 0, List.of());
         working.clear();
         working.addAll(square);
         editing = true;
@@ -281,8 +303,15 @@ public final class CapturePointEditor {
         if (selectedId == null || selectedMeta == null) return;
         PjmNetworking.sendToServer(new CapturePointEditorActionPacket(Action.SET_ORDER, selectedId,
                 selectedMeta.displayName(), selectedMeta.dimension(), selectedMeta.ownerTeamId(),
-                selectedMeta.vertices(), order));
+                selectedMeta.vertices(), order, ""));
         selectedMeta = withOrder(selectedMeta, order);
+    }
+
+    private void toggleLink(String otherId) {
+        if (selectedId == null || selectedMeta == null) return;
+        PjmNetworking.sendToServer(new CapturePointEditorActionPacket(Action.TOGGLE_LINK, selectedId,
+                selectedMeta.displayName(), selectedMeta.dimension(), selectedMeta.ownerTeamId(),
+                selectedMeta.vertices(), 0, otherId));
     }
 
     private void openRename() {
@@ -311,7 +340,7 @@ public final class CapturePointEditor {
 
     private void send(Action action, String id, String name, String dim, String owner,
                       List<CapturePoint.Vertex> vertices) {
-        PjmNetworking.sendToServer(new CapturePointEditorActionPacket(action, id, name, dim, owner, vertices, 0));
+        PjmNetworking.sendToServer(new CapturePointEditorActionPacket(action, id, name, dim, owner, vertices, 0, ""));
     }
 
     // ─── рендер ───
@@ -459,16 +488,16 @@ public final class CapturePointEditor {
     private static CapturePoint withOwner(CapturePoint cp, String owner) {
         int color = owner.isEmpty() ? NEUTRAL_COLOR : Teams.color(null, owner);
         return new CapturePoint(cp.id(), cp.displayName(), cp.dimension(), cp.vertices(),
-                owner, color, cp.captureTeamId(), cp.progressPercent(), cp.contested(), cp.order());
+                owner, color, cp.captureTeamId(), cp.progressPercent(), cp.contested(), cp.order(), cp.links());
     }
 
     private static CapturePoint withName(CapturePoint cp, String name) {
         return new CapturePoint(cp.id(), name, cp.dimension(), cp.vertices(),
-                cp.ownerTeamId(), cp.ownerColor(), cp.captureTeamId(), cp.progressPercent(), cp.contested(), cp.order());
+                cp.ownerTeamId(), cp.ownerColor(), cp.captureTeamId(), cp.progressPercent(), cp.contested(), cp.order(), cp.links());
     }
 
     private static CapturePoint withOrder(CapturePoint cp, int order) {
         return new CapturePoint(cp.id(), cp.displayName(), cp.dimension(), cp.vertices(),
-                cp.ownerTeamId(), cp.ownerColor(), cp.captureTeamId(), cp.progressPercent(), cp.contested(), order);
+                cp.ownerTeamId(), cp.ownerColor(), cp.captureTeamId(), cp.progressPercent(), cp.contested(), order, cp.links());
     }
 }

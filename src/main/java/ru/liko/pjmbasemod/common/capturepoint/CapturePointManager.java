@@ -132,7 +132,8 @@ public final class CapturePointManager {
 
     /**
      * Автопереключение {@code capturePoints.enabled} по расписанию (час:минута, серверное
-     * локальное время) и/или порогу онлайна ({@code autoEnableMinPlayers}, 0 — не учитывается).
+     * локальное время) и/или порогу онлайна ({@code autoEnableMinPlayers}, 0 — не учитывается;
+     * считается по наименьшей боевой фракции, а не по всему серверу).
      * Активные условия объединяются по И: захват включён, когда все выполнены. Реагирует
      * только на смену итогового состояния — ручной {@code /pjm capturepoint enable|disable}
      * не перебивается до следующей смены условий.
@@ -152,7 +153,8 @@ public final class CapturePointManager {
                 break;
             }
         }
-        int online = server.getPlayerList().getPlayerCount();
+        // Порог считается по командам: нужен онлайн от minPlayers в КАЖДОЙ боевой фракции.
+        int online = Teams.minCombatOnline(server);
         boolean playersOk = minPlayers <= 0 || online >= minPlayers;
         boolean shouldBeActive = scheduleOk && playersOk;
         // Состояние хранится в конфиге, а не в памяти: иначе рестарт сервера внутри
@@ -167,11 +169,11 @@ public final class CapturePointManager {
         String reason;
         if (shouldBeActive) {
             reason = minPlayers > 0 && windows.isEmpty()
-                    ? "Захват включён: игроков онлайн " + online + "/" + minPlayers
+                    ? "Захват включён: в каждой фракции онлайн " + online + "/" + minPlayers
                     : "Захват включён по расписанию";
         } else {
             reason = !playersOk
-                    ? "Захват выключен: недостаточно игроков (" + online + "/" + minPlayers + ")"
+                    ? "Захват выключен: недостаточно игроков в фракции (" + online + "/" + minPlayers + ")"
                     : "Захват выключен по расписанию";
         }
         PjmNetworking.sendToAll(server, new NotificationPacket(title, Component.literal(reason), shouldBeActive ? 0x4CAF50 : 0x9B9B9B, 4000));
@@ -250,15 +252,23 @@ public final class CapturePointManager {
     }
 
     /**
-     * Гейт последовательного захвата: команда может брать {@code target}, только если владеет
-     * непосредственно order-соседней точкой (prev или next) в том же измерении. Концы линии
-     * (базы) заранее назначаются через {@code /pjm capturepoint setowner} — так цепочка стартует.
-     * Если у точки нет строгих соседей по order (все order равны, напр. неразмеченные) — гейт
-     * не применяется (поведение как у обычного KoTH).
+     * Гейт последовательного захвата: команда может брать {@code target}, только владея
+     * соседней точкой цепочки. Соседство — граф явных связей {@code links} (редактор карты,
+     * работает при любом числе фракций: для трёх — Y-топология); если у точки связей нет,
+     * fallback на устаревшую линейную цепочку по order. Базы (концы веток) заранее
+     * назначаются через {@code /pjm capturepoint setowner} — так цепочка стартует.
+     * Точка без связей и без строгих order-соседей — без гейта (обычный KoTH).
      * ponytail: naive O(n) на точку, O(n²) на тик — точек единицы, не оптимизирую.
      */
     private static boolean canAttack(MinecraftServer server, CapturePointSavedData data,
                                      CapturePointSavedData.Entry target, String team) {
+        if (!target.links.isEmpty()) {
+            for (String linkId : target.links) {
+                CapturePointSavedData.Entry neighbor = data.entry(linkId);
+                if (neighbor != null && Alliances.friendly(server, team, neighbor.ownerTeamId)) return true;
+            }
+            return false;
+        }
         CapturePointSavedData.Entry prev = null, next = null;
         for (CapturePointSavedData.Entry e : data.entries()) {
             if (e == target || !e.dimension.equals(target.dimension)) continue;
@@ -404,6 +414,7 @@ public final class CapturePointManager {
             case UPDATE_DISPLAY_NAME -> data.updateDisplayName(packet.pointId(), packet.displayName());
             case SET_OWNER -> data.setOwner(packet.pointId(), packet.ownerTeamId());
             case SET_ORDER -> data.setOrder(packet.pointId(), packet.order());
+            case TOGGLE_LINK -> data.toggleLink(packet.pointId(), packet.linkTargetId());
         }
         broadcastMapSync(server, data, "editor_action");
     }

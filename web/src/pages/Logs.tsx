@@ -90,60 +90,78 @@ export default function Logs() {
   }, [data, follow])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: 'calc(100vh - 64px)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <h3 style={{ marginRight: 8 }}>Логи действий</h3>
-        <select className="input" value={day} onChange={e => setDay(e.target.value)} style={{ width: 150 }}>
-          {days.length === 0 && <option value="">нет файлов</option>}
-          {days.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <input
-          className="input"
-          style={{ width: 240 }}
-          placeholder="Поиск: ник, текст…"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-        />
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)', cursor: 'pointer' }}>
-          <input type="checkbox" checked={follow} onChange={e => setFollow(e.target.checked)} />
-          автоскролл
-        </label>
-        <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>
-          {loading ? 'загрузка…' : `${data.lines.length} из ${data.total}`}
-          {isLatest && ' · live'}
-        </span>
-      </div>
+    <div className="logs-page fade-in">
+      <section className="logs-control panel">
+        <div className="panel-header">
+          <div>
+            <span className="panel-kicker">Архив действий / серверное время</span>
+            <h3>Фильтры журнала</h3>
+          </div>
+          <span className={`chip ${isLatest ? 'chip-ok' : ''}`}>
+            <span className={`pulse-dot ${isLatest ? 'on' : ''}`} />
+            {isLatest ? 'live запись' : 'архив'}
+          </span>
+        </div>
+        <div className="toolbar logs-toolbar">
+          <select className="input mono" value={day} onChange={e => setDay(e.target.value)}>
+            {days.length === 0 && <option value="">нет файлов</option>}
+            {days.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <input
+            className="input logs-search"
+            placeholder="Поиск по нику или содержимому…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+          />
+          <label className="logs-follow">
+            <span className="switch">
+              <input type="checkbox" checked={follow} onChange={e => setFollow(e.target.checked)} />
+              <span className="switch-slider" />
+            </span>
+            Следить за новыми строками
+          </label>
+          <span className="toolbar-spacer muted mono logs-count">
+            {loading ? 'ЗАГРУЗКА…' : `${data.lines.length} / ${data.total} ЗАПИСЕЙ`}
+          </span>
+        </div>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        <FilterChip label="Все" active={category === ''} onClick={() => setCategory('')} />
-        {CATEGORIES.map(c => (
-          <FilterChip key={c} label={c} active={category === c} color={TAG_COLORS[c]}
-            onClick={() => setCategory(category === c ? '' : c)} />
-        ))}
-      </div>
+        <div className="log-filters">
+          <FilterChip label="Все события" active={category === ''} onClick={() => setCategory('')} />
+          {CATEGORIES.map(c => (
+            <FilterChip key={c} label={c} active={category === c} color={TAG_COLORS[c]}
+              onClick={() => setCategory(category === c ? '' : c)} />
+          ))}
+        </div>
+      </section>
 
-      <div ref={listRef} className="panel mono"
-        style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', fontSize: 12.5, lineHeight: 1.7 }}>
+      <section className="panel log-terminal">
+        <div className="terminal-head">
+          <span className="mono">EVENT_STREAM / {day || 'NO_DATA'}</span>
+          <span className="terminal-lights"><i /><i /><i /></span>
+        </div>
+        <div ref={listRef} className="log-lines mono">
         {data.lines.length === 0 && (
-          <div className="muted" style={{ padding: 20, textAlign: 'center' }}>
+          <div className="muted log-empty">
             {day ? 'Нет записей по выбранным фильтрам' : 'Файлы логов ещё не созданы'}
           </div>
         )}
         {data.lines.map((line, i) => {
           const { time, tag, text } = parseLine(line)
           return (
-            <div key={i} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {time && <span style={{ color: 'var(--muted-2)' }}>{time} </span>}
+            <div className="log-line" key={i}>
+              <span className="log-seq">{String(i + 1).padStart(4, '0')}</span>
+              {time && <span className="log-time">{time}</span>}
               {tag && (
-                <span style={{ color: TAG_COLORS[tag] ?? 'var(--muted)', fontWeight: 600 }}>
-                  {tag.padEnd(9)}
+                <span className="log-tag" style={{ color: TAG_COLORS[tag] ?? 'var(--muted)' }}>
+                  {tag}
                 </span>
               )}
-              <span style={{ color: 'var(--text-2)' }}>{text}</span>
+              <span className="log-text">{text}</span>
             </div>
           )
         })}
-      </div>
+        </div>
+      </section>
     </div>
   )
 }
@@ -156,11 +174,10 @@ function FilterChip({ label, active, color, onClick }: {
       onClick={onClick}
       className="chip"
       style={{
-        cursor: 'pointer',
         fontFamily: 'inherit',
         borderColor: active ? (color ?? 'var(--accent)') : undefined,
         color: active ? (color ?? 'var(--accent)') : undefined,
-        background: active ? 'rgba(255,255,255,0.05)' : undefined,
+        background: active ? 'rgba(199,243,107,0.06)' : undefined,
       }}
     >
       {label}

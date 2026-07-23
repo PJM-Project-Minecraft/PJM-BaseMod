@@ -56,54 +56,11 @@ public final class VehicleFleetManager {
         return n;
     }
 
-    private static int capForCategory(ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.MapCategory cat) {
-        return switch (cat) {
-            case HELICOPTER -> Config.getFleetHeliMaxActiveOnMap();
-            case TANK -> Config.getFleetTankMaxActiveOnMap();
-            case IFV -> Config.getFleetIfvMaxActiveOnMap();
-            case OTHER -> -1;
-        };
-    }
-
-    private static net.minecraft.network.chat.Component categoryName(
-            ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.MapCategory cat) {
-        return Component.translatable(switch (cat) {
-            case HELICOPTER -> "gui.pjmbasemod.fleet.category.heli";
-            case TANK -> "gui.pjmbasemod.fleet.category.tank";
-            case IFV -> "gui.pjmbasemod.fleet.category.ifv";
-            case OTHER -> "gui.pjmbasemod.fleet.category.other";
-        });
-    }
-
-    /** Активная на карте техника категории — глобально, без учёта команды. */
-    private static int countOnMap(VehicleFleetSavedData data,
-                                  ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.MapCategory cat) {
-        int n = 0;
-        for (FleetRecord r : data.all()) {
-            VehicleDefinition def = VehicleRegistry.get().get(r.defId);
-            var entityId = def == null ? net.minecraft.resources.ResourceLocation.tryParse(r.defId) : def.entityTypeId();
-            if (ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.mapCategory(entityId) == cat) n++;
-        }
-        return n;
-    }
-
     public static boolean canSpawn(ServerPlayer player, GarageType type,
                                    net.minecraft.resources.ResourceLocation entityId) {
         if (!Config.isFleetEnabled()) return true;
         VehicleFleetSavedData data = VehicleFleetSavedData.get(player.server);
         long now = player.server.overworld().getGameTime();
-
-        // 0. Глобальный лимит категории на карте (вертолёты/танки/БМП).
-        var cat = ru.liko.pjmbasemod.common.compat.SbwVehicleClassifier.mapCategory(entityId);
-        int categoryCap = capForCategory(cat);
-        if (categoryCap >= 0) {
-            int active = countOnMap(data, cat);
-            if (active >= categoryCap) {
-                player.sendSystemMessage(Component.translatable(
-                        "gui.pjmbasemod.fleet.limit_map", categoryName(cat), active, categoryCap));
-                return false;
-            }
-        }
 
         // 1. Кулдаун игрока.
         int cooldownTicks = Config.getFleetSpawnCooldownSeconds() * 20;

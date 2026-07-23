@@ -15,8 +15,8 @@ interface Props {
   unit?: string
 }
 
-const AXIS_COLOR = '#636366'
-const GRID_COLOR = 'rgba(255,255,255,0.04)'
+const AXIS_COLOR = '#647064'
+const GRID_COLOR = 'rgba(199,243,107,0.055)'
 
 /** Обёртка uPlot: пересоздание при смене состава серий, setData при обновлении данных. */
 export default function Chart({ timestamps, series, height = 220, unit = '' }: Props) {
@@ -35,8 +35,8 @@ export default function Chart({ timestamps, series, height = 220, unit = '' }: P
         ...series.map(s => ({
           label: s.label,
           stroke: s.color,
-          width: 2,
-          fill: `${s.color}1f`,
+          width: 1.7,
+          fill: `${s.color}12`,
           points: { show: false },
           value: (_u: uPlot, v: number | null) => (v == null ? '—' : `${v}${unit}`),
         })),
@@ -46,7 +46,7 @@ export default function Chart({ timestamps, series, height = 220, unit = '' }: P
         { stroke: AXIS_COLOR, grid: { stroke: GRID_COLOR }, ticks: { stroke: GRID_COLOR } },
       ],
       cursor: {
-        points: { size: 6, stroke: '#fff', width: 1.5 },
+        points: { size: 6, stroke: '#f1f3e9', width: 1.5 },
       },
       legend: { live: true },
     }

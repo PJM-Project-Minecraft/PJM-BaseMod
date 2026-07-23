@@ -56,6 +56,8 @@ public final class RadioSpawnManager {
     public static final int CARRIER_XP = 50;
     /** Перезарядка рации после возрождения на ней, секунды: не даёт вывалить на неё всё отделение разом. */
     public static final int SPAWN_COOLDOWN_SECONDS = 20;
+    /** Радиус вокруг носителя, в котором живой противник блокирует возрождение на его рации. */
+    public static final double ENEMY_BLOCK_RADIUS = 15.0;
 
     private static final ResourceLocation RADIO_ITEM_ID =
             ResourceLocation.fromNamespaceAndPath("warbornrenewed", "backpack-ussr-radio");
@@ -145,16 +147,30 @@ public final class RadioSpawnManager {
         return index >= 0 && index < MAX_ACTIVE;
     }
 
-    /** Живые активные носители рации фракции, кроме самого погибшего. */
+    /** Живые активные носители рации фракции, кроме самого погибшего и заблокированных врагом. */
     private static List<ServerPlayer> activeCarriers(ServerPlayer victim, String team) {
         List<ServerPlayer> result = new ArrayList<>();
         List<UUID> claims = CLAIMS.getOrDefault(team, List.of());
         for (int i = 0; i < claims.size() && i < MAX_ACTIVE; i++) {
             ServerPlayer p = victim.server.getPlayerList().getPlayer(claims.get(i));
             if (p == null || p == victim || p.isDeadOrDying() || p.isSpectator()) continue;
+            if (enemyNearby(p, team)) continue;
             result.add(p);
         }
         return result;
+    }
+
+    /** Есть ли живой противник (не союзник) в {@link #ENEMY_BLOCK_RADIUS} блоках от носителя. */
+    private static boolean enemyNearby(ServerPlayer carrier, String team) {
+        double r2 = ENEMY_BLOCK_RADIUS * ENEMY_BLOCK_RADIUS;
+        for (ServerPlayer other : carrier.serverLevel().players()) {
+            if (other == carrier || other.isSpectator() || other.isDeadOrDying()) continue;
+            String otherTeam = Teams.resolvePlayerTeamId(other);
+            if (otherTeam == null || otherTeam.isBlank()) continue;
+            if (otherTeam.equals(team) || Alliances.friendly(carrier.server, otherTeam, team)) continue;
+            if (other.distanceToSqr(carrier) <= r2) return true;
+        }
+        return false;
     }
 
     // ---------------------------------------------------------------- возрождение
@@ -224,6 +240,11 @@ public final class RadioSpawnManager {
                     .withStyle(ChatFormatting.RED));
             return;
         }
+        if (enemyNearby(carrier, team)) {
+            player.sendSystemMessage(Component.literal("Рядом с носителем противник — десант заблокирован.")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
         player.teleportTo(carrier.serverLevel(), carrier.getX(), carrier.getY(), carrier.getZ(),
                 carrier.getYRot(), carrier.getXRot());
         player.sendSystemMessage(Component.literal("Десант к " + carrier.getGameProfile().getName() + ".")
@@ -270,6 +291,11 @@ public final class RadioSpawnManager {
             player.sendSystemMessage(Component.literal(
                     "Рация перезаряжается (" + cooldown + " с) — возрождение на базе.")
                     .withStyle(ChatFormatting.RED));
+            return;
+        }
+        if (enemyNearby(carrier, team)) {
+            player.sendSystemMessage(Component.literal(
+                    "Рядом с носителем противник — возрождение на базе.").withStyle(ChatFormatting.RED));
             return;
         }
         player.teleportTo(carrier.serverLevel(), carrier.getX(), carrier.getY(), carrier.getZ(),

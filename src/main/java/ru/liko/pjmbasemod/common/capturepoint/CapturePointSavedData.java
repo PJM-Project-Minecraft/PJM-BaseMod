@@ -98,6 +98,14 @@ public final class CapturePointSavedData extends SavedData {
         if (id == null) return false;
         Entry removed = points.remove(key(id));
         if (removed == null) return false;
+        // Вычищаем висячие рёбра графа связей на удалённую точку.
+        for (Entry e : points.values()) {
+            if (e.links.contains(removed.id)) {
+                List<String> copy = new ArrayList<>(e.links);
+                copy.remove(removed.id);
+                e.links = List.copyOf(copy);
+            }
+        }
         setDirty();
         return true;
     }
@@ -137,6 +145,28 @@ public final class CapturePointSavedData extends SavedData {
         return true;
     }
 
+    /**
+     * Тумблер симметричного ребра графа цепного захвата между двумя точками
+     * одного измерения. Ребро хранится в обоих {@link Entry#links}.
+     */
+    public boolean toggleLink(String id, String otherId) {
+        Entry a = entry(id);
+        Entry b = entry(otherId);
+        if (a == null || b == null || a == b || !a.dimension.equals(b.dimension)) return false;
+        boolean linked = a.links.contains(b.id);
+        a.links = withEdge(a.links, b.id, !linked);
+        b.links = withEdge(b.links, a.id, !linked);
+        setDirty();
+        return true;
+    }
+
+    private static List<String> withEdge(List<String> links, String id, boolean add) {
+        List<String> copy = new ArrayList<>(links);
+        copy.remove(id);
+        if (add) copy.add(id);
+        return List.copyOf(copy);
+    }
+
     public void clearAll() {
         if (points.isEmpty()) return;
         points.clear();
@@ -144,10 +174,12 @@ public final class CapturePointSavedData extends SavedData {
     }
 
     /**
-     * Сброс к новому сезону: все точки нейтральные, прогресс в ноль. Базовые точки —
-     * крайние по order в каждом измерении — сохраняют владельца с полным контролем:
-     * при {@code sequential=true} полностью нейтральная карта заблокировала бы захват
-     * (гейт цепочки требует владения соседней точкой), а базы — админ-разметка.
+     * Сброс к новому сезону: все точки нейтральные, прогресс в ноль. Базовые точки
+     * сохраняют владельца с полным контролем: при {@code sequential=true} полностью
+     * нейтральная карта заблокировала бы захват (гейт цепочки требует владения
+     * соседней точкой), а базы — админ-разметка.
+     * База: у точки с графом связей — владеемый лист/изолят (степень ≤ 1: концы веток
+     * Y-топологии при трёх фракциях), иначе (fallback) — крайняя по order в измерении.
      */
     public void resetForNewSeason() {
         Map<String, Entry> minByDim = new LinkedHashMap<>();
@@ -156,8 +188,14 @@ public final class CapturePointSavedData extends SavedData {
             minByDim.merge(e.dimension, e, (a, b) -> b.order < a.order ? b : a);
             maxByDim.merge(e.dimension, e, (a, b) -> b.order > a.order ? b : a);
         }
+        java.util.Set<String> linkedDims = new java.util.HashSet<>();
         for (Entry e : points.values()) {
-            boolean base = (e == minByDim.get(e.dimension) || e == maxByDim.get(e.dimension))
+            if (!e.links.isEmpty()) linkedDims.add(e.dimension);
+        }
+        for (Entry e : points.values()) {
+            boolean base = (linkedDims.contains(e.dimension)
+                    ? e.links.size() <= 1
+                    : e == minByDim.get(e.dimension) || e == maxByDim.get(e.dimension))
                     && !e.ownerTeamId.isEmpty();
             e.captureTeamId = "";
             if (base) {
@@ -188,8 +226,10 @@ public final class CapturePointSavedData extends SavedData {
         public int ownerColor = 0x9B9B9B;
         public String captureTeamId = "";
         public int progressTicks = 0;
-        /** Порядок на линии фронта (для последовательного захвата). Соседи по order — цепочка. */
+        /** Порядок на линии фронта (устаревшая линейная цепочка; fallback, когда нет links). */
         public int order = 0;
+        /** Id связанных точек (граф цепного захвата, рёбра симметричны). */
+        public List<String> links = List.of();
 
         CapturePoint snapshot(int requiredTicks, boolean contested) {
             int percent;
@@ -203,7 +243,7 @@ public final class CapturePointSavedData extends SavedData {
                 percent = Math.max(0, Math.min(100, progressTicks * 100 / requiredTicks));
             }
             return new CapturePoint(id, displayName, dimension,
-                    List.copyOf(vertices), ownerTeamId, ownerColor, captureTeamId, percent, contested, order);
+                    List.copyOf(vertices), ownerTeamId, ownerColor, captureTeamId, percent, contested, order, links);
         }
 
         CompoundTag save() {
@@ -216,6 +256,9 @@ public final class CapturePointSavedData extends SavedData {
             tag.putString("capture", captureTeamId);
             tag.putInt("progress", progressTicks);
             tag.putInt("order", order);
+            ListTag llist = new ListTag();
+            for (String link : links) llist.add(net.minecraft.nbt.StringTag.valueOf(link));
+            tag.put("links", llist);
             ListTag vlist = new ListTag();
             for (CapturePoint.Vertex v : vertices) {
                 CompoundTag vt = new CompoundTag();
@@ -238,6 +281,10 @@ public final class CapturePointSavedData extends SavedData {
             entry.captureTeamId = tag.getString("capture");
             entry.progressTicks = Math.max(0, tag.getInt("progress"));
             entry.order = tag.getInt("order");
+            ListTag llist = tag.getList("links", Tag.TAG_STRING);
+            List<String> links = new ArrayList<>(llist.size());
+            for (int i = 0; i < llist.size(); i++) links.add(llist.getString(i));
+            entry.links = List.copyOf(links);
             ListTag vlist = tag.getList("vertices", Tag.TAG_COMPOUND);
             List<CapturePoint.Vertex> vertices = new ArrayList<>();
             for (int i = 0; i < vlist.size(); i++) {

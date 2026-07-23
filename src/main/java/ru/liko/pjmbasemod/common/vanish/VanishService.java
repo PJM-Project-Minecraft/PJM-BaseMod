@@ -1,16 +1,10 @@
 package ru.liko.pjmbasemod.common.vanish;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import ru.liko.pjmbasemod.Pjmbasemod;
 
 import java.util.List;
 import java.util.Set;
@@ -35,7 +29,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * админ видит его сущность в мире и строку в TAB с приставкой {@code [V]}, поэтому к
  * ванишнутому работает обычный {@code /tp}.</p>
  */
-@EventBusSubscriber(modid = Pjmbasemod.MODID)
 public final class VanishService {
 
     private static final String NBT_KEY = "pjm_vanished";
@@ -51,15 +44,6 @@ public final class VanishService {
     /** Админ видит ванишнутых: тот же уровень прав, что и у {@code /pjm vanish}. */
     public static boolean isAdmin(ServerPlayer player) {
         return player.hasPermissions(2);
-    }
-
-    /** Приставка к строке TAB — её видят только те, у кого строка вообще осталась, т.е. админы. */
-    @SubscribeEvent
-    public static void onTabListName(PlayerEvent.TabListNameFormat event) {
-        if (event.getEntity() instanceof ServerPlayer player && VANISHED.contains(player.getUUID())) {
-            event.setDisplayName(Component.literal("[V] ").withStyle(ChatFormatting.GRAY)
-                    .append(player.getDisplayName()));
-        }
     }
 
     /** @return новое состояние ваниша. */

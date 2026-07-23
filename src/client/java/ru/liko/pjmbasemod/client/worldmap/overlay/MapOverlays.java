@@ -14,6 +14,7 @@ import ru.liko.pjmbasemod.client.capturepoint.ClientCapturePointState;
 import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.mapmarker.ClientMapMarkerState;
 import ru.liko.pjmbasemod.client.radiospawn.ClientRadioCarrierState;
+import ru.liko.pjmbasemod.client.worldmap.MapSettings;
 import ru.liko.pjmbasemod.client.worldmap.gui.MapRenderer;
 import ru.liko.pjmbasemod.common.basezone.BaseZoneView;
 import ru.liko.pjmbasemod.common.capturepoint.CapturePoint;
@@ -112,7 +113,6 @@ public final class MapOverlays {
         }
     }
 
-
     // ── поражения ракет ──
 
     private static final int IMPACT_COLOR = 0xE04A3D;
@@ -168,7 +168,6 @@ public final class MapOverlays {
         }
     }
 
-
     /** Носители рации своей команды (точки десанта). Данные уже отфильтрованы сервером по измерению. */
     public static void drawRadioCarriers(GuiGraphics gg, Font font, double camX, double camZ,
                                          double scale, int width, int height) {
@@ -180,14 +179,16 @@ public final class MapOverlays {
         }
     }
 
-    /** Маяк рации (иконки Xaero): циан-кольцо + расходящийся пинг; серый с отсчётом на перезарядке. */
+    /** Маяк рации: диск с тёмной обводкой и точкой + расходящийся пинг; серый с отсчётом на перезарядке. */
     public static void drawRadioMarker(GuiGraphics gg, Font font, int sx, int sy, String name, int cooldown) {
         int rgb = cooldown > 0 ? 0x9AA0A6 : 0x4CE05A;
         if (cooldown == 0) {
             float t = (Util.getMillis() % 1600L) / 1600f;
             blitSprite(gg, PING, sx, sy, 12 + t * 18, PING_TW, PING_TH, rgb, (1f - t) * 0.7f);
         }
-        blitSprite(gg, BEACON, sx, sy, 14, BEACON_TW, BEACON_TH, rgb, 1f);
+        drawDisc(gg, sx, sy, 6.0, 0xD00A0A12);
+        drawDisc(gg, sx, sy, 4.5, 0xFF000000 | (rgb & 0xFFFFFF));
+        gg.fill(sx - 1, sy - 1, sx + 1, sy + 1, 0xE00A0A12);
         drawLabelPill(gg, font, sx, sy + 8, name, rgb);
         if (cooldown > 0) {
             String cd = cooldown + "s";
@@ -312,6 +313,11 @@ public final class MapOverlays {
 
     private static void drawCapturePoints(GuiGraphics gg, Font font, double camX, double camZ,
                                           double scale, int width, int height, String dim, String skipCaptureId) {
+        // Цепочка захвата (граф links): игрокам — при sequential, OP — всегда в режиме редактора.
+        if (ClientCapturePointState.sequential()
+                || ru.liko.pjmbasemod.client.worldmap.edit.CapturePointEditor.get().enabled()) {
+            drawChainLinks(gg, camX, camZ, scale, width, height, dim);
+        }
         float pulse = 0.5f + 0.5f * (float) Math.sin(Util.getMillis() / 380.0);
         for (CapturePoint cp : ClientCapturePointState.points()) {
             if (!cp.dimension().equals(dim)) continue;
@@ -354,6 +360,31 @@ public final class MapOverlays {
         }
     }
 
+    /** Рёбра графа цепного захвата: линия центроид—центроид, каждое ребро один раз. */
+    private static void drawChainLinks(GuiGraphics gg, double camX, double camZ,
+                                       double scale, int width, int height, String dim) {
+        List<CapturePoint> points = ClientCapturePointState.points();
+        for (CapturePoint cp : points) {
+            if (!cp.dimension().equals(dim) || cp.links().isEmpty() || cp.vertices().isEmpty()) continue;
+            CapturePoint.Vertex a = CapturePoint.centroid(cp.vertices());
+            for (String linkId : cp.links()) {
+                if (cp.id().compareTo(linkId) >= 0) continue; // рёбра симметричны — рисуем с меньшего id
+                CapturePoint other = null;
+                for (CapturePoint c : points) {
+                    if (c.id().equals(linkId)) { other = c; break; }
+                }
+                if (other == null || !other.dimension().equals(dim) || other.vertices().isEmpty()) continue;
+                CapturePoint.Vertex b = CapturePoint.centroid(other.vertices());
+                double ax = MapRenderer.worldToScreenX(a.x() + 0.5, camX, scale, width);
+                double ay = MapRenderer.worldToScreenY(a.z() + 0.5, camZ, scale, height);
+                double bx = MapRenderer.worldToScreenX(b.x() + 0.5, camX, scale, width);
+                double by = MapRenderer.worldToScreenY(b.z() + 0.5, camZ, scale, height);
+                MapRenderer.line(gg, ax, ay, bx, by, 3f, 0x60000000);
+                MapRenderer.line(gg, ax, ay, bx, by, 1.5f, 0xA0FFFFFF);
+            }
+        }
+    }
+
     private static final ResourceLocation POINT_ICON =
             ResourceLocation.fromNamespaceAndPath("pjmbasemod", "textures/gui/map/point.png");
     private static final int ICON_W = 15, ICON_H = 18, ICON_TW = 165, ICON_TH = 196;
@@ -370,11 +401,22 @@ public final class MapOverlays {
         gg.setColor(1f, 1f, 1f, 1f);
     }
 
-    private static final ResourceLocation BEACON =
-            ResourceLocation.fromNamespaceAndPath("pjmbasemod", "textures/gui/map/beacon.png");
     private static final ResourceLocation PING =
             ResourceLocation.fromNamespaceAndPath("pjmbasemod", "textures/gui/map/ping.png");
-    private static final int BEACON_TW = 114, BEACON_TH = 106, PING_TW = 107, PING_TH = 105;
+    private static final int PING_TW = 107, PING_TH = 105;
+
+    /** Диск фиксированного экранного размера (16 сегментов) — маркер без текстуры. */
+    private static void drawDisc(GuiGraphics gg, int cx, int cy, double r, int argb) {
+        int n = 16;
+        double[] xs = new double[n];
+        double[] ys = new double[n];
+        for (int i = 0; i < n; i++) {
+            double a = Math.PI * 2.0 * i / n;
+            xs[i] = cx + Math.cos(a) * r;
+            ys[i] = cy + Math.sin(a) * r;
+        }
+        MapRenderer.fillPolygon(gg, xs, ys, n, argb, Integer.MAX_VALUE, Integer.MAX_VALUE);
+    }
 
     /** Спрайт из атласа: центрированно, с тинтом и масштабом. */
     private static void blitSprite(GuiGraphics gg, ResourceLocation rl, double cx, double cy,
@@ -386,13 +428,19 @@ public final class MapOverlays {
         gg.setColor(1f, 1f, 1f, 1f);
     }
 
+    /** Подпись-пилюля; масштабируется настройкой {@link MapSettings#labelScale()} вокруг своего якоря. */
     private static void drawLabelPill(GuiGraphics gg, Font font, int cx, int topY, String text, int rgb) {
+        float s = MapSettings.get().labelScale();
         int tw = font.width(text);
-        int x0 = cx - tw / 2 - 4;
-        int x1 = cx + tw / 2 + 4;
-        gg.fill(x0, topY, x1, topY + 11, PjmGuiUtils.SCREEN_HEADER);
-        gg.fill(x0, topY, x1, topY + 1, 0xFF000000 | (rgb & 0xFFFFFF));
-        gg.drawCenteredString(font, text, cx, topY + 2, PjmGuiUtils.TEXT_PRIMARY);
+        int x0 = -tw / 2 - 4;
+        int x1 = tw / 2 + 4;
+        gg.pose().pushPose();
+        gg.pose().translate(cx, topY, 0);
+        gg.pose().scale(s, s, 1f);
+        gg.fill(x0, 0, x1, 11, PjmGuiUtils.SCREEN_HEADER);
+        gg.fill(x0, 0, x1, 1, 0xFF000000 | (rgb & 0xFFFFFF));
+        gg.drawCenteredString(font, text, 0, 2, PjmGuiUtils.TEXT_PRIMARY);
+        gg.pose().popPose();
     }
 
     private static void drawProgressBar(GuiGraphics gg, int cx, int y, int pct, int rgb) {

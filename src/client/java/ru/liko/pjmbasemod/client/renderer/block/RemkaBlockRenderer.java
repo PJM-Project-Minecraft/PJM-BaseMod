@@ -17,8 +17,8 @@ import software.bernie.geckolib.renderer.GeoBlockRenderer;
  */
 public class RemkaBlockRenderer extends GeoBlockRenderer<RemkaBlockEntity> {
 
-    /** Высота таблички над основанием станции, в блоках (модель ~2.8 блока). */
-    private static final float LABEL_HEIGHT = 3.2F;
+    /** Высота таблички над основанием станции, в блоках (верх модели ~3.5 блока — держим запас). */
+    private static final float LABEL_HEIGHT = 3.8F;
 
     /** Дальше этого расстояния (в блоках) подпись не рисуем, чтобы не засорять горизонт. */
     private static final double LABEL_MAX_DISTANCE_SQR = 32.0 * 32.0;

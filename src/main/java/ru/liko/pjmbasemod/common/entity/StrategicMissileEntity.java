@@ -25,6 +25,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import ru.liko.pjmbasemod.common.compat.SbwMissileCompat;
 import ru.liko.pjmbasemod.common.missile.BallisticTrajectory;
+import ru.liko.pjmbasemod.common.missile.CruiseTrajectory;
 import ru.liko.pjmbasemod.common.missile.MissileDefinition;
 import ru.liko.pjmbasemod.common.network.PjmNetworking;
 import net.minecraft.network.chat.Component;
@@ -73,8 +74,6 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
     private int cruiseHeight = 24;
     private int terminalDiveDistance = 36;
     private int ballisticApex = 160;
-    private int popupDistance;
-    private int popupHeight = 60;
     private float weaveAmplitude;
     private float weaveCycles = 1.0f;
     private float explosionDamage = 120.0f;
@@ -119,8 +118,6 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         this.cruiseHeight = definition.cruiseHeight();
         this.terminalDiveDistance = definition.terminalDiveDistance();
         this.ballisticApex = definition.ballisticApex();
-        this.popupDistance = definition.popupDistance();
-        this.popupHeight = definition.popupHeight();
         this.weaveAmplitude = definition.weaveAmplitude();
         this.weaveCycles = definition.weaveCycles();
         this.explosionDamage = definition.damage();
@@ -295,12 +292,6 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         double horizontalRemaining = Math.hypot(targetX - x, targetZ - z);
         double cruiseTarget = Math.min(level.getMaxBuildHeight() - 8.0,
                 lookAheadTerrain(level, x, z, routeLength) + cruiseHeight);
-        // Pop-up у цели (профиль ПКР): горка перед терминальным пикированием — существующее
-        // сглаживание вертикальной скорости само отработает набор, dive² спикирует из вершины.
-        if (popupDistance > 0 && horizontalRemaining < popupDistance) {
-            cruiseTarget = Math.max(cruiseTarget,
-                    Math.min(level.getMaxBuildHeight() - 8.0, targetY + popupHeight));
-        }
         // Крейсерская высота — сглаживание второго порядка: плавно меняется не только
         // высота, но и вертикальная скорость (лимит ускорения), без изломов траектории.
         // Лимиты масштабируются от скорости: угол набора ~26°/снижения ~19° постоянен.
@@ -312,9 +303,10 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         double desiredRate = Mth.clamp((cruiseTarget - smoothedCruiseY) * 0.12, -maxDescent, maxClimb);
         cruiseClimbRate += Mth.clamp(desiredRate - cruiseClimbRate, -maxAccel, maxAccel);
         smoothedCruiseY += cruiseClimbRate;
-        // Терминальный заход — плавный перелом курса вниз (dive², без прыжка вверх).
-        double dive = Mth.clamp(1.0 - horizontalRemaining / Math.max(1.0, terminalDiveDistance), 0.0, 1.0);
-        double y = Mth.lerp(dive * dive, smoothedCruiseY, targetY);
+        // Терминальный заход крылатой ракеты: без баллистической «горки», по плавной
+        // низкой дуге с автоматически ограниченным углом входа.
+        double y = CruiseTrajectory.terminalAltitude(
+                smoothedCruiseY, targetY, horizontalRemaining, terminalDiveDistance);
         return new Vec3(x, y, z);
     }
 
@@ -323,19 +315,28 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
      * ракета начинает набор высоты до склона, а не утыкается в него.
      */
     private int lookAheadTerrain(ServerLevel level, double x, double z, double routeLength) {
-        int terrain = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(x), Mth.floor(z));
+        int terrain = sampleTerrain(level, x, z);
         double dx = targetX - x;
         double dz = targetZ - z;
         double remaining = Math.hypot(dx, dz);
-        if (remaining < 1.0E-3) return terrain;
-        double speedPerTick = routeLength / Math.max(1, flightTicks);
-        for (int ticksAhead : LOOKAHEAD_TICKS) {
-            double distance = Math.min(remaining, speedPerTick * ticksAhead);
-            int ahead = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                    Mth.floor(x + dx / remaining * distance), Mth.floor(z + dz / remaining * distance));
-            terrain = Math.max(terrain, ahead);
+        if (remaining >= 1.0E-3) {
+            double speedPerTick = routeLength / Math.max(1, flightTicks);
+            for (int ticksAhead : LOOKAHEAD_TICKS) {
+                double distance = Math.min(remaining, speedPerTick * ticksAhead);
+                terrain = Math.max(terrain, sampleTerrain(level,
+                        x + dx / remaining * distance, z + dz / remaining * distance));
+            }
         }
-        return terrain;
+        // Ни один сэмпл не прогружен — держим текущую высоту, а не снижаемся к minBuildHeight.
+        return terrain == Integer.MIN_VALUE ? Mth.floor(getY()) - cruiseHeight : terrain;
+    }
+
+    /** Высота рельефа или MIN_VALUE, если чанк не прогружен: getHeight там врёт minBuildHeight. */
+    private static int sampleTerrain(ServerLevel level, double x, double z) {
+        int bx = Mth.floor(x);
+        int bz = Mth.floor(z);
+        if (!level.hasChunk(bx >> 4, bz >> 4)) return Integer.MIN_VALUE;
+        return level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
     }
 
     private void updateRotation(Vec3 movement) {
@@ -495,8 +496,6 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         cruiseHeight = tag.getInt("CruiseHeight");
         terminalDiveDistance = tag.getInt("TerminalDiveDistance");
         ballisticApex = tag.getInt("BallisticApex");
-        popupDistance = tag.getInt("PopupDistance");
-        popupHeight = tag.getInt("PopupHeight");
         weaveAmplitude = tag.getFloat("WeaveAmplitude");
         weaveCycles = tag.contains("WeaveCycles") ? tag.getFloat("WeaveCycles") : 1.0f;
         explosionDamage = tag.getFloat("ExplosionDamage");
@@ -525,8 +524,6 @@ public final class StrategicMissileEntity extends Entity implements GeoEntity {
         tag.putInt("CruiseHeight", cruiseHeight);
         tag.putInt("TerminalDiveDistance", terminalDiveDistance);
         tag.putInt("BallisticApex", ballisticApex);
-        tag.putInt("PopupDistance", popupDistance);
-        tag.putInt("PopupHeight", popupHeight);
         tag.putFloat("WeaveAmplitude", weaveAmplitude);
         tag.putFloat("WeaveCycles", weaveCycles);
         tag.putFloat("ExplosionDamage", explosionDamage);

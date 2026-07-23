@@ -22,48 +22,63 @@ export default function Players({ live }: { live: LiveState }) {
   const player = live.players.find(p => p.uuid === selected) ?? null
 
   return (
-    <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: player ? '1fr 380px' : '1fr', gap: 14 }}>
+    <div className={`players-layout fade-in ${player ? 'has-selection' : ''}`}>
       <div className="panel">
-        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-          <input className="input" placeholder="Поиск по нику…" value={query}
-            onChange={e => setQuery(e.target.value)} style={{ width: 240 }} />
-          <span className="chip">онлайн: {live.players.length}</span>
+        <div className="panel-header">
+          <div>
+            <span className="panel-kicker">Активные подключения / real-time</span>
+            <h3>Личный состав сервера</h3>
+          </div>
+          <span className="chip chip-ok">{live.players.length} в сети</span>
         </div>
-        <table className="table">
-          <thead>
-            <tr><th>Ник</th><th>Команда</th><th>Роль</th><th>Дименшен</th><th>Координаты</th><th>Пинг</th><th>Статус</th></tr>
-          </thead>
-          <tbody>
-            {players.map(p => (
-              <tr key={p.uuid} className={p.uuid === selected ? 'selected' : ''}
-                onClick={() => setSelected(p.uuid === selected ? null : p.uuid)}>
-                <td className="mono">{p.name}</td>
-                <td>{p.team
-                  ? <span className="chip" style={{ color: hashColor(p.team), borderColor: hashColor(p.team) + '55' }}>{p.team}</span>
-                  : <span className="muted">—</span>}</td>
-                <td className="muted">{p.role || '—'}</td>
-                <td className="mono muted">{p.dim}</td>
-                <td className="mono tnum">{p.x} {p.y} {p.z}</td>
-                <td className="mono tnum">{p.ping} мс</td>
-                <td>
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                    {p.warns > 0 && <span className="chip chip-warn">варны: {p.warns}</span>}
-                    {p.textMuted && <span className="chip chip-danger">текст</span>}
-                    {p.voiceMuted && <span className="chip chip-danger">войс</span>}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {players.length === 0 && (
-              <tr style={{ cursor: 'default' }}><td colSpan={7} className="muted">Никого нет</td></tr>
-            )}
-          </tbody>
-        </table>
+        <div className="toolbar players-toolbar">
+          <input className="input search-input" placeholder="Найти игрока по нику…" value={query}
+            onChange={e => setQuery(e.target.value)} />
+          <span className="muted mono list-counter">ПОКАЗАНО {players.length.toString().padStart(2, '0')}</span>
+        </div>
+        <div className="table-shell players-table">
+          <table className="table">
+            <thead>
+              <tr><th>Игрок</th><th>Фракция</th><th>Роль</th><th>Дименшен</th><th>Координаты</th><th>Пинг</th><th>Статус</th></tr>
+            </thead>
+            <tbody>
+              {players.map(p => (
+                <tr key={p.uuid} className={p.uuid === selected ? 'selected' : ''}
+                  onClick={() => setSelected(p.uuid === selected ? null : p.uuid)}>
+                  <td>
+                    <div className="player-cell">
+                      <span className="player-monogram">{p.name.slice(0, 2).toUpperCase()}</span>
+                      <strong className="mono">{p.name}</strong>
+                    </div>
+                  </td>
+                  <td>{p.team
+                    ? <span className="chip" style={{ color: hashColor(p.team), borderColor: hashColor(p.team) + '55' }}>{p.team}</span>
+                    : <span className="muted">—</span>}</td>
+                  <td className="muted">{p.role || '—'}</td>
+                  <td className="mono muted">{p.dim}</td>
+                  <td className="mono tnum">{p.x} / {p.y} / {p.z}</td>
+                  <td className={`mono tnum ${p.ping > 150 ? 'ping-high' : ''}`}>{p.ping} мс</td>
+                  <td>
+                    <div className="status-chips">
+                      {p.warns === 0 && !p.textMuted && !p.voiceMuted && <span className="chip chip-ok">чисто</span>}
+                      {p.warns > 0 && <span className="chip chip-warn">варны {p.warns}</span>}
+                      {p.textMuted && <span className="chip chip-danger">текст</span>}
+                      {p.voiceMuted && <span className="chip chip-danger">войс</span>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {players.length === 0 && (
+                <tr style={{ cursor: 'default' }}><td colSpan={7} className="muted empty-cell">Игроки по запросу не найдены</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <AnimatePresence>
         {player && (
-          <motion.div key={player.uuid}
+          <motion.div className="player-drawer-wrap" key={player.uuid}
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
             <PlayerCard player={player} players={live.players} onClose={() => setSelected(null)} />
           </motion.div>
@@ -101,11 +116,14 @@ function PlayerCard({ player, players, onClose }: {
   }
 
   return (
-    <div className="panel" style={{ position: 'sticky', top: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h3 style={{ fontSize: 18 }}>{player.name}</h3>
-          <p className="mono muted" style={{ fontSize: 11, marginTop: 4 }}>{player.uuid}</p>
+    <div className="panel player-drawer">
+      <div className="player-drawer-head">
+        <div className="player-identity">
+          <span className="player-avatar">{player.name.slice(0, 2).toUpperCase()}</span>
+          <div>
+            <span className="panel-kicker">Карточка оператора</span>
+            <h3>{player.name}</h3>
+          </div>
         </div>
         <button className="btn btn-icon" onClick={onClose} aria-label="Закрыть">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -113,10 +131,11 @@ function PlayerCard({ player, players, onClose }: {
           </svg>
         </button>
       </div>
+      <p className="mono muted player-uuid">{player.uuid}</p>
 
-      <div>
-        <h4 style={{ marginBottom: 8 }}>Наказание</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="drawer-section">
+        <h4>Выдать наказание</h4>
+        <div className="drawer-fields">
           <select className="input" value={punishType}
             onChange={e => setPunishType(e.target.value as PunishType)}>
             {Object.entries(PUNISH_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -136,9 +155,9 @@ function PlayerCard({ player, players, onClose }: {
         </div>
       </div>
 
-      <div>
-        <h4 style={{ marginBottom: 8 }}>Снять наказание</h4>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="drawer-section">
+        <h4>Снять наказание</h4>
+        <div className="toolbar">
           <button className="btn" onClick={() => run(api.post('/api/actions/pardon',
             { uuid: player.uuid, name: player.name, type: 'ban' }))}>Разбан</button>
           <button className="btn" onClick={() => run(api.post('/api/actions/pardon',
@@ -148,9 +167,9 @@ function PlayerCard({ player, players, onClose }: {
         </div>
       </div>
 
-      <div>
-        <h4 style={{ marginBottom: 8 }}>Действия</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="drawer-section">
+        <h4>Оперативные действия</h4>
+        <div className="drawer-fields">
           <ConfirmButton danger label="Кикнуть"
             onConfirm={() => run(api.post('/api/actions/kick',
               { uuid: player.uuid, reason: reason || 'Кик через панель' }))} />
@@ -169,23 +188,15 @@ function PlayerCard({ player, players, onClose }: {
       </div>
 
       {status && (
-        <p className="mono" style={{
-          fontSize: 12, padding: '8px 12px', borderRadius: 8,
-          background: status.startsWith('✓') ? 'rgba(48,209,88,0.1)' : 'rgba(255,69,58,0.1)',
-          color: status.startsWith('✓') ? 'var(--ok)' : 'var(--danger)',
-        }}>{status}</p>
+        <p className={`status-message ${status.startsWith('✓') ? 'success' : 'error'}`}>{status}</p>
       )}
 
-      <div>
-        <h4 style={{ marginBottom: 8 }}>История наказаний</h4>
-        <div style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="drawer-section">
+        <h4>История наказаний</h4>
+        <div className="punishment-history">
           {history.length === 0 && <span className="muted">Пусто</span>}
           {[...history].reverse().map((h, i) => (
-            <div key={i} style={{
-              fontSize: 12, padding: '8px 10px', borderRadius: 8,
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid var(--glass-2-border)',
-            }}>
+            <div className="history-entry" key={i}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <span className={`chip ${h.action === 'apply' ? 'chip-danger' : 'chip-ok'}`}>{h.type}/{h.action}</span>
                 <span className="muted">{new Date(h.ts).toLocaleString('ru-RU')} · {h.moderator}</span>

@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
 import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
+import ru.liko.pjmbasemod.client.inventory.LockedSlotsClientState;
 
 public final class CustomHotbarOverlay {
     
@@ -55,26 +56,37 @@ public final class CustomHotbarOverlay {
         PjmGuiUtils.pushHudScale(g, sw / 2f, 0); // масштаб от разрешения, полоса top-center
         RenderSystem.enableBlend();
         try {
-            int numSlots = 9;
             int slotSize = 32;
             int gap = 2;
-            int totalWidth = numSlots * slotSize + (numSlots - 1) * gap;
-            
+
+            // Заблокированные слоты хотбара не показываем вовсе, полосу сжимаем.
+            boolean hideLocked = !mc.player.isCreative();
+            int[] visible = new int[9];
+            int visibleCount = 0;
+            for (int i = 0; i < 9; i++) {
+                if (hideLocked && LockedSlotsClientState.isLocked(i)) continue;
+                visible[visibleCount++] = i;
+            }
+            if (visibleCount == 0) return;
+
+            int totalWidth = visibleCount * slotSize + (visibleCount - 1) * gap;
+
             int startX = (sw - totalWidth) / 2;
-            int targetY = 40; 
-            
+            int targetY = 40;
+
             float alpha = currentAlpha;
             int bgAlpha = (int) (alpha * 255);
-            
-            for (int i = 0; i < numSlots; i++) {
+
+            for (int v = 0; v < visibleCount; v++) {
+                int i = visible[v];
                 boolean isSelected = (i == currentSelected);
-                
+
                 // Обновляем масштаб слота для плавной анимации увеличения
                 float targetScale = isSelected ? 1.15f : 1.0f;
                 slotScales[i] += (targetScale - slotScales[i]) * 15.0f * dt;
                 float scale = slotScales[i];
-                
-                int x = startX + i * (slotSize + gap);
+
+                int x = startX + v * (slotSize + gap);
                 int y = targetY;
                 
                 g.pose().pushPose();

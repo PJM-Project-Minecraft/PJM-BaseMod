@@ -22,6 +22,8 @@ import ru.liko.pjmbasemod.client.basezone.ClientBaseZoneState;
 import ru.liko.pjmbasemod.client.gui.PjmGuiUtils;
 import ru.liko.pjmbasemod.client.mapmarker.ClientMapMarkerState;
 import ru.liko.pjmbasemod.client.radiospawn.ClientRadioCarrierState;
+import ru.liko.pjmbasemod.client.gui.PjmUiSounds;
+import ru.liko.pjmbasemod.client.worldmap.MapSettings;
 import ru.liko.pjmbasemod.client.worldmap.WorldMapEngine;
 import ru.liko.pjmbasemod.client.worldmap.data.MapConstants;
 import ru.liko.pjmbasemod.client.worldmap.edit.CapturePointEditor;
@@ -51,6 +53,7 @@ public final class MapScreen extends Screen {
     private static final double ZOOM_STEP = 1.2;
     private static final long SLIDE_MS = 280;
     private static final int TOGGLE_X = 6, TOGGLE_Y = 6, TOGGLE_W = 132, TOGGLE_H = 14;
+    private static final int SET_W = 132, SET_Y = 6, ROW_H = 16;
 
     private double cameraX;
     private double cameraZ;
@@ -71,6 +74,9 @@ public final class MapScreen extends Screen {
     private long closeTime;
 
     private final MapContextMenu contextMenu = new MapContextMenu();
+
+    /** Развёрнута панель настроек карты (правый верхний угол). */
+    private boolean settingsOpen;
 
     /** Якорь стрелки (Squad-style): не null — идёт установка, стрелка тянется за мышью. */
     private BlockPos arrowStart;
@@ -134,6 +140,7 @@ public final class MapScreen extends Screen {
 
     /** Видимость панели 1→в кадре, 0→за нижним краем. Открытие: 0→1 (easeOut). Закрытие: 1→0 (easeIn). */
     private float panelVisible() {
+        if (!MapSettings.get().openAnimation()) return 1f;
         if (closing) {
             float p = Mth.clamp((Util.getMillis() - closeTime) / (float) SLIDE_MS, 0f, 1f);
             return 1f - p * p * p; // easeInCubic → уезжает вниз
@@ -146,7 +153,7 @@ public final class MapScreen extends Screen {
 
     @Override
     public void render(GuiGraphics gg, int mouseX, int mouseY, float partial) {
-        if (closing && Util.getMillis() - closeTime >= SLIDE_MS) {
+        if (closing && (!MapSettings.get().openAnimation() || Util.getMillis() - closeTime >= SLIDE_MS)) {
             if (this.minecraft != null) this.minecraft.setScreen(null); // анимация выезда завершена
             return;
         }
@@ -251,6 +258,54 @@ public final class MapScreen extends Screen {
             gg.drawString(font, "✎ Правка точек: " + (on ? "ВКЛ" : "выкл"),
                     TOGGLE_X + 6, TOGGLE_Y + 3, on ? PjmGuiUtils.ACCENT : PjmGuiUtils.TEXT_MUTED);
         }
+
+        drawSettings(gg, mouseX, mouseY);
+    }
+
+    /** Панель настроек карты: кнопка «⚙» и раскрывающиеся строки-переключатели. */
+    private void drawSettings(GuiGraphics gg, int mouseX, int mouseY) {
+        MapSettings s = MapSettings.get();
+        int x = settingsX();
+        drawSettingsRow(gg, x, SET_Y, "⚙ Настройки", settingsOpen, mouseX, mouseY);
+        if (!settingsOpen) return;
+        drawSettingsRow(gg, x, SET_Y + ROW_H,
+                "Подписи: " + Math.round(s.labelScale() * 100) + "%", false, mouseX, mouseY);
+        drawSettingsRow(gg, x, SET_Y + ROW_H * 2,
+                "Анимация: " + (s.openAnimation() ? "вкл" : "выкл"), false, mouseX, mouseY);
+    }
+
+    private void drawSettingsRow(GuiGraphics gg, int x, int y, String label, boolean active, int mouseX, int mouseY) {
+        boolean hover = mouseX >= x && mouseX <= x + SET_W && mouseY >= y && mouseY <= y + TOGGLE_H;
+        gg.fill(x, y, x + SET_W, y + TOGGLE_H,
+                active ? 0xCC4A3A16 : hover ? PjmGuiUtils.SCREEN_SELECT : PjmGuiUtils.SCREEN_HEADER);
+        gg.fill(x, y, x + SET_W, y + 1, PjmGuiUtils.ACCENT_DIM);
+        gg.drawString(font, label, x + 6, y + 3,
+                active ? PjmGuiUtils.ACCENT : PjmGuiUtils.TEXT_MUTED);
+    }
+
+    private int settingsX() {
+        return width - SET_W - 6;
+    }
+
+    /** @return true если клик попал в панель настроек. */
+    private boolean handleSettingsClick(double mx, double my) {
+        int x = settingsX();
+        if (mx < x || mx > x + SET_W) return false;
+        if (inRow(my, SET_Y)) {
+            settingsOpen = !settingsOpen;
+        } else if (settingsOpen && inRow(my, SET_Y + ROW_H)) {
+            MapSettings.get().cycleLabelScale();
+        } else if (settingsOpen && inRow(my, SET_Y + ROW_H * 2)) {
+            MapSettings.get().toggleOpenAnimation();
+        } else {
+            return false;
+        }
+        PjmUiSounds.playClick();
+        return true;
+    }
+
+    private static boolean inRow(double my, int top) {
+        return my >= top && my <= top + TOGGLE_H;
     }
 
     private void drawPill(GuiGraphics gg, int cx, int topY, String text, int textColor) {
@@ -296,6 +351,7 @@ public final class MapScreen extends Screen {
             contextMenu.mouseClicked(mouseX, mouseY, font);
             return true;
         }
+        if (handleSettingsClick(mouseX, mouseY)) return true;
         if (isOp() && mouseX >= TOGGLE_X && mouseX <= TOGGLE_X + TOGGLE_W
                 && mouseY >= TOGGLE_Y && mouseY <= TOGGLE_Y + TOGGLE_H) {
             CapturePointEditor.get().toggleEnabled();

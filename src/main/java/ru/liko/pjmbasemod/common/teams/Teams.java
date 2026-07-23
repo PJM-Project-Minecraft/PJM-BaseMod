@@ -91,6 +91,30 @@ public final class Teams {
         return team == null ? List.of() : List.copyOf(team.getPlayers());
     }
 
+    /** Сколько игроков команды сейчас онлайн (0 для нейтрали/неизвестной команды). */
+    public static int onlineCount(@Nullable MinecraftServer server, @Nullable String teamId) {
+        if (server == null) return 0;
+        String normalized = normalize(teamId);
+        if (normalized.isBlank()) return 0;
+        int count = 0;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (normalized.equals(resolvePlayerTeamId(player))) count++;
+        }
+        return count;
+    }
+
+    /**
+     * Минимальный онлайн среди боевых команд — порог считается «от команд», а не по серверу:
+     * 20 игроков в одной фракции против пустой второй не должны открывать захват/технику.
+     */
+    public static int minCombatOnline(@Nullable MinecraftServer server) {
+        int min = Integer.MAX_VALUE;
+        for (Config.ConfiguredTeam team : all()) {
+            min = Math.min(min, onlineCount(server, team.id()));
+        }
+        return min == Integer.MAX_VALUE ? 0 : min;
+    }
+
     @Nullable
     public static String resolveAlias(String scoreboardNameOrId) {
         String current = normalize(scoreboardNameOrId);

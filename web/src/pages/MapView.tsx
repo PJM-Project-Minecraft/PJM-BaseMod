@@ -190,33 +190,53 @@ export default function MapView({ live }: { live: LiveState }) {
   }
 
   return (
-    <div className="panel fade-in">
-      <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <select className="input" value={dim} onChange={e => setDim(e.target.value)}>
-          {dims.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--text-2)' }}>
-          <span className="switch">
-            <input type="checkbox" checked={showEntities} onChange={e => setShowEntities(e.target.checked)} />
-            <span className="switch-slider" />
-          </span>
-          entity
-        </label>
-        <button className="btn" onClick={centerOnPlayers}>К игрокам</button>
-        <span className="muted" style={{ fontSize: 12 }}>колесо — зум, перетаскивание — панорама; красное — горячие чанки профайлера</span>
-      </div>
-      <div style={{ position: 'relative' }}>
-        <canvas ref={canvasRef} style={{ width: '100%', height: 560, borderRadius: 12, cursor: 'crosshair', display: 'block' }}
-          onWheel={onWheel} onMouseDown={onMouseDown} onMouseUp={onMouseUp}
-          onMouseLeave={() => { dragRef.current = null; setTooltip(null) }} onMouseMove={onMouseMove} />
-        {tooltip && (
-          <div className="glass-2 mono" style={{
-            position: 'absolute', left: tooltip.x, top: tooltip.y,
-            padding: '6px 10px', fontSize: 12, pointerEvents: 'none',
-            borderRadius: 999, whiteSpace: 'nowrap',
-          }}>{tooltip.text}</div>
-        )}
-      </div>
+    <div className="map-page fade-in">
+      <section className="map-summary">
+        <div>
+          <span className="panel-kicker">Вид сверху / данные без геометрии мира</span>
+          <h3>Оперативная обстановка</h3>
+          <p>Позиции личного состава, объектов и горячих чанков в выбранном дименшене.</p>
+        </div>
+        <div className="map-summary-stats">
+          <span><b className="mono">{live.players.filter(p => p.dim === dim).length}</b> игроков</span>
+          <span><b className="mono">{entities.length}</b> entity</span>
+          <span><b className="mono">{live.profiler?.hotChunks.filter(c => c.dim === dim).length ?? 0}</b> hot chunks</span>
+        </div>
+      </section>
+
+      <section className="panel map-panel">
+        <div className="panel-header map-panel-header">
+          <div className="toolbar">
+            <select className="input mono" value={dim} onChange={e => setDim(e.target.value)}>
+              {dims.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <label className="map-switch">
+              <span className="switch">
+                <input type="checkbox" checked={showEntities} onChange={e => setShowEntities(e.target.checked)} />
+                <span className="switch-slider" />
+              </span>
+              Показывать entity
+            </label>
+            <button className="btn" onClick={centerOnPlayers}>Центрировать по игрокам</button>
+          </div>
+          <div className="map-legend">
+            <span><i className="legend-player" /> игрок</span>
+            <span><i className="legend-mob" /> моб</span>
+            <span><i className="legend-item" /> предмет</span>
+            <span><i className="legend-hot" /> нагрузка</span>
+          </div>
+        </div>
+        <div className="map-canvas-wrap">
+          <canvas ref={canvasRef} className="map-canvas"
+            onWheel={onWheel} onMouseDown={onMouseDown} onMouseUp={onMouseUp}
+            onMouseLeave={() => { dragRef.current = null; setTooltip(null) }} onMouseMove={onMouseMove} />
+          <div className="map-reticle" aria-hidden="true" />
+          <div className="map-hint mono">SCROLL — SCALE&nbsp;&nbsp; / &nbsp;&nbsp;DRAG — PAN</div>
+          {tooltip && (
+            <div className="map-tooltip mono" style={{ left: tooltip.x, top: tooltip.y }}>{tooltip.text}</div>
+          )}
+        </div>
+      </section>
     </div>
   )
 }

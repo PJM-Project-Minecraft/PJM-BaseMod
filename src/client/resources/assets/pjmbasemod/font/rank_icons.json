@@ -1,12 +1,85 @@
 {
   "providers": [
-    { "type": "bitmap", "file": "pjmbasemod:rangs/private.png",    "ascent": 7, "height": 8, "chars": [""] },
-    { "type": "bitmap", "file": "pjmbasemod:rangs/corporal.png",   "ascent": 7, "height": 8, "chars": [""] },
-    { "type": "bitmap", "file": "pjmbasemod:rangs/sergeant.png",   "ascent": 7, "height": 8, "chars": [""] },
-    { "type": "bitmap", "file": "pjmbasemod:rangs/lieutenant.png", "ascent": 7, "height": 8, "chars": [""] },
-    { "type": "bitmap", "file": "pjmbasemod:rangs/captain.png",    "ascent": 7, "height": 8, "chars": [""] },
-    { "type": "bitmap", "file": "pjmbasemod:rangs/major.png",      "ascent": 7, "height": 8, "chars": [""] },
-    { "type": "bitmap", "file": "pjmbasemod:rangs/colonel.png",    "ascent": 7, "height": 8, "chars": [""] },
-    { "type": "bitmap", "file": "pjmbasemod:rangs/general.png",    "ascent": 7, "height": 8, "chars": [""] }
+    {
+      "type": "bitmap",
+      "file": "pjmbasemod:rangs/private.png",
+      "ascent": 7,
+      "height": 8,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "pjmbasemod:rangs/corporal.png",
+      "ascent": 7,
+      "height": 8,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "pjmbasemod:rangs/sergeant.png",
+      "ascent": 7,
+      "height": 8,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "pjmbasemod:rangs/lieutenant.png",
+      "ascent": 7,
+      "height": 8,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "pjmbasemod:rangs/captain.png",
+      "ascent": 7,
+      "height": 8,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "pjmbasemod:rangs/major.png",
+      "ascent": 7,
+      "height": 8,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "pjmbasemod:rangs/colonel.png",
+      "ascent": 7,
+      "height": 8,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "pjmbasemod:rangs/general.png",
+      "ascent": 7,
+      "height": 8,
+      "chars": [
+        ""
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "pjmbasemod:rangs/admin.png",
+      "ascent": 7,
+      "height": 8,
+      "chars": [
+        ""
+      ]
+    }
   ]
 }

@@ -11,15 +11,53 @@ import Logs from './pages/Logs'
 type Phase = 'loading' | 'login' | 'ready'
 type Tab = 'dashboard' | 'players' | 'entities' | 'map' | 'logs'
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'dashboard', label: 'Дашборд', icon: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z' },
-  { id: 'players', label: 'Игроки', icon: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z' },
-  { id: 'entities', label: 'Entity', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
-  { id: 'map', label: 'Карта', icon: 'M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z' },
-  { id: 'logs', label: 'Логи', icon: 'M3 4h18v2H3V4zm0 5h12v2H3V9zm0 5h18v2H3v-2zm0 5h12v2H3v-2z' },
+interface TabDefinition {
+  id: Tab
+  label: string
+  kicker: string
+  title: string
+  icon: string
+}
+
+const TABS: TabDefinition[] = [
+  {
+    id: 'dashboard',
+    label: 'Обзор',
+    kicker: '01 / Состояние системы',
+    title: 'Командный центр',
+    icon: 'M4 4h6v7H4V4zm10 0h6v4h-6V4zM4 15h6v5H4v-5zm10-3h6v8h-6v-8z',
+  },
+  {
+    id: 'players',
+    label: 'Состав',
+    kicker: '02 / Личный состав',
+    title: 'Игроки онлайн',
+    icon: 'M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm8 2c-3.3 0-6 1.6-6 3.5V21h12v-3.5c0-1.9-2.7-3.5-6-3.5zM8 14c-3.9 0-7 1.7-7 3.8V21h7v-3.5c0-1.2.5-2.3 1.4-3.2A9.9 9.9 0 0 0 8 14z',
+  },
+  {
+    id: 'entities',
+    label: 'Объекты',
+    kicker: '03 / Диагностика мира',
+    title: 'Entity и нагрузка',
+    icon: 'M12 2 2.5 7 12 12l9.5-5L12 2zm-7.5 9L12 15l7.5-4M4.5 16 12 20l7.5-4',
+  },
+  {
+    id: 'map',
+    label: 'Карта',
+    kicker: '04 / Оперативная обстановка',
+    title: 'Тактическая карта',
+    icon: 'm3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5zm6-2v16m6-14v16',
+  },
+  {
+    id: 'logs',
+    label: 'Журнал',
+    kicker: '05 / Аудит событий',
+    title: 'Оперативный журнал',
+    icon: 'M5 4h14M5 9h14M5 14h9M5 19h11',
+  },
 ]
 
-const EASE = [0.4, 0, 0.2, 1] as const
+const EASE = [0.22, 1, 0.36, 1] as const
 
 export default function App() {
   const [phase, setPhase] = useState<Phase>('loading')
@@ -48,7 +86,7 @@ export default function App() {
       history.replaceState(null, '', '/')
       api.post('/api/auth/exchange', { code }).then(
         () => { if (!cancelled) go() },
-        () => { if (!cancelled) setPhase('login') }
+        () => { if (!cancelled) setPhase('login') },
       )
     } else {
       go()
@@ -61,23 +99,46 @@ export default function App() {
   }, [bootNonce])
 
   return (
-    <>
-      {phase === 'loading' && <LoadingScreen />}
+    <AnimatePresence mode="sync">
+      {phase === 'loading' && <LoadingScreen key="loading" />}
       {phase === 'login' || (phase === 'ready' && !overview)
-        ? <LoginScreen onSuccess={() => setBootNonce(n => n + 1)} />
-        : phase === 'ready' && overview && <Shell overview={overview} />}
-    </>
+        ? <LoginScreen key="login" onSuccess={() => setBootNonce(n => n + 1)} />
+        : phase === 'ready' && overview && <Shell key="shell" overview={overview} />}
+    </AnimatePresence>
+  )
+}
+
+function Mark({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`brand-mark ${compact ? 'compact' : ''}`} aria-hidden="true">
+      <svg viewBox="0 0 40 40" fill="none">
+        <path d="M6 10.5 20 3l14 7.5v19L20 37 6 29.5v-19Z" stroke="currentColor" strokeWidth="1.6" />
+        <path d="m12 14 8-4.2 8 4.2v11.5l-8 4.2-8-4.2V14Z" stroke="currentColor" strokeWidth="1.6" opacity=".55" />
+        <path d="m15.5 18 4.5-2.4 4.5 2.4v6L20 26.4 15.5 24v-6Z" fill="currentColor" />
+      </svg>
+    </div>
   )
 }
 
 function LoadingScreen() {
   return (
-    <div style={{ position: 'relative', zIndex: 1, display: 'grid', placeItems: 'center', height: '100vh' }}>
-      <motion.div className="muted" style={{ fontSize: 13, letterSpacing: '0.04em' }}
-        animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1.6, repeat: Infinity, ease: EASE }}>
-        Загрузка…
-      </motion.div>
-    </div>
+    <motion.div
+      className="loading-screen"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0 }}
+    >
+      <div className="loading-lockup">
+        <Mark />
+        <div>
+          <div className="eyebrow">PJM / SERVER CONTROL</div>
+          <strong>Инициализация канала</strong>
+        </div>
+      </div>
+      <div className="loading-track"><motion.span animate={{ x: ['-100%', '320%'] }} transition={{ duration: 1.3, repeat: Infinity, ease: 'linear' }} /></div>
+      <span className="mono muted loading-note">SECURE HANDSHAKE IN PROGRESS</span>
+    </motion.div>
   )
 }
 
@@ -92,229 +153,181 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
       await api.post('/api/auth/exchange', { code: code.trim() })
       onSuccess()
     } catch {
-      setError('Неверный или истёкший код')
+      setError('Код недействителен или время доступа истекло')
       setShake(s => s + 1)
     }
   }
 
   return (
-    <div style={{ position: 'relative', zIndex: 1, display: 'grid', placeItems: 'center', minHeight: '100vh', padding: 20 }}>
-      <motion.div
-        key={shake}
-        className="glass"
-        initial={{ opacity: 0, scale: 0.96, y: 12 }}
-        animate={{
-          opacity: 1, scale: 1, y: 0,
-          x: shake > 0 ? [0, -10, 10, -6, 6, 0] : 0,
-        }}
-        transition={{ duration: shake > 0 ? 0.4 : 0.5, ease: EASE }}
-        style={{ width: 380, textAlign: 'center', padding: '40px 36px' }}
-      >
+    <motion.div className="login-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <section className="login-brief">
+        <div className="login-brand">
+          <Mark />
+          <div>
+            <strong>PJM</strong>
+            <span>BASEMOD CONTROL</span>
+          </div>
+        </div>
+
+        <div className="login-copy">
+          <div className="eyebrow">Закрытый контур управления</div>
+          <h1>Сервер под<br />полным контролем.</h1>
+          <p>Живая телеметрия, модерация состава и диагностика мира в едином оперативном интерфейсе.</p>
+        </div>
+
+        <div className="login-capabilities">
+          <span><b>01</b> Телеметрия 1 Гц</span>
+          <span><b>02</b> Защищённая сессия</span>
+          <span><b>03</b> Действия в реальном времени</span>
+        </div>
+        <div className="login-grid-code mono">NODE / PJM-01&nbsp;&nbsp;&nbsp; ACCESS / OPERATOR</div>
+      </section>
+
+      <section className="login-access">
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.1, duration: 0.5, ease: EASE }}
-          style={{
-            width: 64, height: 64, margin: '0 auto 20px',
-            borderRadius: 14,
-            background: 'var(--accent)',
-            display: 'grid', placeItems: 'center',
+          key={shake}
+          className="login-card"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            x: shake > 0 ? [0, -9, 9, -5, 5, 0] : 0,
           }}
+          transition={{ duration: shake > 0 ? 0.38 : 0.6, ease: EASE }}
         >
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/>
-            <path d="M2 17l10 5 10-5" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round" opacity="0.7"/>
-            <path d="M2 12l10 5 10-5" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round" opacity="0.85"/>
-          </svg>
+          <div className="login-card-index mono">AUTH / 01</div>
+          <div className="eyebrow">Авторизация оператора</div>
+          <h2>Введите код доступа</h2>
+          <p>Получите одноразовый код в игровом чате командой:</p>
+          <code>/pjm web login</code>
+
+          <label className="field-label" htmlFor="access-code">Код из восьми символов</label>
+          <input
+            id="access-code"
+            className="input code-input mono"
+            maxLength={8}
+            value={code}
+            placeholder="••••••••"
+            onChange={e => { setCode(e.target.value.toUpperCase()); setError('') }}
+            onKeyDown={e => e.key === 'Enter' && submit()}
+            autoFocus
+            autoComplete="one-time-code"
+          />
+
+          <div className="login-message" aria-live="polite">
+            {error && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}>{error}</motion.span>}
+          </div>
+
+          <button className="btn btn-accent login-submit" disabled={code.trim().length < 8} onClick={submit}>
+            Установить соединение
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+          </button>
+
+          <div className="login-security">
+            <span className="security-dot" />
+            Код одноразовый и действует пять минут
+          </div>
         </motion.div>
-
-        <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 6 }}>PJM Panel</h2>
-        <p className="muted" style={{ fontSize: 13, margin: '0 0 28px' }}>
-          Введите код из игры: <span className="mono" style={{ color: 'var(--accent)' }}>/pjm web login</span>
-        </p>
-
-        <input
-          className="input mono"
-          style={{
-            width: '100%', textAlign: 'center', fontSize: 26, letterSpacing: 10,
-            padding: '14px 12px', fontWeight: 500,
-          }}
-          maxLength={8}
-          value={code}
-          placeholder="········"
-          onChange={e => { setCode(e.target.value.toUpperCase()); setError('') }}
-          onKeyDown={e => e.key === 'Enter' && submit()}
-          autoFocus
-        />
-
-        <AnimatePresence>
-          {error && (
-            <motion.p
-              initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-              style={{ color: 'var(--danger)', fontSize: 13, marginTop: 12, overflow: 'hidden' }}
-            >
-              {error}
-            </motion.p>
-          )}
-        </AnimatePresence>
-
-        <button
-          className="btn btn-accent"
-          style={{ width: '100%', marginTop: 20, padding: '12px 16px', fontSize: 14 }}
-          disabled={code.trim().length < 8}
-          onClick={submit}
-        >
-          Войти
-        </button>
-      </motion.div>
-    </div>
+      </section>
+    </motion.div>
   )
 }
 
 function Shell({ overview }: { overview: Overview }) {
   const [tab, setTab] = useState<Tab>('dashboard')
-  const [hovered, setHovered] = useState(false)
-  const live = useLive(overview.history, overview.profilerActive)
+  const live = useLive(overview.history, overview.profilerActive, overview.entityCounts)
+  const activeTab = TABS.find(item => item.id === tab) ?? TABS[0]
+
+  const logout = () =>
+    api.post('/api/auth/logout').then(() => location.reload(), () => location.reload())
 
   return (
-    <div style={{ position: 'relative', zIndex: 1, display: 'flex', height: '100vh' }}>
-      {/* — Сайдбар-рельса — */}
-      <motion.aside
-        className="glass"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        animate={{ width: hovered ? 220 : 64 }}
-        transition={{ duration: 0.3, ease: EASE }}
-        style={{
-          position: 'fixed', left: 12, top: 12, bottom: 12, zIndex: 20,
-          padding: '14px 10px', display: 'flex', flexDirection: 'column',
-          gap: 4, overflow: 'hidden',
-          borderRadius: 20,
-        }}
-      >
-        {/* Лого */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 6px', marginBottom: 8, height: 44 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: 'var(--accent)',
-            display: 'grid', placeItems: 'center',
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#fff" strokeWidth="1.5" strokeLinejoin="round"/>
-            </svg>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <Mark compact />
+          <div className="sidebar-brand-copy">
+            <strong>PJM</strong>
+            <span>SERVER CONTROL</span>
           </div>
-          <AnimatePresence>
-            {hovered && (
-              <motion.span
-                initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.18, ease: EASE }}
-                style={{ fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap' }}
-              >
-                PJM
-              </motion.span>
-            )}
-          </AnimatePresence>
         </div>
 
-        {/* Навигация */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
-          {TABS.map(t => (
-            <NavButton key={t.id} tab={t} active={tab === t.id} expanded={hovered} onClick={() => setTab(t.id)} />
+        <div className="sidebar-section-label">Навигация</div>
+        <nav className="sidebar-nav" aria-label="Основная навигация">
+          {TABS.map(item => (
+            <NavButton key={item.id} tab={item} active={tab === item.id} onClick={() => setTab(item.id)} />
           ))}
         </nav>
 
-        {/* Выход */}
-        <NavButton
-          tab={{ id: 'logout', label: 'Выйти', icon: 'M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z' }}
-          active={false} expanded={hovered}
-          onClick={() => api.post('/api/auth/logout').then(() => location.reload(), () => location.reload())}
-        />
-      </motion.aside>
-
-      {/* — Контент — */}
-      <div style={{ flex: 1, marginLeft: 88, padding: '20px 24px 24px', overflowY: 'auto', minWidth: 0 }}>
-        {/* Статус-капсула */}
-        <div style={{ position: 'fixed', top: 20, right: 24, zIndex: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <motion.div
-            className="glass-2"
-            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: EASE }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '7px 14px', borderRadius: 999, fontSize: 12,
-            }}
-          >
+        <div className="sidebar-footer">
+          <div className="sidebar-node">
             <span className={`pulse-dot ${live.connected ? 'on' : ''}`} />
-            <span className={live.connected ? '' : 'muted'} style={{ fontWeight: 500 }}>
-              {live.connected ? 'онлайн' : 'нет связи'}
-            </span>
-          </motion.div>
+            <div>
+              <strong>{live.connected ? 'Канал активен' : 'Нет соединения'}</strong>
+              <span className="mono">PJM-NODE / 01</span>
+            </div>
+          </div>
+          <button className="logout-button" onClick={logout}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H4v14h6M14 8l4 4-4 4m4-4H8" /></svg>
+            Завершить сессию
+          </button>
         </div>
+      </aside>
 
-        <AnimatePresence mode="wait">
-          <motion.main
-            key={tab}
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3, ease: EASE }}
-            style={{ maxWidth: 1400, margin: '0 auto', paddingTop: 12 }}
-          >
-            {tab === 'dashboard' && <Dashboard live={live} />}
-            {tab === 'players' && <Players live={live} />}
-            {tab === 'entities' && <Entities live={live} profilerAllowed={overview.profilerAllowed} />}
-            {tab === 'map' && <MapView live={live} />}
-            {tab === 'logs' && <Logs />}
-          </motion.main>
-        </AnimatePresence>
+      <div className="workspace">
+        <header className="topbar">
+          <div className="mobile-brand"><Mark compact /></div>
+          <div className="page-heading">
+            <div className="eyebrow">{activeTab.kicker}</div>
+            <h1>{activeTab.title}</h1>
+          </div>
+          <div className="topbar-actions">
+            <div className={`connection-badge ${live.connected ? 'is-online' : ''}`}>
+              <span className="pulse-dot" />
+              <span>{live.connected ? 'LIVE' : 'OFFLINE'}</span>
+            </div>
+            <button className="mobile-logout btn btn-icon" onClick={logout} aria-label="Выйти">
+              <svg viewBox="0 0 24 24"><path d="M10 5H4v14h6M14 8l4 4-4 4m4-4H8" /></svg>
+            </button>
+          </div>
+        </header>
+
+        <div className="content-scroll">
+          <AnimatePresence mode="wait">
+            <motion.main
+              key={tab}
+              className="page-content"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.28, ease: EASE }}
+            >
+              {tab === 'dashboard' && <Dashboard live={live} />}
+              {tab === 'players' && <Players live={live} />}
+              {tab === 'entities' && <Entities live={live} profilerAllowed={overview.profilerAllowed} />}
+              {tab === 'map' && <MapView live={live} />}
+              {tab === 'logs' && <Logs />}
+            </motion.main>
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )
 }
 
-function NavButton({ tab, active, expanded, onClick }: {
-  tab: { id: string; label: string; icon: string }
+function NavButton({ tab, active, onClick }: {
+  tab: TabDefinition
   active: boolean
-  expanded: boolean
   onClick: () => void
 }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        position: 'relative', display: 'flex', alignItems: 'center', gap: 12,
-        padding: '10px 10px', borderRadius: 12, cursor: 'pointer',
-        background: 'transparent', border: 'none', color: active ? 'var(--text)' : 'var(--muted)',
-        fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
-        transition: `background var(--t-micro) var(--ease), color var(--t-micro) var(--ease)`,
-        textAlign: 'left', width: '100%',
-      }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
-    >
-      {active && (
-        <motion.div
-          layoutId="nav-active"
-          transition={{ duration: 0.3, ease: EASE }}
-          style={{
-            position: 'absolute', inset: 0, borderRadius: 12,
-            background: 'var(--accent-active-bg)',
-            boxShadow: 'inset 0 0 0 1px var(--accent-dim)',
-          }}
-        />
-      )}
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0, position: 'relative', zIndex: 1 }}>
+    <button className={`nav-button ${active ? 'active' : ''}`} onClick={onClick} aria-current={active ? 'page' : undefined}>
+      <span className="nav-index mono">{tab.kicker.slice(0, 2)}</span>
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d={tab.icon} />
       </svg>
-      <AnimatePresence>
-        {expanded && (
-          <motion.span
-            initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -6 }}
-            transition={{ duration: 0.18, ease: EASE }}
-            style={{ whiteSpace: 'nowrap', position: 'relative', zIndex: 1 }}
-          >
-            {tab.label}
-          </motion.span>
-        )}
-      </AnimatePresence>
+      <span className="nav-label">{tab.label}</span>
+      <span className="nav-arrow">↗</span>
     </button>
   )
 }

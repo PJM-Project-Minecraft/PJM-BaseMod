@@ -1617,17 +1617,17 @@ public final class PjmCommands {
         boolean schedule = Config.isCapturePointScheduleEnabled();
         int windowCount = Config.getCapturePointScheduleWindows().size();
         int minPlayers = Config.getCapturePointAutoEnableMinPlayers();
-        int online = source.getServer().getPlayerList().getPlayerCount();
+        int online = Teams.minCombatOnline(source.getServer());
         source.sendSuccess(() -> Component.literal("Захват точек: " + (enabled ? "включён" : "выключен")
                 + " | расписание: " + (schedule ? "вкл (окон: " + windowCount + ")" : "выкл")
-                + " | порог онлайна: " + (minPlayers > 0 ? minPlayers + " (сейчас " + online + ")" : "выкл")), false);
+                + " | порог онлайна во фракции: " + (minPlayers > 0 ? minPlayers + " (минимум по фракциям сейчас " + online + ")" : "выкл")), false);
         return 1;
     }
 
     private static int capturePointMinPlayers(CommandSourceStack source, int count) {
         Config.setCapturePointAutoEnableMinPlayers(count);
         source.sendSuccess(() -> Component.literal(count > 0
-                ? "Автовключение захвата при онлайне от " + count + " игроков"
+                ? "Автовключение захвата при онлайне от " + count + " игроков в каждой фракции"
                 : "Автовключение захвата по онлайну выключено"), true);
         return 1;
     }

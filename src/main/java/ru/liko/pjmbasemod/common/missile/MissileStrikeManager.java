@@ -208,6 +208,9 @@ public final class MissileStrikeManager {
         double angle = level.random.nextDouble() * Math.PI * 2.0;
         double x = target.x + Math.cos(angle) * definition.spawnDistance();
         double z = target.z + Math.sin(angle) * definition.spawnDistance();
+        // getHeight на непрогруженном чанке возвращает minBuildHeight — ракета родилась бы
+        // под землёй/в горе и детонировала на первом тике. Один sync-load чанка спавна.
+        level.getChunk((int) Math.floor(x) >> 4, (int) Math.floor(z) >> 4);
         int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                 (int) Math.floor(x), (int) Math.floor(z));
         double y;

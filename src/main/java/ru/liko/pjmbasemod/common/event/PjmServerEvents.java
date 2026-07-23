@@ -181,13 +181,31 @@ public final class PjmServerEvents {
                 player.getGameProfile().getName() + ": /" + raw);
     }
 
+    /** Глиф админского бейджа (красный фон, белая «A») из bitmap-шрифта {@code pjmbasemod:rank_icons}. */
+    private static final String ADMIN_GLYPH = "";
+    private static final ResourceLocation RANK_ICONS_FONT =
+            ResourceLocation.fromNamespaceAndPath(Pjmbasemod.MODID, "rank_icons");
+
     @SubscribeEvent
     public static void onTabListName(PlayerEvent.TabListNameFormat event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         Component displayName = FactionCommanderService.tabListName(player);
-        if (displayName != null) {
-            event.setDisplayName(displayName);
+        boolean admin = player.hasPermissions(2);
+        boolean vanished = ru.liko.pjmbasemod.common.vanish.VanishService.isVanished(player);
+        if (!admin && !vanished && displayName == null) return;
+
+        net.minecraft.network.chat.MutableComponent name = Component.empty();
+        if (admin) {
+            name.append(Component.literal(ADMIN_GLYPH)
+                    .withStyle(style -> style.withFont(RANK_ICONS_FONT)
+                            .withColor(net.minecraft.network.chat.TextColor.fromRgb(0xFFFFFF))));
+            name.append(Component.literal(" "));
         }
+        // [V] видят только те, у кого строка ванишнутого вообще осталась, т.е. другие админы.
+        if (vanished) {
+            name.append(Component.literal("[V] ").withStyle(net.minecraft.ChatFormatting.GRAY));
+        }
+        event.setDisplayName(name.append(displayName != null ? displayName : player.getName()));
     }
 
     @SubscribeEvent

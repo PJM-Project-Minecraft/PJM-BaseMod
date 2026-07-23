@@ -117,27 +117,4 @@ public final class SbwVehicleClassifier {
     public static GarageType classify(@Nullable ResourceLocation entityId) {
         return entityId != null && isAircraft(entityId.toString()) ? GarageType.AVIATION : GarageType.GROUND;
     }
-
-    /** Категория для глобальных лимитов «на карте» (вертолёты/танки/БМП). */
-    public enum MapCategory { HELICOPTER, TANK, IFV, OTHER }
-
-    // ponytail: захардкоженный ростер из SuperbWarfare-fork-PJM (данные мода не различают
-    // вертолёт/самолёт и танк/БМП). Если форк добавит технику — дописать id сюда.
-    private static final Set<String> HELICOPTERS = Set.of(
-            "superbwarfare:ah_6", "superbwarfare:mi_28");
-    private static final Set<String> TANKS = Set.of(
-            "superbwarfare:t_90a", "superbwarfare:m_1a_2", "superbwarfare:yx_100",
-            "superbwarfare:prism_tank", "superbwarfare:plz_05");
-    private static final Set<String> IFVS = Set.of(
-            "superbwarfare:bmp_2", "superbwarfare:lav_25", "superbwarfare:lav_150", "superbwarfare:lav_ad");
-
-    /** Классифицирует entity id техники в категорию для лимитов «на карте». */
-    public static MapCategory mapCategory(@Nullable ResourceLocation entityId) {
-        if (entityId == null) return MapCategory.OTHER;
-        String id = entityId.toString().trim().toLowerCase(Locale.ROOT);
-        if (HELICOPTERS.contains(id)) return MapCategory.HELICOPTER;
-        if (TANKS.contains(id)) return MapCategory.TANK;
-        if (IFVS.contains(id)) return MapCategory.IFV;
-        return MapCategory.OTHER;
-    }
 }

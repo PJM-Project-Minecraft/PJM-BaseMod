@@ -1,6 +1,8 @@
+import { useId } from 'react'
 import { motion } from 'framer-motion'
 
 interface Props {
+  index?: string
   label: string
   value: string
   accent?: 'accent' | 'ok' | 'warn' | 'danger' | 'neutral'
@@ -16,53 +18,54 @@ const COLORS: Record<NonNullable<Props['accent']>, string> = {
   neutral: 'var(--text)',
 }
 
-export default function StatCard({ label, value, accent = 'neutral', sub, spark }: Props) {
+export default function StatCard({ index = '—', label, value, accent = 'neutral', sub, spark }: Props) {
   const color = COLORS[accent]
   return (
-    <div className="panel" style={{ flex: 1, minWidth: 160, padding: 16, position: 'relative', overflow: 'hidden' }}>
-      {/* цветовая полоска-акцент сверху */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-        background: color,
-        opacity: accent === 'neutral' ? 0.3 : 1,
-      }} />
-      <div className="muted" style={{
-        fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em',
-        fontWeight: 500, marginBottom: 8,
-      }}>
-        {label}
+    <div className={`stat-card panel stat-${accent}`}>
+      <div className="stat-topline">
+        <span className="mono">{index}</span>
+        <i style={{ background: color }} />
       </div>
+      <div className="stat-label">{label}</div>
       <motion.div
         key={value}
-        className="tnum"
-        initial={{ opacity: 0.5, y: 3 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-        style={{ fontSize: 28, fontWeight: 600, color, lineHeight: 1.1, letterSpacing: '-0.02em' }}
+        className="stat-value mono tnum"
+        initial={{ opacity: .45, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: .3, ease: [0.22, 1, 0.36, 1] }}
+        style={{ color }}
       >
         {value}
       </motion.div>
-      {sub && <div className="muted" style={{ fontSize: 11, marginTop: 6, letterSpacing: '0.01em' }}>{sub}</div>}
-      {spark && spark.length > 1 && <Sparkline data={spark} color={color} />}
+      <div className="stat-footer">
+        <span>{sub || 'текущий срез'}</span>
+        {spark && spark.length > 1 && <Sparkline data={spark} color={color} />}
+      </div>
     </div>
   )
 }
 
 function Sparkline({ data, color }: { data: number[]; color: string }) {
-  const w = 120, h = 28
-  const min = Math.min(...data), max = Math.max(...data)
+  const uid = useId().replace(/:/g, '')
+  const w = 110
+  const h = 28
+  const min = Math.min(...data)
+  const max = Math.max(...data)
   const range = max - min || 1
-  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`).join(' ')
-  const id = `spark-${color.replace(/[^a-z0-9]/gi, '')}`
+  const pts = data.map((value, index) =>
+    `${(index / (data.length - 1)) * w},${h - ((value - min) / range) * h}`,
+  ).join(' ')
+
   return (
-    <svg width={w} height={h} style={{ position: 'absolute', bottom: 10, right: 12, opacity: 0.7 }}>
+    <svg className="stat-sparkline" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
       <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+        <linearGradient id={uid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity=".25" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polyline points={`0,${h} ${pts} ${w},${h}`} fill={`url(#${id})`} stroke="none" />
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <polyline points={`0,${h} ${pts} ${w},${h}`} fill={`url(#${uid})`} stroke="none" />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
     </svg>
   )
 }

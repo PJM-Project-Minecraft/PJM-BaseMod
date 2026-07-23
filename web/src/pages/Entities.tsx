@@ -74,17 +74,24 @@ export default function Entities({ live, profilerAllowed }: { live: LiveState; p
   }
 
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-        {Object.entries(live.entityCounts).map(([category, count]) => (
-          <StatCard key={category} label={category} value={String(count)} />
+    <div className="entities-page fade-in">
+      <section className="entity-metrics">
+        {Object.entries(live.entityCounts).map(([category, count], index) => (
+          <StatCard key={category} index={String(index + 1).padStart(2, '0')} label={`Категория / ${category}`} value={String(count)} sub="объектов загружено" />
         ))}
-      </div>
+      </section>
 
       {profilerAllowed && <ProfilerPanel live={live} />}
 
-      <div className="panel">
-        <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <span className="panel-kicker">Реестр мира / выборочное управление</span>
+            <h3>Загруженные объекты</h3>
+          </div>
+          <span className="chip">показано {data.entities.length} / {data.total}</span>
+        </div>
+        <div className="toolbar entity-toolbar">
           <select className="input" value={dim} onChange={e => setDim(e.target.value)}>
             <option value="">Все дименшены</option>
             {dims.map(d => <option key={d} value={d}>{d}</option>)}
@@ -92,8 +99,7 @@ export default function Entities({ live, profilerAllowed }: { live: LiveState; p
           <input className="input mono" placeholder="Фильтр типа: minecraft:zombie"
             value={type} onChange={e => setType(e.target.value)} style={{ width: 260 }} />
           <button className="btn" onClick={refresh}>Обновить</button>
-          <span className="chip">показано {data.entities.length} из {data.total}</span>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="toolbar-spacer entity-danger-actions">
             {checked.size > 0 && (
               <ConfirmButton danger label={`Удалить выбранные (${checked.size})`} onConfirm={removeChecked} />
             )}
@@ -103,16 +109,12 @@ export default function Entities({ live, profilerAllowed }: { live: LiveState; p
           </div>
         </div>
         {status && (
-          <p className="mono" style={{
-            fontSize: 12, padding: '8px 12px', borderRadius: 8, marginBottom: 10,
-            background: status.startsWith('✓') ? 'rgba(48,209,88,0.1)' : 'rgba(255,69,58,0.1)',
-            color: status.startsWith('✓') ? 'var(--ok)' : 'var(--danger)',
-          }}>{status}</p>
+          <p className={`status-message entity-status ${status.startsWith('✓') ? 'success' : 'error'}`}>{status}</p>
         )}
-        <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+        <div className="table-shell entity-table">
           <table className="table">
             <thead>
-              <tr><th></th><th>Тип</th><th>Имя</th><th>Категория</th><th>Дименшен</th><th>Координаты</th></tr>
+              <tr><th>Выбор</th><th>Тип объекта</th><th>Имя</th><th>Категория</th><th>Дименшен</th><th>Координаты</th></tr>
             </thead>
             <tbody>
               {data.entities.map(ent => (
@@ -138,7 +140,7 @@ export default function Entities({ live, profilerAllowed }: { live: LiveState; p
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     </div>
   )
 }
@@ -153,22 +155,29 @@ function ProfilerPanel({ live }: { live: LiveState }) {
   }
 
   return (
-    <div className="panel">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <h3 style={{ margin: 0 }}>Профайлер тика entity</h3>
-        <span className={`pulse-dot ${live.profilerActive ? 'on' : ''}`} />
-        <button className={`btn ${live.profilerActive ? 'btn-danger' : 'btn-accent'}`}
-          disabled={busy} onClick={toggleProfiler}>
-          {live.profilerActive ? 'Выключить' : 'Включить'}
-        </button>
-        <span className="muted" style={{ fontSize: 12 }}>окно 30 с, отчёт обновляется автоматически</span>
+    <section className={`panel profiler-panel ${live.profilerActive ? 'is-active' : ''}`}>
+      <div className="panel-header profiler-header">
+        <div>
+          <span className="panel-kicker">Диагностический модуль / окно 30 секунд</span>
+          <h3>Профайлер тика entity</h3>
+        </div>
+        <div className="toolbar">
+          <span className={`chip ${live.profilerActive ? 'chip-ok' : ''}`}>
+            <span className={`pulse-dot ${live.profilerActive ? 'on' : ''}`} />
+            {live.profilerActive ? 'идёт замер' : 'выключен'}
+          </span>
+          <button className={`btn ${live.profilerActive ? 'btn-danger' : 'btn-accent'}`}
+            disabled={busy} onClick={toggleProfiler}>
+            {live.profilerActive ? 'Остановить замер' : 'Запустить профайлер'}
+          </button>
+        </div>
       </div>
 
       {live.profilerActive && report && report.topEntities.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 12 }}>
+        <div className="profiler-grid">
           <div>
-            <h4 style={{ marginTop: 0 }}>Топ тяжёлых entity</h4>
-            <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+            <h4>Топ тяжёлых entity</h4>
+            <div className="table-shell profiler-table">
               <table className="table">
                 <thead><tr><th>Тип</th><th>Нагрузка</th><th>Координаты</th></tr></thead>
                 <tbody>
@@ -184,8 +193,8 @@ function ProfilerPanel({ live }: { live: LiveState }) {
             </div>
           </div>
           <div>
-            <h4 style={{ marginTop: 0 }}>По типам</h4>
-            <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+            <h4>Агрегация по типам</h4>
+            <div className="table-shell profiler-table">
               <table className="table">
                 <thead><tr><th>Тип</th><th>Кол-во</th><th>Доля окна</th></tr></thead>
                 <tbody>
@@ -204,6 +213,9 @@ function ProfilerPanel({ live }: { live: LiveState }) {
           </div>
         </div>
       )}
-    </div>
+      {live.profilerActive && (!report || report.topEntities.length === 0) && (
+        <div className="profiler-wait mono">Сбор данных · первый отчёт появится после завершения окна</div>
+      )}
+    </section>
   )
 }
