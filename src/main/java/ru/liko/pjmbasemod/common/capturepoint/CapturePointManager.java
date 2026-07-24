@@ -133,7 +133,8 @@ public final class CapturePointManager {
     /**
      * Автопереключение {@code capturePoints.enabled} по расписанию (час:минута, серверное
      * локальное время) и/или порогу онлайна ({@code autoEnableMinPlayers}, 0 — не учитывается;
-     * считается по наименьшей боевой фракции, а не по всему серверу).
+     * считается по наименьшей боевой фракции, а не по всему серверу; фракция из
+     * {@code autoEnableIgnoreTeam} в подсчёте не участвует).
      * Активные условия объединяются по И: захват включён, когда все выполнены. Реагирует
      * только на смену итогового состояния — ручной {@code /pjm capturepoint enable|disable}
      * не перебивается до следующей смены условий.
@@ -153,8 +154,9 @@ public final class CapturePointManager {
                 break;
             }
         }
-        // Порог считается по командам: нужен онлайн от minPlayers в КАЖДОЙ боевой фракции.
-        int online = Teams.minCombatOnline(server);
+        // Порог считается по командам: нужен онлайн от minPlayers в КАЖДОЙ боевой фракции,
+        // кроме исключённой (autoEnableIgnoreTeam).
+        int online = Teams.minCombatOnline(server, Config.getCapturePointAutoEnableIgnoreTeam());
         boolean playersOk = minPlayers <= 0 || online >= minPlayers;
         boolean shouldBeActive = scheduleOk && playersOk;
         // Состояние хранится в конфиге, а не в памяти: иначе рестарт сервера внутри

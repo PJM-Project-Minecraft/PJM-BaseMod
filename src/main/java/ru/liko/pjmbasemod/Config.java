@@ -175,6 +175,8 @@ public final class Config {
     public static int     getCapturePointJourneyMapNeutralColorRgb() { return data().capturePoints.journeymapNeutralColorRgb; }
     public static boolean isCapturePointScheduleEnabled()      { return data().capturePoints.scheduleEnabled; }
     public static int     getCapturePointAutoEnableMinPlayers() { return data().capturePoints.autoEnableMinPlayers; }
+    /** Фракция, которую порог онлайна не учитывает (пусто — учитываются все). */
+    public static String  getCapturePointAutoEnableIgnoreTeam() { return data().capturePoints.autoEnableIgnoreTeam; }
     public static boolean isCapturePointIncomeEnabled()        { return data().capturePoints.incomeEnabled; }
     public static int     getCapturePointIncomePerPoint()      { return data().capturePoints.incomePerPoint; }
     public static int     getCapturePointIncomeIntervalMinutes() { return data().capturePoints.incomeIntervalMinutes; }
@@ -232,6 +234,12 @@ public final class Config {
 
     public static synchronized void setCapturePointAutoEnableMinPlayers(int minPlayers) {
         data().capturePoints.autoEnableMinPlayers = clamp(minPlayers, 0, 1000);
+        persist();
+    }
+
+    /** @param teamId null/пусто — снять исключение. */
+    public static synchronized void setCapturePointAutoEnableIgnoreTeam(@Nullable String teamId) {
+        data().capturePoints.autoEnableIgnoreTeam = teamId == null ? "" : teamId.trim().toLowerCase(Locale.ROOT);
         persist();
     }
 
@@ -754,6 +762,8 @@ public final class Config {
         boolean scheduleEnabled = false;
         /** Автовкл/выкл захвата по онлайну сервера: включается при онлайне >= N; 0 — выключено. */
         int autoEnableMinPlayers = 0;
+        /** Фракция, чей онлайн порог не учитывает (пусто — учитываются все). */
+        String autoEnableIgnoreTeam = "";
         /**
          * Последнее применённое расписанием состояние (null — ещё не оценивалось).
          * Переживает рестарт, чтобы ручной enable/disable не перебивался расписанием
@@ -776,6 +786,8 @@ public final class Config {
             tickIntervalTicks = clamp(tickIntervalTicks, 1, 200);
             minAdvantage = clamp(minAdvantage, 1, 64);
             autoEnableMinPlayers = clamp(autoEnableMinPlayers, 0, 1000);
+            autoEnableIgnoreTeam = autoEnableIgnoreTeam == null
+                    ? "" : autoEnableIgnoreTeam.trim().toLowerCase(java.util.Locale.ROOT);
             incomePerPoint = clamp(incomePerPoint, 0, 10000);
             incomeIntervalMinutes = clamp(incomeIntervalMinutes, 1, 1440);
             // ownerTeamId точки всегда нормализован (Teams.normalize), а ключи из config.json — нет.

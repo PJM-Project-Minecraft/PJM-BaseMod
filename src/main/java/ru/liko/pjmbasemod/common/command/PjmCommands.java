@@ -1578,6 +1578,16 @@ public final class PjmCommands {
                 .then(Commands.literal("status")
                         .executes(ctx -> capturePointStatus(ctx.getSource())))
                 .then(Commands.literal("minplayers")
+                        .then(Commands.literal("ignore")
+                                .then(Commands.literal("clear")
+                                        .executes(ctx -> capturePointMinPlayersIgnore(ctx.getSource(), null)))
+                                .then(Commands.argument("team", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> {
+                                            for (Config.ConfiguredTeam team : Teams.all()) builder.suggest(team.id());
+                                            return builder.buildFuture();
+                                        })
+                                        .executes(ctx -> capturePointMinPlayersIgnore(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "team")))))
                         .then(Commands.argument("count", IntegerArgumentType.integer(0, 1000))
                                 .executes(ctx -> capturePointMinPlayers(ctx.getSource(),
                                         IntegerArgumentType.getInteger(ctx, "count")))))
@@ -1617,10 +1627,12 @@ public final class PjmCommands {
         boolean schedule = Config.isCapturePointScheduleEnabled();
         int windowCount = Config.getCapturePointScheduleWindows().size();
         int minPlayers = Config.getCapturePointAutoEnableMinPlayers();
-        int online = Teams.minCombatOnline(source.getServer());
+        String ignore = Config.getCapturePointAutoEnableIgnoreTeam();
+        int online = Teams.minCombatOnline(source.getServer(), ignore);
         source.sendSuccess(() -> Component.literal("Захват точек: " + (enabled ? "включён" : "выключен")
                 + " | расписание: " + (schedule ? "вкл (окон: " + windowCount + ")" : "выкл")
-                + " | порог онлайна во фракции: " + (minPlayers > 0 ? minPlayers + " (минимум по фракциям сейчас " + online + ")" : "выкл")), false);
+                + " | порог онлайна во фракции: " + (minPlayers > 0 ? minPlayers + " (минимум по фракциям сейчас " + online + ")" : "выкл")
+                + (ignore.isBlank() ? "" : " | не учитывается фракция: " + ignore)), false);
         return 1;
     }
 
@@ -1629,6 +1641,18 @@ public final class PjmCommands {
         source.sendSuccess(() -> Component.literal(count > 0
                 ? "Автовключение захвата при онлайне от " + count + " игроков в каждой фракции"
                 : "Автовключение захвата по онлайну выключено"), true);
+        return 1;
+    }
+
+    private static int capturePointMinPlayersIgnore(CommandSourceStack source, @Nullable String teamId) {
+        if (teamId != null && !Teams.isCombatTeam(teamId)) {
+            source.sendFailure(Component.literal("Неизвестная фракция: " + teamId));
+            return 0;
+        }
+        Config.setCapturePointAutoEnableIgnoreTeam(teamId);
+        source.sendSuccess(() -> Component.literal(teamId == null
+                ? "Порог онлайна снова учитывает все фракции"
+                : "Порог онлайна не учитывает фракцию " + Teams.normalize(teamId)), true);
         return 1;
     }
 

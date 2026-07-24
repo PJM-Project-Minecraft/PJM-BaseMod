@@ -108,8 +108,15 @@ public final class Teams {
      * 20 игроков в одной фракции против пустой второй не должны открывать захват/технику.
      */
     public static int minCombatOnline(@Nullable MinecraftServer server) {
+        return minCombatOnline(server, null);
+    }
+
+    /** @param ignoreTeamId команда, не участвующая в подсчёте (null/пусто — считать все). */
+    public static int minCombatOnline(@Nullable MinecraftServer server, @Nullable String ignoreTeamId) {
+        String ignored = normalize(ignoreTeamId);
         int min = Integer.MAX_VALUE;
         for (Config.ConfiguredTeam team : all()) {
+            if (!ignored.isBlank() && ignored.equals(normalize(team.id()))) continue;
             min = Math.min(min, onlineCount(server, team.id()));
         }
         return min == Integer.MAX_VALUE ? 0 : min;
